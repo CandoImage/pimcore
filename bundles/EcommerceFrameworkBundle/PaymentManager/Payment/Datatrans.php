@@ -203,7 +203,7 @@ class Datatrans extends AbstractPayment
                 'refno' => $config['refno']
             ];
 
-            $sign = hash_hmac('SHA256', implode('', $data), hex2bin($this->sign));
+            $sign = hash_hmac('SHA256', implode('', $data), pack("H*", $this->sign));
         }
 
         $formAttributes = [];
