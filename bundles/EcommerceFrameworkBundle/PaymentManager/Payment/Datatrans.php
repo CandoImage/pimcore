@@ -319,9 +319,24 @@ class Datatrans extends AbstractPayment
         if (count($required) != count($requiredResponse)) {
             throw new \Exception(sprintf('required fields are missing! required: %s', implode(', ', array_keys(array_diff_key($required, $requiredResponse)))));
         }
-
-        // handle
+        // Merge data with defaults.
         $authorizedData = array_intersect_key($response, $authorizedData);
+
+        // check data integrity if enabled.
+        if ($this->useDigitalSignature) {
+            $signData = [
+                'merchantId' => $this->merchantId,
+                'amount' => $authorizedData['amount'],
+                'currency' => $authorizedData['currency'],
+                'refno' => $authorizedData['uppTransactionId'],
+            ];
+            $sign = hash_hmac('SHA256', implode('', $signData), pack("H*", $this->sign));
+            if (empty($response['sign2']) || $sign != $response['sign2']) {
+                throw new \Exception('Data integrity could not be verified');
+            }
+        }
+
+        // Store data.
         $this->setAuthorizedData($authorizedData);
 
         // restore price object for payment status
