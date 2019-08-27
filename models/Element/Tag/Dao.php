@@ -25,6 +25,8 @@ use Pimcore\Model\Element\Tag;
  */
 class Dao extends Model\Dao\AbstractDao
 {
+    protected static $idDataCache = [];
+
     /**
      * @param $id
      *
@@ -32,8 +34,14 @@ class Dao extends Model\Dao\AbstractDao
      */
     public function getById($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM tags WHERE id = ?', $id);
-        if (!$data['id']) {
+        // Check the static cache to see if this was fetched already.
+        if (isset(self::$idDataCache[$id])) {
+            $data = self::$idDataCache[$id];
+        }
+        else {
+            $data =  self::$idDataCache[$id] = $this->db->fetchRow('SELECT * FROM tags WHERE id = ?', $id);
+        }
+        if (empty($data['id'])) {
             throw new \Exception('Tag item with id ' . $id . ' not found');
         }
         $this->assignVariablesToModel($data);
