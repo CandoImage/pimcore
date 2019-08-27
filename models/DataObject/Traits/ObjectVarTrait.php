@@ -49,6 +49,10 @@ trait ObjectVarTrait
      */
     public function getObjectVar($var)
     {
+        // Avoid notices - even if suppressed it triggers the error handling which can be costly.
+        if (!property_exists($this, $var)) {
+            return null;
+        }
         return $this->{$var};
     }
 
