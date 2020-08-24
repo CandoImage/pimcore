@@ -206,7 +206,16 @@ class Imagick extends Adapter
     public function save($path, $format = null, $quality = null)
     {
         if (!$format) {
-            $format = 'png32';
+            // Don't force png 32 as this might lead to trouble.
+            // You can reproduce errors on the command line online if you do
+            // something like this:
+            // convert /var/www/pimcore/example.png -write PNG32:/var/www/pimcore/example_png32.png
+            // But as soon as you scale the image it will work properly.
+            // $format = 'png32';
+            $format = 'png';
+            if ($this->hasAlphaChannel()) {
+                $format = 'png32';
+            }
         }
 
         if ($format == 'original') {
@@ -216,9 +225,18 @@ class Imagick extends Adapter
         $format = strtolower($format);
 
         if ($format == 'png') {
-            // we need to force imagick to create png32 images, otherwise this can cause some strange effects
-            // when used with gray-scale images
-            $format = 'png32';
+//            // we need to force imagick to create png32 images, otherwise this can cause some strange effects
+//            // when used with gray-scale images
+//            $format = 'png32';
+            // Don't force png 32 as this might lead to trouble.
+            // You can reproduce errors on the command line online if you do
+            // something like this:
+            // convert /var/www/pimcore/example.png -write PNG32:/var/www/pimcore/example_png32.png
+            // But as soon as you scale the image it will work properly.
+            $format = 'png';
+            if ($this->hasAlphaChannel()) {
+                $format = 'png32';
+            }
         }
 
         $originalFilename = null;
