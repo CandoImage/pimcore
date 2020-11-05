@@ -293,7 +293,7 @@ abstract class AbstractBatchProcessingWorker extends AbstractWorker implements B
                         'data' => $jsonData,
                         'crc_current' => $crc,
                         'preparation_worker_timestamp' => 0,
-                        'preparation_worker_id' => $this->db->quote(null),
+                        'preparation_worker_id' => null,
                         'in_preparation_queue' => (int)false,
                         'preparation_status' => self::INDEX_STATUS_PREPARATION_STATUS_DONE,
                         'preparation_error' => ''
