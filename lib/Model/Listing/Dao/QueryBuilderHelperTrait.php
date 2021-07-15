@@ -165,7 +165,21 @@ trait QueryBuilderHelperTrait
                 }
 
                 if ($this->isQueryBuilderPartinUse($queryBuilder, 'groupBy') || $this->isQueryBuilderPartinUse($queryBuilder, 'having')) {
-                    $queryBuilder = 'SELECT COUNT(*) FROM (' . $queryBuilder . ') as XYZ';
+                    // CANDO: BEGIN CUSTOM CODE
+                    // Fix for custom queries
+                    $groupByPart = $queryBuilder->getQueryPart('groupBy');
+                    $colName = '*';
+                    if(is_array($groupByPart)) {
+                        $colName = 'col0';
+                        foreach ($groupByPart as $i => $col) {
+                            $groupByPart[$i] = $groupByPart[$i] . ' AS col' . $i;
+                        }
+                        $select = implode(', ', $groupByPart);
+                        $queryBuilder->select($select);
+                    }
+                    $queryBuilder = 'SELECT COUNT('.$colName.') FROM (' . $queryBuilder . ') as XYZ';
+                    // $queryBuilder = 'SELECT COUNT(*) FROM (' . $queryBuilder . ') as XYZ';
+                    // CANDO: END CUSTOM CODE
                 } elseif ($this->isQueryBuilderPartinUse($queryBuilder, 'distinct')) {
                     $countIdentifier = 'DISTINCT ' . $this->getTableName() . '.o_id';
                     $queryBuilder->select('COUNT(' . $countIdentifier . ') AS totalCount');
