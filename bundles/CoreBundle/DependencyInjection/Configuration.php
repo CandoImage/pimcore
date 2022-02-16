@@ -270,6 +270,24 @@ class Configuration implements ConfigurationInterface
                     ->end()
                     ->defaultFalse()
                 ->end()
+                ->booleanNode('disable_update_check')
+                    ->beforeNormalization()
+                        ->ifString()
+                        ->then(function ($v) {
+                            return (bool)$v;
+                        })
+                    ->end()
+                    ->defaultFalse()
+                ->end()
+                ->booleanNode('disable_news_check')
+                    ->beforeNormalization()
+                        ->ifString()
+                        ->then(function ($v) {
+                            return (bool)$v;
+                        })
+                    ->end()
+                    ->defaultFalse()
+                ->end()
                 ->booleanNode('debug_admin_translations')
                     ->beforeNormalization()
                         ->ifString()

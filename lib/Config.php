@@ -396,6 +396,8 @@ class Config implements \ArrayAccess
                     'defaultLanguage' => self::getArrayValue(['general', 'default_language'], $config),
                     'loginscreencustomimage' => self::getArrayValue(['branding', 'login_screen_custom_image'], $config),
                     'disableusagestatistics' => self::getArrayValue(['general', 'disable_usage_statistics'], $config),
+                    'disableupdatecheck' => self::getArrayValue(['general', 'disable_update_check'], $config),
+                    'disablenewscheck' => self::getArrayValue(['general', 'disable_news_check'], $config),
                     'debug_admin_translations' => self::getArrayValue(['general', 'debug_admin_translations'], $config),
                     'instanceIdentifier' => self::getArrayValue(['general', 'instance_identifier'], $config),
                     'show_cookie_notice' => self::getArrayValue(['general', 'show_cookie_notice'], $config),

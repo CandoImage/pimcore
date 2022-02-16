@@ -290,6 +290,9 @@ class IndexController extends AdminController implements EventedControllerInterf
             'document_tree_paging_limit' => $config['documents']['tree_paging_limit'],
             'object_tree_paging_limit' => $config['objects']['tree_paging_limit'],
             'maxmind_geoip_installed' => (bool) $this->getParameter('pimcore.geoip.db_file'),
+            'disable_usage_statistics' => (bool)$config['general']['disable_usage_statistics'],
+            'disable_news_check' => (bool)$config['general']['disable_news_check'],
+            'disable_update_check' => (bool)$config['general']['disable_update_check'],
         ]);
 
         $dashboardHelper = new \Pimcore\Helper\Dashboard($user);

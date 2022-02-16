@@ -473,6 +473,8 @@ class SettingsController extends AdminController
                 'fallback_languages' => $fallbackLanguages,
                 'default_language' => $values['general.defaultLanguage'],
                 'disable_usage_statistics' => $values['general.disableusagestatistics'],
+                'disable_news_check' => $values['general.disablenewscheck'],
+                'disable_update_check' => $values['general.disableupdatecheck'],
                 'debug_admin_translations' => $values['general.debug_admin_translations'],
                 'instance_identifier' => $values['general.instanceIdentifier'],
                 'show_cookie_notice' => $values['general.show_cookie_notice'],

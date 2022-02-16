@@ -170,6 +170,18 @@ pimcore.settings.system = Class.create({
                                 cls: "pimcore_extra_label_bottom"
                             },
                             {
+                                fieldLabel: t('turn_off_news_check'),
+                                xtype: "checkbox",
+                                name: "general.disablenewscheck",
+                                checked: this.getValue("general.disablenewscheck")
+                            },
+                            {
+                                fieldLabel: t('turn_off_update_check'),
+                                xtype: "checkbox",
+                                name: "general.disableupdatecheck",
+                                checked: this.getValue("general.disableupdatecheck")
+                            },
+                            {
                                 fieldLabel: 'UUID ' + t("instance_identifier"),
                                 xtype: "textfield",
                                 name: "general.instanceIdentifier",
