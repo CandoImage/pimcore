@@ -103,7 +103,13 @@ class Imagick extends Adapter
                 $imagePathLoad = ':' . $imagePathLoad;
             }
 
-            $imagePathLoad = $imagePathLoad . '[0]';
+            // According to https://github.com/pimcore/pimcore/issues/3607 / https://github.com/pimcore/pimcore/commit/a530b922ac410ac99639e7f80316fd89e3487efb
+            // pimcore is supposed to only use the first layer of an image
+            // because It contains the whole image (PSD)?
+            // Tell that an animated gif...
+            if (!preg_match("@\.(gif)$@", $imagePath)) {
+                $imagePathLoad = $imagePathLoad . '[0]';
+            }
 
             if (!$i->readImage($imagePathLoad) || !filesize($imagePath)) {
                 return false;
@@ -292,9 +298,9 @@ class Imagick extends Adapter
 
         if (!stream_is_local($path)) {
             $i->setImageFormat($format);
-            $success = File::put($path, $i->getImageBlob());
+            $success = File::put($path, $i->getImagesBlob());
         } else {
-            $success = $i->writeImage($format . ':' . $path);
+            $success = $i->writeImages($format . ':' . $path, true);
         }
 
         if (!$success) {
