@@ -144,7 +144,12 @@ class PublicServicesController extends Controller
                     // set appropriate caching headers
                     // see also: https://github.com/pimcore/pimcore/blob/1931860f0aea27de57e79313b2eb212dcf69ef13/.htaccess#L86-L86
                     $lifetime = 86400 * 7; // 1 week lifetime, same as direct delivery in .htaccess
-
+                    // Cando Patch:
+                    // we don't want to have a caching for a week or more if an error image is replaced by Pimcore as this could
+                    // lead to displaying an old image for a user if he accesses an image on the wrong time
+                    if ($errorImage === $thumbnailFile) {
+                        $lifetime = 900;
+                    }
                     $headers = [
                         'Cache-Control' => 'public, max-age=' . $lifetime,
                         'Expires' => date('D, d M Y H:i:s T', time() + $lifetime),
