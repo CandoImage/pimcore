@@ -240,6 +240,10 @@ class Imagick extends Adapter
         $originalFilename = null;
         $i = $this->resource; // this is because of HHVM which has problems with $this->resource->writeImage();
 
+        if (!$i) {
+            throw new \Exception('Unable to write image - could not read it in the first place: ' . $path);
+        }
+
         if (in_array($format, ['jpeg', 'pjpeg', 'jpg']) && $this->isAlphaPossible) {
             // set white background for transparent pixels
             $i->setImageBackgroundColor('#ffffff');
@@ -304,7 +308,7 @@ class Imagick extends Adapter
         }
 
         if (!$success) {
-            throw new \Exception('Unable to write image: ', $path);
+            throw new \Exception('Unable to write image: ' . $path);
         }
 
         if ($realTargetPath) {
@@ -732,6 +736,10 @@ class Imagick extends Adapter
                     // default behavior (fit)
                     $newImage->resizeimage($this->getWidth(), $this->getHeight(), \Imagick::FILTER_UNDEFINED, 1, false);
                 }
+            }
+
+            if (!$this->resource) {
+                throw new \Exception('Unable to modify image - resource gone: ' . $this->imagePath);
             }
 
             $newImage->compositeImage($this->resource, \Imagick::COMPOSITE_DEFAULT, 0, 0);
