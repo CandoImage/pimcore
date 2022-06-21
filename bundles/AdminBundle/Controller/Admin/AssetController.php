@@ -42,6 +42,9 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\Lock\Exception\LockAcquiringException;
+use Symfony\Component\Lock\Exception\LockConflictedException;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Routing\Annotation\Route;
 
 /**
@@ -1333,7 +1336,45 @@ class AssetController extends ElementControllerBase implements EventedController
                 'height' => $thumbnail->getHeight(), ]);
         }
 
-        $thumbnailFile = $thumbnail->getFileSystemPath();
+        // Throttle DOS events e.g. listing 20 new images without thumb in the
+        // asset browser generates 20 image processing threads otherwise.
+        $waitLimit = \Pimcore::getContainer()->getParameter('pimcore.config')['assets']['preview_image_thumbnail_locking_timeout'] ?? 20;
+        $lockRange = \Pimcore::getContainer()->getParameter('pimcore.config')['assets']['preview_image_thumbnail_thread_limit'] ?? 5;
+        $sleepTime = 3;
+        $timeoutTime = time() + $waitLimit;
+        if (($thumbnailFile = $thumbnail->getFileSystemPath(true)) && !file_exists($thumbnailFile)) {
+            // Need to reset after call to getFileSystemPath with deferring set.
+            $thumbnail->reset();
+            $thumbnailFile = PIMCORE_WEB_ROOT . '/bundles/pimcoreadmin/img/please-wait.png';
+            /** @var LockFactory $lockFactory */
+            $lockFactory = \Pimcore::getContainer()->get(LockFactory::class);
+            do {
+                // By default, wait a pre-defined amount of time. However, if a
+                // lock indicates that there's a slot free sooner take that. Avoid
+                // unnecessary waiting.
+                $minLockTime = $sleepTime;
+                for ($i = 1; $i < $lockRange; $i++) {
+                    $lock = $lockFactory->createLock(__METHOD__ . ':' . $i, 60);
+                    try {
+                        if ($lock->acquire()) {
+                            try {
+                                $thumbnail->generate(false);
+                                $thumbnailFile = $thumbnail->getFileSystemPath(false);
+                            } catch (\Throwable $e) {
+                            }
+                            $lock->release();
+                            // Escape both loops - return generated file.
+                            break(2);
+                        }
+                    } catch (LockConflictedException | LockAcquiringException $e) {
+                    }
+                    // Try to spend minimal time waiting.
+                    $minLockTime = min($minLockTime, $lock->getRemainingLifetime());
+                }
+                sleep($minLockTime);
+            // Run while we haven't exceeded lifetime.
+            } while($timeoutTime > time());
+        }
 
         $response = new BinaryFileResponse($thumbnailFile);
         $response->headers->set('Content-Type', $thumbnail->getMimeType());
