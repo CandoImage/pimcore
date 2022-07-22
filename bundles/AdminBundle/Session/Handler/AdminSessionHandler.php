@@ -272,7 +272,8 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
      */
     private function shouldWriteAndClose(): bool
     {
-        return $this->canWriteAndClose ??= $this->isAdminRequest($this->requestHelper->getMainRequest());
+        $request = \method_exists($this->requestHelper, 'getMainRequest') ? $this->requestHelper->getMainRequest() : $this->requestHelper->getMasterRequest();
+        return $this->canWriteAndClose ??= $this->isAdminRequest($request);
     }
 
     /**
