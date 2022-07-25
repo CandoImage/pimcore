@@ -301,13 +301,29 @@ class Translator implements LegacyTranslatorInterface, TranslatorInterface, Tran
             // Symfony 3.4 compatibility: use transChoice() for pluralization
             $translated = $this->translator->transChoice($normalizedId, $parameters['%count%'], $parameters, $domain, $locale);
         }
+        // String is considered translated if it differs from the id.
+        $translationFound = $normalizedId != $translated;
+        // If there are parameters we need to ensure they are processed in the
+        // $normalizedId too since even if the translation isn't found the
+        // parameter processing will already have taken place and the translated
+        // string will always differ from the unprocessed id.
+        // @TODO Figure out if there's a reason why we don't rely on
+        // $this->getCatalogue($locale)->has($normalizedId, $domain)
+        $processedId = $normalizedId;
+        if ($translationFound && !empty($parameters)) {
+            $processedId = strtr($processedId, $parameters);
+            $translationFound = $processedId != $translated;
+        }
 
         $lookForFallback = empty($translated);
-        if ($normalizedId != $translated && $translated) {
+        if ($translationFound && $translated) {
             return $translated;
-        } elseif ($normalizedId == $translated) {
+        } elseif (!$translationFound) {
             if ($this->getCatalogue($locale)->has($normalizedId, $domain)) {
                 $translated = $this->getCatalogue($locale)->get($normalizedId, $domain);
+                if (!empty($parameters)) {
+                    $translated = strtr($translated, $parameters);
+                }
                 if ($normalizedId != $translated && $translated) {
                     return $translated;
                 }
@@ -372,11 +388,11 @@ class Translator implements LegacyTranslatorInterface, TranslatorInterface, Tran
             }
 
             if ($this->caseInsensitive) {
-                return $id;
+                return $processedId;
             }
         }
 
-        return !empty($translated) ? $translated : $id;
+        return !empty($translated) ? $translated : $processedId;
     }
 
     /**
