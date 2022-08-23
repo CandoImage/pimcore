@@ -20,6 +20,7 @@ use Pimcore\Logger;
 use Pimcore\Model\Document;
 use Pimcore\Model\Document\Targeting\TargetingDocumentInterface;
 use Pimcore\Model\Element;
+use Pimcore\Model\Schedule\Task;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -91,7 +92,6 @@ class PageController extends DocumentControllerBase
 
         $pageVersions = Element\Service::getSafeVersionInfo($page->getVersions());
         $page->setVersions(array_splice($pageVersions, -1, 1));
-        $page->getScheduledTasks();
         $page->setLocked($page->isLocked());
         $page->setParent(null);
 
@@ -109,6 +109,12 @@ class PageController extends DocumentControllerBase
         }
 
         $data['url'] = $page->getUrl();
+        $data['scheduledTasks'] = array_map(
+            static function (Task $task) {
+                return $task->getObjectVars();
+            },
+            $page->getScheduledTasks()
+        );
         $data['documentFromVersion'] = !$isLatestVersion;
 
         $this->preSendDataActions($data, $page);

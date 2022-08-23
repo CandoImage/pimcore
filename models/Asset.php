@@ -27,6 +27,7 @@ use Pimcore\Model\Asset\Listing;
 use Pimcore\Model\Asset\MetaData\ClassDefinition\Data\Data;
 use Pimcore\Model\Asset\MetaData\ClassDefinition\Data\DataDefinitionInterface;
 use Pimcore\Model\Element\ElementInterface;
+use Pimcore\Model\Element\Traits\ScheduledTasksTrait;
 use Pimcore\Tool;
 use Pimcore\Tool\Mime;
 use Symfony\Component\EventDispatcher\GenericEvent;
@@ -40,6 +41,7 @@ use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesser;
  */
 class Asset extends Element\AbstractElement
 {
+    use ScheduledTasksTrait;
     use TemporaryFileHelperTrait;
 
     /**
@@ -181,13 +183,6 @@ class Asset extends Element\AbstractElement
      * @var bool|null
      */
     protected $hasSiblings;
-
-    /**
-     * Contains all scheduled tasks
-     *
-     * @var array|null
-     */
-    protected $scheduledTasks = null;
 
     /**
      * Indicator if data has changed
@@ -1833,48 +1828,6 @@ class Asset extends Element\AbstractElement
     }
 
     /**
-     * @return Schedule\Task[]
-     */
-    public function getScheduledTasks()
-    {
-        if ($this->scheduledTasks === null) {
-            $taskList = new Schedule\Task\Listing();
-            $taskList->setCondition("cid = ? AND ctype='asset'", $this->getId());
-            $this->setScheduledTasks($taskList->load());
-        }
-
-        return $this->scheduledTasks;
-    }
-
-    /**
-     * @param array $scheduledTasks
-     *
-     * @return $this
-     */
-    public function setScheduledTasks($scheduledTasks)
-    {
-        $this->scheduledTasks = $scheduledTasks;
-
-        return $this;
-    }
-
-    public function saveScheduledTasks()
-    {
-        $this->getScheduledTasks();
-        $this->getDao()->deleteAllTasks();
-
-        if (is_array($this->getScheduledTasks()) && count($this->getScheduledTasks()) > 0) {
-            foreach ($this->getScheduledTasks() as $task) {
-                $task->setId(null);
-                $task->setDao(null);
-                $task->setCid($this->getId());
-                $task->setCtype('asset');
-                $task->save();
-            }
-        }
-    }
-
-    /**
      * Get filesize
      *
      * @param bool $formatted
@@ -2075,7 +2028,6 @@ class Asset extends Element\AbstractElement
         $this->versions = null;
         $this->hasSiblings = null;
         $this->siblings = null;
-        $this->scheduledTasks = null;
         $this->closeStream();
     }
 }

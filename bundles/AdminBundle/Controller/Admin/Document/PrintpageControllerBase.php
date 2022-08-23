@@ -18,6 +18,7 @@ namespace Pimcore\Bundle\AdminBundle\Controller\Admin\Document;
 use Pimcore\Config;
 use Pimcore\Controller\Traits\ElementEditLockHelperTrait;
 use Pimcore\Model\Document;
+use Pimcore\Model\Schedule\Task;
 use Pimcore\Web2Print\Processor;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -53,7 +54,6 @@ class PrintpageControllerBase extends DocumentControllerBase
         $page = $this->getLatestVersion($page, $isLatestVersion);
 
         $page->getVersions();
-        $page->getScheduledTasks();
         $page->setLocked($page->isLocked());
 
         // unset useless data
@@ -66,6 +66,12 @@ class PrintpageControllerBase extends DocumentControllerBase
         $this->minimizeProperties($page, $data);
 
         $data['url'] = $page->getUrl();
+        $data['scheduledTasks'] = array_map(
+            static function (Task $task) {
+                return $task->getObjectVars();
+            },
+            $page->getScheduledTasks()
+        );
         // this used for the "this is not a published version" hint
         $data['documentFromVersion'] = !$isLatestVersion;
         if ($page->getContentMasterDocument()) {

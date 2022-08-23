@@ -27,6 +27,8 @@ use Pimcore\Tool\Serialize;
  */
 class Dao extends Model\Element\Dao
 {
+    use Model\Element\Traits\ScheduledTasksDaoTrait;
+
     /**
      * Get the data for the object by id from database and assign it to the object (model)
      *
@@ -298,11 +300,6 @@ class Dao extends Model\Element\Dao
     public function deleteAllPermissions()
     {
         $this->db->delete('users_workspaces_asset', ['cid' => $this->model->getId()]);
-    }
-
-    public function deleteAllTasks()
-    {
-        $this->db->delete('schedule_tasks', ['cid' => $this->model->getId(), 'ctype' => 'asset']);
     }
 
     /**

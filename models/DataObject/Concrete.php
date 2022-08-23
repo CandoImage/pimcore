@@ -33,6 +33,7 @@ use Pimcore\Model\Element\DirtyIndicatorInterface;
 class Concrete extends DataObject implements LazyLoadedFieldsInterface
 {
     use Model\DataObject\Traits\LazyLoadedRelationTrait;
+    use Model\Element\Traits\ScheduledTasksTrait;
 
     /** @var array|null */
     protected $__rawRelationData = null;
@@ -66,13 +67,6 @@ class Concrete extends DataObject implements LazyLoadedFieldsInterface
      * @var array|null
      */
     protected $o_versions = null;
-
-    /**
-     * Contains all scheduled tasks
-     *
-     * @var array|null
-     */
-    protected $scheduledTasks = null;
 
     /**
      * @var bool|null
@@ -221,23 +215,6 @@ class Concrete extends DataObject implements LazyLoadedFieldsInterface
     {
         if ($this->getClass()->getAllowInherit()) {
             $this->getDao()->saveChildData();
-        }
-    }
-
-    public function saveScheduledTasks()
-    {
-        // update scheduled tasks
-        $this->getScheduledTasks();
-        $this->getDao()->deleteAllTasks();
-
-        if (is_array($this->getScheduledTasks()) && count($this->getScheduledTasks()) > 0) {
-            foreach ($this->getScheduledTasks() as $task) {
-                $task->setId(null);
-                $task->setDao(null);
-                $task->setCid($this->getId());
-                $task->setCtype('object');
-                $task->save();
-            }
         }
     }
 
@@ -516,20 +493,6 @@ class Concrete extends DataObject implements LazyLoadedFieldsInterface
         }
 
         return $this->omitMandatoryCheck;
-    }
-
-    /**
-     * @return Model\Schedule\Task[]
-     */
-    public function getScheduledTasks()
-    {
-        if ($this->scheduledTasks === null) {
-            $taskList = new Model\Schedule\Task\Listing();
-            $taskList->setCondition("cid = ? AND ctype='object'", $this->getId());
-            $this->scheduledTasks = $taskList->load();
-        }
-
-        return $this->scheduledTasks;
     }
 
     /**
@@ -841,7 +804,6 @@ class Concrete extends DataObject implements LazyLoadedFieldsInterface
         parent::__clone();
         $this->o_class = null;
         $this->o_versions = null;
-        $this->scheduledTasks = null;
     }
 
     /**

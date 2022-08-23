@@ -34,6 +34,7 @@ use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\Asset;
 use Pimcore\Model\Element;
+use Pimcore\Model\Schedule\Task;
 use Pimcore\Tool;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\GenericEvent;
@@ -112,7 +113,6 @@ class AssetController extends ElementControllerBase implements EventedController
         }
 
         $asset = clone $asset;
-        $asset->getScheduledTasks();
         $asset->setLocked($asset->isLocked());
         $asset->setParent(null);
 
@@ -192,6 +192,13 @@ class AssetController extends ElementControllerBase implements EventedController
         $data['idPath'] = Element\Service::getIdPath($asset);
         $data['userPermissions'] = $asset->getUserPermissions();
         $data['url'] = $request->getSchemeAndHttpHost() . $asset->getFrontendFullPath();
+
+        $data['scheduledTasks'] = array_map(
+            static function (Task $task) {
+                return $task->getObjectVars();
+            },
+            $asset->getScheduledTasks()
+        );
 
         $this->addAdminStyle($asset, ElementAdminStyleEvent::CONTEXT_EDITOR, $data);
 
