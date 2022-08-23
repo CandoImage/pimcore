@@ -103,7 +103,13 @@ class Imagick extends Adapter
                 $imagePathLoad = ':' . $imagePathLoad;
             }
 
-            $imagePathLoad = $imagePathLoad . '[0]';
+            // According to https://github.com/pimcore/pimcore/issues/3607 / https://github.com/pimcore/pimcore/commit/a530b922ac410ac99639e7f80316fd89e3487efb
+            // pimcore is supposed to only use the first layer of an image
+            // because It contains the whole image (PSD)?
+            // Tell that an animated gif...
+            if (!preg_match("@\.(gif)$@", $imagePath)) {
+                $imagePathLoad = $imagePathLoad . '[0]';
+            }
 
             if (!$i->readImage($imagePathLoad) || !filesize($imagePath)) {
                 return false;
@@ -198,7 +204,16 @@ class Imagick extends Adapter
     public function save($path, $format = null, $quality = null)
     {
         if (!$format) {
-            $format = 'png32';
+            // Don't force png 32 as this might lead to trouble.
+            // You can reproduce errors on the command line online if you do
+            // something like this:
+            // convert /var/www/pimcore/example.png -write PNG32:/var/www/pimcore/example_png32.png
+            // But as soon as you scale the image it will work properly.
+            // $format = 'png32';
+            $format = 'png';
+            if ($this->hasAlphaChannel()) {
+                $format = 'png32';
+            }
         }
 
         if ($format == 'original') {
@@ -208,13 +223,26 @@ class Imagick extends Adapter
         $format = strtolower($format);
 
         if ($format == 'png') {
-            // we need to force imagick to create png32 images, otherwise this can cause some strange effects
-            // when used with gray-scale images
-            $format = 'png32';
+//            // we need to force imagick to create png32 images, otherwise this can cause some strange effects
+//            // when used with gray-scale images
+//            $format = 'png32';
+            // Don't force png 32 as this might lead to trouble.
+            // You can reproduce errors on the command line online if you do
+            // something like this:
+            // convert /var/www/pimcore/example.png -write PNG32:/var/www/pimcore/example_png32.png
+            // But as soon as you scale the image it will work properly.
+            $format = 'png';
+            if ($this->hasAlphaChannel()) {
+                $format = 'png32';
+            }
         }
 
         $originalFilename = null;
         $i = $this->resource; // this is because of HHVM which has problems with $this->resource->writeImage();
+
+        if (!$i) {
+            throw new \Exception('Unable to write image - could not read it in the first place: ' . $path);
+        }
 
         if (in_array($format, ['jpeg', 'pjpeg', 'jpg']) && $this->isAlphaPossible) {
             // set white background for transparent pixels
@@ -274,13 +302,13 @@ class Imagick extends Adapter
 
         if (!stream_is_local($path)) {
             $i->setImageFormat($format);
-            $success = File::put($path, $i->getImageBlob());
+            $success = File::put($path, $i->getImagesBlob());
         } else {
-            $success = $i->writeImage($format . ':' . $path);
+            $success = $i->writeImages($format . ':' . $path, true);
         }
 
         if (!$success) {
-            throw new \Exception('Unable to write image: ', $path);
+            throw new \Exception('Unable to write image: ' . $path);
         }
 
         if ($realTargetPath) {
@@ -708,6 +736,10 @@ class Imagick extends Adapter
                     // default behavior (fit)
                     $newImage->resizeimage($this->getWidth(), $this->getHeight(), \Imagick::FILTER_UNDEFINED, 1, false);
                 }
+            }
+
+            if (!$this->resource) {
+                throw new \Exception('Unable to modify image - resource gone: ' . $this->imagePath);
             }
 
             $newImage->compositeImage($this->resource, \Imagick::COMPOSITE_DEFAULT, 0, 0);
