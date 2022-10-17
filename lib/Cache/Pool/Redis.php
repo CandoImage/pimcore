@@ -166,19 +166,23 @@ class Redis extends AbstractCacheItemPool implements PurgeableCacheItemPoolInter
 
         $ids = array_values($ids);
 
-        $pipeline = $this->redis->pipeline()->multi();
-
         $fields = [
             static::FIELD_DATA,
             static::FIELD_TAGS,
             static::FIELD_MTIME,
         ];
 
-        foreach ($ids as $id) {
-            $pipeline->hMGet(static::PREFIX_KEY . $id, $fields);
-        }
+        if(count($ids) > 1) {
+            $pipeline = $this->redis->pipeline()->multi();
 
-        $result = $pipeline->exec();
+            foreach ($ids as $id) {
+                $pipeline->hMGet(static::PREFIX_KEY . $id, $fields);
+            }
+
+            $result = $pipeline->exec();
+        } else {
+            $result = [$this->redis->hmget(static::PREFIX_KEY . $ids[0], $fields)];
+        }
 
         foreach ($result as $idx => $entry) {
             if (empty($entry)) {
