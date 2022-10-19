@@ -629,7 +629,7 @@ class GridHelperService
         if (isset($sortingSettings['isFeature']) && $sortingSettings['isFeature']) {
             $orderKey = 'cskey_' . $sortingSettings['fieldname'] . '_' . $sortingSettings['groupId'] . '_' . $sortingSettings['keyId'];
             $list->setOrderKey($orderKey);
-            $list->setGroupBy('o_id');
+            $list->setGroupBy('oo_id');
 
             $parts = explode('_', $orderKey);
 
