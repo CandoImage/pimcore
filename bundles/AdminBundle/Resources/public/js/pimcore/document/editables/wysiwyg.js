@@ -94,6 +94,10 @@ pimcore.document.editables.wysiwyg = Class.create(pimcore.document.editable, {
                     { name: 'styles' },
                     { name: 'tools', groups: ['colors', "tools", 'cleanup', 'mode', "others"] }
                 ];
+            } else {
+                // make sure "false" value is not passed along to CKEditor, only settings in
+                // potential customConfig
+                delete specificConfig.toolbarGroups;
             }
             
             delete specificConfig.width;
