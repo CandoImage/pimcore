@@ -6,9 +6,7 @@ and no other user will be able to access the website or the admin interface.
 All other users get a [default "Temporary not available" page](https://rawgit.com/pimcore/pimcore/master/bundles/CoreBundle/Resources/misc/maintenance.html)
 displayed. 
 
-Moreover, maintenance scripts and headless executions of Pimcore will be prevented.  
-The Maintenance Mode is also activated by Pimcore during Pimcore Update.
-
+Moreover, maintenance scripts and headless executions of Pimcore will be prevented.
 In addition, you can enable or disable the maintenance mode via the following console command:
 
 ```shell script
@@ -18,12 +16,22 @@ bin/console pimcore:maintenance-mode --disable
 
 ## Customize Maintenance Page
 
-Overwrite the service `Pimcore\Bundle\CoreBundle\EventListener\MaintenancePageListener` in your `app/config/services.yml`. 
+Overwrite the service `Pimcore\Bundle\CoreBundle\EventListener\MaintenancePageListener` in your `config/services.yaml`. 
 
 ```yaml
 Pimcore\Bundle\CoreBundle\EventListener\MaintenancePageListener:
     calls:
-        - [loadTemplateFromResource, ['@@AppBundle/Resources/misc/maintenance.html']]
+        - [loadTemplateFromResource, ['@@App/Resources/misc/maintenance.html']]
+    tags:
+        - { name: kernel.event_listener, event: kernel.request, method: onKernelRequest, priority: 620 }
+```
+
+Use loadTemplateFromPath if the file is located outside a bundle.
+
+```yaml
+Pimcore\Bundle\CoreBundle\EventListener\MaintenancePageListener:
+    calls:
+        - [loadTemplateFromPath, ['/templates/maintenance.html']]
     tags:
         - { name: kernel.event_listener, event: kernel.request, method: onKernelRequest, priority: 620 }
 ```

@@ -28,7 +28,7 @@ class PimcoreEcommerceFrameworkBundle extends AbstractPimcoreBundle
     use StateHelperTrait;
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getVersion()
     {
@@ -36,7 +36,7 @@ class PimcoreEcommerceFrameworkBundle extends AbstractPimcoreBundle
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function build(ContainerBuilder $container)
     {
@@ -79,11 +79,8 @@ class PimcoreEcommerceFrameworkBundle extends AbstractPimcoreBundle
     public function boot()
     {
         $container = $this->container;
-
-        if ($container->hasParameter('pimcore_ecommerce.decimal_scale')) {
-            // set default decimal scale from config
-            Decimal::setDefaultScale($container->getParameter('pimcore_ecommerce.decimal_scale'));
-        }
+        // set default decimal scale from config
+        Decimal::setDefaultScale($container->getParameter('pimcore_ecommerce.decimal_scale'));
     }
 
     /**

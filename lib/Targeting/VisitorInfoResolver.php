@@ -28,8 +28,8 @@ use Pimcore\Targeting\ActionHandler\ActionHandlerInterface;
 use Pimcore\Targeting\ActionHandler\DelegatingActionHandler;
 use Pimcore\Targeting\Model\VisitorInfo;
 use Pimcore\Targeting\Storage\TargetingStorageInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class VisitorInfoResolver
 {
@@ -74,12 +74,12 @@ class VisitorInfoResolver
     private $eventDispatcher;
 
     /**
-     * @var Rule[]
+     * @var Rule[]|null
      */
     private $targetingRules;
 
     /**
-     * @var bool
+     * @var bool|null
      */
     private $targetingConfigured;
 
@@ -113,19 +113,13 @@ class VisitorInfoResolver
 
         $event = new TargetingResolveVisitorInfoEvent($visitorInfo);
 
-        $this->eventDispatcher->dispatch(
-            TargetingEvents::PRE_RESOLVE,
-            $event
-        );
+        $this->eventDispatcher->dispatch($event, TargetingEvents::PRE_RESOLVE);
 
         $visitorInfo = $event->getVisitorInfo();
 
         $this->matchTargetingRuleConditions($visitorInfo);
 
-        $this->eventDispatcher->dispatch(
-            TargetingEvents::POST_RESOLVE,
-            new TargetingEvent($visitorInfo)
-        );
+        $this->eventDispatcher->dispatch(new TargetingEvent($visitorInfo), TargetingEvents::POST_RESOLVE);
 
         $this->visitorInfoStorage->setVisitorInfo($visitorInfo);
 
@@ -138,7 +132,7 @@ class VisitorInfoResolver
             return $this->targetingConfigured;
         }
 
-        $configuredRules = $this->db->fetchColumn(
+        $configuredRules = $this->db->fetchOne(
             'SELECT id FROM targeting_target_groups UNION SELECT id FROM targeting_rules LIMIT 1'
         );
 
@@ -204,18 +198,12 @@ class VisitorInfoResolver
         // store info about matched rule
         $visitorInfo->addMatchingTargetingRule($rule);
 
-        $this->eventDispatcher->dispatch(
-            TargetingEvents::PRE_RULE_ACTIONS,
-            new TargetingRuleEvent($visitorInfo, $rule)
-        );
+        $this->eventDispatcher->dispatch(new TargetingRuleEvent($visitorInfo, $rule), TargetingEvents::PRE_RULE_ACTIONS);
 
         // execute rule actions
         $this->handleTargetingRuleActions($visitorInfo, $rule);
 
-        $this->eventDispatcher->dispatch(
-            TargetingEvents::POST_RULE_ACTIONS,
-            new TargetingRuleEvent($visitorInfo, $rule)
-        );
+        $this->eventDispatcher->dispatch(new TargetingRuleEvent($visitorInfo, $rule), TargetingEvents::POST_RULE_ACTIONS);
     }
 
     private function handleTargetingRuleActions(VisitorInfo $visitorInfo, Rule $rule)

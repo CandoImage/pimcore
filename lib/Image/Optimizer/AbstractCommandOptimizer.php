@@ -19,6 +19,9 @@ use Pimcore\Exception\ImageOptimizationFailedException;
 use Pimcore\Tool\Console;
 use Symfony\Component\Process\Process;
 
+/**
+ * @deprecated since 10.4 version and will be removed in Pimcore 11. use the Spatie Image Optimizer instead
+ */
 abstract class AbstractCommandOptimizer implements OptimizerInterface
 {
     /**
@@ -26,15 +29,10 @@ abstract class AbstractCommandOptimizer implements OptimizerInterface
      */
     public function optimizeImage(string $input, string $output): string
     {
-        $executable = $this->getExecutable();
+        $executable = Console::getExecutable($this->getExecutable());
 
         if ($executable) {
             $command = $this->getCommandArray($executable, $input, $output);
-
-            //@TODO Remove in Pimcore 10
-            if (empty($command)) {
-                $command = $this->getCommand($executable, $input, $output);
-            }
 
             Console::addLowProcessPriority($command);
             $process = new Process($command);
@@ -45,7 +43,7 @@ abstract class AbstractCommandOptimizer implements OptimizerInterface
             }
 
             throw new ImageOptimizationFailedException(sprintf('Could not create optimized image with command "%s"',
-                $command));
+                $process->getCommandLine()));
         }
 
         throw new ImageOptimizationFailedException('Could not find executable');
@@ -57,27 +55,11 @@ abstract class AbstractCommandOptimizer implements OptimizerInterface
     abstract protected function getExecutable(): string;
 
     /**
-     * @deprecated use getCommandArray() instead.
-     *
-     * @param string $executable
-     * @param string $input
-     * @param string $output
-     *
-     * @return string
-     */
-    abstract protected function getCommand(string $executable, string $input, string $output): string;
-
-    /**
-     * @TODO make abstract in Pimcore 10
-     *
      * @param string $executable
      * @param string $input
      * @param string $output
      *
      * @return array
      */
-    protected function getCommandArray(string $executable, string $input, string $output): array
-    {
-        return [];
-    }
+    abstract protected function getCommandArray(string $executable, string $input, string $output): array;
 }

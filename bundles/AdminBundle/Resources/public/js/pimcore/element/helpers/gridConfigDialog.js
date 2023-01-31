@@ -110,18 +110,29 @@ pimcore.element.helpers.gridConfigDialog = Class.create({
             });
         }
 
+        var windowWidth = 950;
         this.window = new Ext.Window({
-            width: 950,
+            width: windowWidth,
+            maxWidth: Ext.getBody().getViewSize().width,
             height: '95%',
+            maxHeight: Ext.getBody().getViewSize().height,
             modal: true,
             title: t('grid_options'),
             layout: "fit",
             items: [this.tabPanel],
-            buttons: buttons
+            buttons: buttons,
+            constrainHeader: true
         });
 
         this.window.show();
         this.updatePreview();
+
+        window.addEventListener('resize', () => {
+            this.window.setWidth(windowWidth);
+            this.window.setMaxWidth(Ext.getBody().getViewSize().width);
+            this.window.setMaxHeight(Ext.getBody().getViewSize().height);
+            this.window.center();
+        });
     },
 
     getConfigPanel: function() {
@@ -144,10 +155,9 @@ pimcore.element.helpers.gridConfigDialog = Class.create({
     },
 
     getSaveAndSharePanel: function () {
-
         var user = pimcore.globalmanager.get("user");
-        if (user.isAllowed("share_configurations")) {
 
+        if (user.isAllowed("share_configurations")) {
             this.userStore = new Ext.data.JsonStore({
                 autoDestroy: true,
                 autoLoad: true,
@@ -194,6 +204,24 @@ pimcore.element.helpers.gridConfigDialog = Class.create({
             value: this.settings ? this.settings.gridConfigDescription : ""
         });
 
+        var ownerField = new Ext.form.TextField({
+            fieldLabel: t('userowner'),
+            name: 'owner',
+            length: 50,
+            readOnly: true,
+            width: '100%',
+            value: this.settings.owner ? this.settings.owner : user.name
+        });
+
+        var modificationDateField = new Ext.form.TextField({
+            fieldLabel: t('modificationdate'),
+            name: 'modificationDate',
+            length: 50,
+            readOnly: true,
+            width: '100%',
+            value: this.settings.modificationDate > 0 ? new Date(this.settings.modificationDate * 1000) : new Date()
+        });
+
         if (user.isAllowed("share_configurations")) {
             this.userSharingField = Ext.create('Ext.form.field.Tag', {
                 name: "sharedUserIds",
@@ -230,9 +258,8 @@ pimcore.element.helpers.gridConfigDialog = Class.create({
             });
         }
 
-        var items = [this.nameField, this.descriptionField];
+        var items = [this.nameField, this.descriptionField, ownerField, modificationDateField];
 
-        var user = pimcore.globalmanager.get("user");
         if (user.admin) {
             this.shareGlobally = new Ext.form.field.Checkbox(
                 {
@@ -243,7 +270,17 @@ pimcore.element.helpers.gridConfigDialog = Class.create({
                 }
             );
 
+            this.setAsFavourite = new Ext.form.field.Checkbox(
+                {
+                    fieldLabel: t("set_as_favourite"),
+                    inputValue: true,
+                    name: "setAsFavourite",
+                    value: this.settings.setAsFavourite
+                }
+            )
+
             items.push(this.shareGlobally);
+            items.push(this.setAsFavourite);
         }
 
         if (user.isAllowed("share_configurations")) {

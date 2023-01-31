@@ -18,71 +18,100 @@ namespace Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model;
 use Pimcore\Model\Element;
 
-class Layout
+class Layout implements Model\DataObject\ClassDefinition\Data\VarExporterInterface
 {
-    use Model\DataObject\ClassDefinition\Helper\VarExport, Element\ChildsCompatibilityTrait;
+    use Model\DataObject\ClassDefinition\Helper\VarExport {
+        __set_state as private _VarExport__set_state;
+    }
+    use Element\ChildsCompatibilityTrait;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $name;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $type;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $region;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $title;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
-    public $width;
+    public $width = 0;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
-    public $height;
+    public $height = 0;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $collapsible = false;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $collapsed = false;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $bodyStyle;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $datatype = 'layout';
 
     /**
+     * @internal
+     *
      * @var array
      */
     public $permissions;
 
     /**
+     * @internal
+     *
      * @var array
      */
-    public $childs = [];
+    public $children = [];
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $locked = false;
@@ -200,33 +229,31 @@ class Layout
     }
 
     /**
-     * @param int $width
+     * @param string|int $width
      *
      * @return $this
      */
     public function setWidth($width)
     {
-        if (!empty($width) && is_numeric($width)) {
-            $this->width = intval($width);
-        } else {
-            $this->width = $width;
+        if (is_numeric($width)) {
+            $width = (int)$width;
         }
+        $this->width = $width;
 
         return $this;
     }
 
     /**
-     * @param int $height
+     * @param string|int $height
      *
      * @return $this
      */
     public function setHeight($height)
     {
-        if (!empty($height) && is_numeric($height)) {
-            $this->height = intval($height);
-        } else {
-            $this->height = $height;
+        if (is_numeric($height)) {
+            $height = (int)$height;
         }
+        $this->height = $height;
 
         return $this;
     }
@@ -262,7 +289,17 @@ class Layout
      */
     public function getChildren()
     {
-        return $this->childs;
+        return $this->children;
+    }
+
+    /**
+     * @internal
+     *
+     * @return array
+     */
+    public function &getChildrenByRef()
+    {
+        return $this->children;
     }
 
     /**
@@ -272,7 +309,7 @@ class Layout
      */
     public function setChildren($children)
     {
-        $this->childs = $children;
+        $this->children = $children;
 
         return $this;
     }
@@ -282,7 +319,7 @@ class Layout
      */
     public function hasChildren()
     {
-        if (is_array($this->childs) && count($this->childs) > 0) {
+        if (is_array($this->children) && count($this->children) > 0) {
             return true;
         }
 
@@ -294,7 +331,7 @@ class Layout
      */
     public function addChild($child)
     {
-        $this->childs[] = $child;
+        $this->children[] = $child;
     }
 
     /**
@@ -307,7 +344,7 @@ class Layout
     {
         foreach ($data as $key => $value) {
             if (!in_array($key, $blockedKeys)) {
-                $method = 'set' . $key;
+                $method = 'set' . ucfirst($key);
                 if (method_exists($this, $method)) {
                     $this->$method($value);
                 }
@@ -318,7 +355,7 @@ class Layout
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getDatatype()
     {
@@ -326,7 +363,7 @@ class Layout
     }
 
     /**
-     * @param mixed $datatype
+     * @param string $datatype
      *
      * @return $this
      */
@@ -412,12 +449,33 @@ class Layout
     }
 
     /**
-     * Override point for Enriching the layout definition before the layout is returned to the admin interface.
-     *
-     * @param Model\DataObject\Concrete|null $object
-     * @param array $context additional contextual data
+     * @return array
      */
-    public function enrichLayoutDefinition($object, $context = [])
+    public function getBlockedVarsForExport(): array
     {
+        return ['blockedVarsForExport', 'childs'];
+    }
+
+    public function __sleep(): array
+    {
+        $vars = get_object_vars($this);
+        foreach ($this->getBlockedVarsForExport() as $blockedVar) {
+            unset($vars[$blockedVar]);
+        }
+
+        return array_keys($vars);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public static function __set_state($data)
+    {
+        $obj = new static();
+        $obj->setValues($data);
+
+        $obj->childs = $obj->children;  // @phpstan-ignore-line
+
+        return $obj;
     }
 }

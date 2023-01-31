@@ -199,11 +199,9 @@ pimcore.asset.helpers.grid = Class.create({
                         locked: this.getColumnLock(field),
                         renderer: function (value) {
                             if (value) {
-                                return '<div class="thumb-wrap">',
-                                '<div class="thumb"><table cellspacing="0" cellpadding="0" border="0"><tr><td class="thumb-item" align="center" '
-                                + 'valign="middle" style="background: url(' + value + ') center center no-repeat; ' +
-                                'background-size: contain; width: 200px; height: 100px; cursor: default !important;">'
-                                + '</td></tr></table></div></div>';
+                                return  '<div class="list-img-container">' +
+                                    '<img src="' + value + '" loading="lazy" draggable="false">'+
+                                    '</div>'
                             }
                         }.bind(this)
                     });

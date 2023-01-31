@@ -14,16 +14,10 @@
 pimcore.registerNS("pimcore.document.editables.textarea");
 pimcore.document.editables.textarea = Class.create(pimcore.document.editable, {
 
-    initialize: function(id, name, config, data, inherited) {
-        this.id = id;
-        this.name = name;
-        this.config = this.parseConfig(config);
+    initialize: function($super, id, name, config, data, inherited) {
+        $super(id, name, config, data, inherited);
 
-        if (!data) {
-            data = "";
-        }
-
-        this.data = str_replace("\n","<br>", data);
+        this.data = str_replace("\n","<br>", data ?? "");
 
         if(this.config["required"]) {
             this.required = this.config["required"];
@@ -34,18 +28,6 @@ pimcore.document.editables.textarea = Class.create(pimcore.document.editable, {
         this.setupWrapper();
         this.element = Ext.get(this.id);
         this.element.dom.setAttribute("contenteditable", true);
-
-        // set min height for IE, as he isn't able to update :after css selector
-        this.element.update("|"); // dummy content to get appropriate height
-        if(this.element.getHeight()) {
-            this.element.applyStyles({
-                "min-height": this.element.getHeight() + "px"
-            });
-        } else {
-            this.element.applyStyles({
-                "min-height": this.element.getStyle("font-size")
-            });
-        }
 
         this.element.update(this.data);
 

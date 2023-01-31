@@ -18,6 +18,9 @@ namespace Pimcore\Model\DataObject\Traits;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\ClassDefinition\Layout;
 
+/**
+ * @internal
+ */
 trait FieldcollectionObjectbrickDefinitionTrait
 {
     /**
@@ -26,7 +29,7 @@ trait FieldcollectionObjectbrickDefinitionTrait
     public $key;
 
     /**
-     * @var string
+     * @var string|null
      */
     public $parentClass;
 
@@ -55,7 +58,7 @@ trait FieldcollectionObjectbrickDefinitionTrait
     /**
      * @var bool
      */
-    public $generateTypeDeclarations = false;
+    public $generateTypeDeclarations = true;
 
     /**
      * @var Data[]
@@ -83,7 +86,7 @@ trait FieldcollectionObjectbrickDefinitionTrait
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getParentClass()
     {
@@ -91,7 +94,7 @@ trait FieldcollectionObjectbrickDefinitionTrait
     }
 
     /**
-     * @param string $parentClass
+     * @param string|null $parentClass
      *
      * @return $this
      */
@@ -172,9 +175,9 @@ trait FieldcollectionObjectbrickDefinitionTrait
      *
      * @return $this
      */
-    public function setFieldDefinitions($fieldDefinitions)
+    public function setFieldDefinitions(array $fieldDefinitions)
     {
-        $this->fieldDefinitions = is_array($fieldDefinitions) ? $fieldDefinitions : [];
+        $this->fieldDefinitions = $fieldDefinitions;
 
         return $this;
     }
@@ -281,4 +284,14 @@ trait FieldcollectionObjectbrickDefinitionTrait
 
         return $this;
     }
+
+    /**
+     * @internal
+     *
+     * @param Data $fieldDefinition
+     * @param array $context
+     *
+     * @return mixed
+     */
+    abstract protected function doEnrichFieldDefinition($fieldDefinition, $context = []);
 }

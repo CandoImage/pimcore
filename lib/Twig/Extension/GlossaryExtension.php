@@ -17,37 +17,91 @@ declare(strict_types=1);
 
 namespace Pimcore\Twig\Extension;
 
-use Pimcore\Templating\Helper\Glossary;
+use Pimcore\Tool\Glossary\Processor;
 use Pimcore\Twig\TokenParser\GlossaryTokenParser;
 use Twig\Extension\AbstractExtension;
+use Twig\TokenParser\TokenParserInterface;
+use Twig\TwigFilter;
 
+/**
+ * @internal
+ */
 class GlossaryExtension extends AbstractExtension
 {
     /**
-     * @var Glossary
+     * @var Processor
      */
-    private $glossaryHelper;
+    private $glossaryProcessor;
 
     /**
-     * @param Glossary $glossaryHelper
+     * @param Processor $glossaryProcessor
+     *
      */
-    public function __construct(Glossary $glossaryHelper)
+    public function __construct(Processor $glossaryProcessor)
     {
-        $this->glossaryHelper = $glossaryHelper;
+        $this->glossaryProcessor = $glossaryProcessor;
     }
 
     /**
-     * @return Glossary
+     * {@inheritdoc}
      */
-    public function getGlossaryHelper(): Glossary
+    public function getFilters(): array
     {
-        return $this->glossaryHelper;
+        return [
+            new TwigFilter('pimcore_glossary', [$this, 'applyGlossary'], ['is_safe' => ['html']]),
+        ];
     }
 
+    /**
+     * @param string $string
+     * @param array $options
+     *
+     * @return string
+     */
+    public function applyGlossary(string $string, array $options = []): string
+    {
+        if (empty($string) || !is_string($string)) {
+            return $string;
+        }
+
+        return $this->glossaryProcessor->process($string, $options);
+    }
+
+    /**
+     * @deprecated
+     *
+     * @return TokenParserInterface[]
+     */
     public function getTokenParsers(): array
     {
         return [
             new GlossaryTokenParser(),
         ];
+    }
+
+    /**
+     * @deprecated
+     */
+    public function start()
+    {
+        ob_start();
+    }
+
+    /**
+     * @deprecated
+     *
+     * @param array $options
+     */
+    public function stop(array $options = [])
+    {
+        $contents = ob_get_clean();
+
+        if (empty($contents) || !is_string($contents)) {
+            $result = $contents;
+        } else {
+            $result = $this->glossaryProcessor->process($contents, $options);
+        }
+
+        echo $result;
     }
 }

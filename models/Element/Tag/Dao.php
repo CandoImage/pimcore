@@ -15,10 +15,13 @@
 
 namespace Pimcore\Model\Element\Tag;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 use Pimcore\Model\Element\Tag;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Element\Tag $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -26,13 +29,13 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM tags WHERE id = ?', $id);
-        if (!$data['id']) {
-            throw new \Exception('Tag item with id ' . $id . ' not found');
+        $data = $this->db->fetchAssociative('SELECT * FROM tags WHERE id = ?', [$id]);
+        if (!$data) {
+            throw new Model\Exception\NotFoundException('Tag item with id ' . $id . ' not found');
         }
         $this->assignVariablesToModel($data);
     }
@@ -59,7 +62,7 @@ class Dao extends Model\Dao\AbstractDao
 
             $originalIdPath = null;
             if ($this->model->getId()) {
-                $originalIdPath = $this->db->fetchOne('SELECT idPath FROM tags WHERE id = ?', $this->model->getId());
+                $originalIdPath = $this->db->fetchOne('SELECT idPath FROM tags WHERE id = ?', [$this->model->getId()]);
             }
 
             $data = [];
@@ -69,16 +72,16 @@ class Dao extends Model\Dao\AbstractDao
                 }
             }
 
-            $this->db->insertOrUpdate('tags', $data);
+            Helper::insertOrUpdate($this->db, 'tags', $data);
 
             $lastInsertId = $this->db->lastInsertId();
             if (!$this->model->getId() && $lastInsertId) {
-                $this->model->setId($lastInsertId);
+                $this->model->setId((int) $lastInsertId);
             }
 
             //check for id-path and update it, if path has changed -> update all other tags that have idPath == idPath/id
             if ($originalIdPath && $originalIdPath != $this->model->getIdPath()) {
-                $this->db->query('UPDATE tags SET idPath = REPLACE(idPath, ?, ?)  WHERE idPath LIKE ?;', [$originalIdPath, $this->model->getIdPath(), $this->db->escapeLike($originalIdPath) . $this->model->getId() . '/%']);
+                $this->db->executeQuery('UPDATE tags SET idPath = REPLACE(idPath, ?, ?)  WHERE idPath LIKE ?;', [$originalIdPath, $this->model->getIdPath(), Helper::escapeLike($originalIdPath) . $this->model->getId() . '/%']);
             }
 
             $this->db->commit();
@@ -102,10 +105,10 @@ class Dao extends Model\Dao\AbstractDao
 
         try {
             $this->db->delete('tags_assignment', ['tagid' => $this->model->getId()]);
-            $this->db->deleteWhere('tags_assignment', $this->db->quoteInto('tagid IN (SELECT id FROM tags WHERE idPath LIKE ?)', $this->db->escapeLike($this->model->getIdPath()) . $this->model->getId() . '/%'));
+            $this->db->executeStatement('DELETE FROM tags_assignment WHERE ' . Helper::quoteInto($this->db, 'tagid IN (SELECT id FROM tags WHERE idPath LIKE ?)', Helper::escapeLike($this->model->getIdPath()) . $this->model->getId() . '/%'));
 
             $this->db->delete('tags', ['id' => $this->model->getId()]);
-            $this->db->deleteWhere('tags', $this->db->quoteInto('idPath LIKE ?', $this->db->escapeLike($this->model->getIdPath()) . $this->model->getId() . '/%'));
+            $this->db->executeStatement('DELETE FROM tags WHERE ' . Helper::quoteInto($this->db, 'idPath LIKE ?', Helper::escapeLike($this->model->getIdPath()) . $this->model->getId() . '/%'));
 
             $this->db->commit();
         } catch (\Exception $e) {
@@ -124,7 +127,7 @@ class Dao extends Model\Dao\AbstractDao
     public function getTagsForElement($cType, $cId)
     {
         $tags = [];
-        $tagIds = $this->db->fetchCol('SELECT tagid FROM tags_assignment WHERE cid = ? AND ctype = ?', [$cId, $cType]);
+        $tagIds = $this->db->fetchFirstColumn('SELECT tagid FROM tags_assignment WHERE cid = ? AND ctype = ?', [$cId, $cType]);
 
         foreach ($tagIds as $tagId) {
             $tags[] = Model\Element\Tag::getById($tagId);
@@ -159,7 +162,7 @@ class Dao extends Model\Dao\AbstractDao
             'ctype' => $cType,
             'cid' => $cId,
         ];
-        $this->db->insertOrUpdate('tags_assignment', $data);
+        Helper::insertOrUpdate($this->db, 'tags_assignment', $data);
     }
 
     /**
@@ -214,7 +217,7 @@ class Dao extends Model\Dao\AbstractDao
             foreach ($cIds as $cId) {
                 $quotedCIds[] = $this->db->quote($cId);
             }
-            $this->db->deleteWhere('tags_assignment', 'ctype = ' . $this->db->quote($cType) . ' AND cid IN (' . implode(',', $quotedCIds) . ')');
+            $this->db->executeStatement('DELETE FROM tags_assignment WHERE ' . 'ctype = ' . $this->db->quote($cType) . ' AND cid IN (' . implode(',', $quotedCIds) . ')');
         }
 
         foreach ($tagIds as $tagId) {
@@ -250,46 +253,42 @@ class Dao extends Model\Dao\AbstractDao
             'object' => ['objects', 'o_id', 'o_type', '\Pimcore\Model\DataObject\AbstractObject'],
         ];
 
-        $select = $this->db->select()
-                           ->from('tags_assignment', [])
-                           ->where('tags_assignment.ctype = ?', $type);
+        $select = $this->db->createQueryBuilder()->select(['*'])
+                           ->from('tags_assignment')
+                           ->andWhere('tags_assignment.ctype = :ctype')->setParameter(':ctype', $type);
 
         if (true === $considerChildTags) {
-            $select->joinInner('tags', 'tags.id = tags_assignment.tagid', ['tags_id' => 'id']);
-            $select->where(
+            $select->innerJoin('tags_assignment', 'tags', 'tags', 'tags.id = tags_assignment.tagid');
+            $select->andWhere(
                 '(' .
-                $this->db->quoteInto('tags_assignment.tagid = ?', $tag->getId()) . ' OR ' .
-                $this->db->quoteInto('tags.idPath LIKE ?', $this->db->escapeLike($tag->getFullIdPath()) . '%')
+                Helper::quoteInto($this->db, 'tags_assignment.tagid = ?', $tag->getId()) . ' OR ' .
+                Helper::quoteInto($this->db, 'tags.idPath LIKE ?', Helper::escapeLike($tag->getFullIdPath()) . '%')
                 . ')'
             );
         } else {
-            $select->where('tags_assignment.tagid = ?', $tag->getId());
+            $select->andWhere('tags_assignment.tagid = :tagId')->setParameter(':tagId', $tag->getId());
         }
 
-        $select->joinInner(
-            ['el' => $map[$type][0]],
-            'tags_assignment.cId = el.' . $map[$type][1],
-            ['el_id' => $map[$type][1]]
-        );
+        $select->innerJoin('tags_assignment', $map[$type][0], 'el', 'tags_assignment.cId = el.' . $map[$type][1]);
 
         if (! empty($subtypes)) {
             foreach ($subtypes as $subType) {
                 $quotedSubTypes[] = $this->db->quote($subType);
             }
-            $select->where($map[$type][2] . ' IN (' . implode(',', $quotedSubTypes) . ')');
+            $select->andWhere($map[$type][2] . ' IN (' . implode(',', $quotedSubTypes) . ')');
         }
 
         if ('object' === $type && ! empty($classNames)) {
             foreach ($classNames as $cName) {
                 $quotedClassNames[] = $this->db->quote($cName);
             }
-            $select->where('o_className IN ( ' .  implode(',', $quotedClassNames) . ' )');
+            $select->andWhere('o_className IN ( ' .  implode(',', $quotedClassNames) . ' )');
         }
 
-        $res = $this->db->query($select);
+        $res = $this->db->executeQuery((string) $select, $select->getParameters());
 
         while ($row = $res->fetch()) {
-            $el = $map[$type][3]::getById($row['el_id']);
+            $el = $map[$type][3]::getById($row['cid']);
             if ($el) {
                 $elements[] = $el;
             }
@@ -343,6 +342,6 @@ class Dao extends Model\Dao\AbstractDao
             return false;
         }
 
-        return (bool) $this->db->fetchOne('SELECT COUNT(*) FROM tags WHERE id = ?', $this->model->getId());
+        return (bool) $this->db->fetchOne('SELECT COUNT(*) FROM tags WHERE id = ?', [$this->model->getId()]);
     }
 }

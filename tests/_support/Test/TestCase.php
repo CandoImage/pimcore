@@ -25,7 +25,7 @@ abstract class TestCase extends Test
      */
     protected $cleanupDbInSetup = true;
 
-    protected $backupGlobalsBlacklist = ['IDE_EVAL_CACHE'];     // xdebug
+    protected $backupGlobalsExcludeList = ['IDE_EVAL_CACHE'];     // xdebug
 
     /**
      * Determine if the test needs a DB connection (will be skipped if no DB is present)
@@ -38,9 +38,9 @@ abstract class TestCase extends Test
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 

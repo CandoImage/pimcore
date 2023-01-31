@@ -25,7 +25,7 @@ You can define:
 
 You can define an arbitrary number of perspectives and switch between them via the File menu.
 
-![Perspectives - menu](../img/pespectives_menu.png)
+![Perspectives - menu](../img/perspectives_menu.png)
 
 You can restrict the access to certain perspectives via the user settings.
 
@@ -33,7 +33,7 @@ You can restrict the access to certain perspectives via the user settings.
 
 ## The Configuration File
 
-Please refer to the [Example File](https://github.com/pimcore/skeleton/blob/master/app/config/pimcore/perspectives.example.php) 
+Please refer to the [Example File](https://github.com/pimcore/skeleton/blob/10.2/config/pimcore/perspectives.example.php) 
 for further details on how this can be set up.
 
 You can find out there how the default view is prepared and how to add a special perspective.
@@ -55,7 +55,7 @@ The table below, describes the most useful of available options in the configura
 
 ## Simple example
 
-In the [Example File](https://github.com/pimcore/skeleton/blob/master/app/config/pimcore/perspectives.example.php) you 
+In the [Example File](https://github.com/pimcore/skeleton/blob/10.2/config/pimcore/perspectives.example.php) you 
 can find advance usage. Below, I showed how to create the simple structure which would be use for catalog administrators.
 
 We need only to see 
@@ -71,14 +71,22 @@ The custom view definition would look like that:
 ```php
 [
     "treetype" => "object",
-    "name" => "products",
-    "rootfolder" => "/products-workflow",
+    "name" => "Cars",
+    "condition" => NULL,
+    "icon" => "/bundles/pimcoreadmin/img/flat-white-icons/automotive.svg",
     "id" => 1,
-    "showroot" => false
+    "rootfolder" => "/Product Data/Cars",
+    "showroot" => FALSE,
+    "classes" => [
+        "CAR" => 3
+    ],
+    "position" => "left",
+    "sort" => "3",
+    "expanded" => TRUE
 ]
 ```
 
-Let's update the `/app/config/pimcore/perspectives.php` by the new perspective.
+Let's update the `config/pimcore/perspectives.php` by the new perspective.
 
 ```php
 "catalog_management" => [

@@ -19,15 +19,16 @@ namespace Pimcore\Model\Document\Editable\Loader;
 
 use Pimcore\Loader\ImplementationLoader\PrefixLoader as BasePrefixLoader;
 
-class PrefixLoader extends BasePrefixLoader
+/**
+ * @internal
+ */
+final class PrefixLoader extends BasePrefixLoader
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function normalizeName(string $name): string
     {
-        return ucfirst(strtolower($name));
+        return mb_strtoupper(mb_substr($name, 0, 1)) . mb_substr($name, 1);
     }
 }
-
-class_alias(PrefixLoader::class, 'Pimcore\Model\Document\Tag\Loader\PrefixLoader');

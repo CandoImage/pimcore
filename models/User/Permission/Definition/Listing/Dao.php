@@ -18,6 +18,8 @@ namespace Pimcore\Model\User\Permission\Definition\Listing;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\User\Permission\Definition\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -30,7 +32,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
     public function load()
     {
         $definitions = [];
-        $definitionsData = $this->db->fetchAll('SELECT * FROM users_permission_definitions' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $definitionsData = $this->db->fetchAllAssociative('SELECT * FROM users_permission_definitions' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
 
         foreach ($definitionsData as $definitionData) {
             $definition = new Model\User\Permission\Definition($definitionData);

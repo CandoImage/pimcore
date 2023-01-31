@@ -15,13 +15,14 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class Alias extends AbstractOperator
+/**
+ * @internal
+ */
+final class Alias extends AbstractOperator
 {
-    public function __construct(\stdClass $config, $context = null)
-    {
-        parent::__construct($config, $context);
-    }
-
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();

@@ -19,6 +19,8 @@ use Pimcore\Logger;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Tool\Email\Log $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -41,7 +43,7 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow('SELECT * FROM email_log WHERE id = ?', $this->model->getId());
+        $data = $this->db->fetchAssociative('SELECT * FROM email_log WHERE id = ?', [$this->model->getId()]);
         $this->assignVariablesToModel($data);
     }
 
@@ -60,7 +62,6 @@ class Dao extends Model\Dao\AbstractDao
 
         foreach ($emailLog as $key => $value) {
             if (in_array($key, $this->getValidTableColumns(self::$dbTable))) {
-
                 // check if the getter exists
                 $getter = 'get' . ucfirst($key);
                 if (!method_exists($this->model, $getter)) {
@@ -102,7 +103,7 @@ class Dao extends Model\Dao\AbstractDao
         $this->db->insert(self::$dbTable, []);
 
         $date = time();
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
         $this->model->setModificationDate($date);
     }
 
@@ -137,7 +138,7 @@ class Dao extends Model\Dao\AbstractDao
     protected function prepareLoggingData($key, $value)
     {
         $class = new \stdClass();
-        $class->key = strval($key); // key has to be a string otherwise the treeGrid won't work
+        $class->key = (string)$key; // key has to be a string otherwise the treeGrid won't work
 
         if (is_string($value) || is_int($value) || is_null($value)) {
             $class->data = ['type' => 'simple',

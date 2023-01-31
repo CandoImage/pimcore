@@ -63,7 +63,7 @@ pimcore.object.tags.geopoint = Class.create(pimcore.object.tags.geo.abstract, {
             style: "margin-bottom: 10px",
             height: this.fieldConfig.height,
             width: this.fieldConfig.width,
-            componentCls: 'object_field object_geo_field object_field_type_' + this.type,
+            componentCls: this.getWrapperClassNames('object_geo_field'),
             html: '<div id="leaflet_maps_container_' + this.mapImageID + '"></div>',
             bbar: [
                 t('latitude'),
@@ -201,7 +201,14 @@ pimcore.object.tags.geopoint = Class.create(pimcore.object.tags.geo.abstract, {
             url: this.getSearchUrl(address),
             method: "GET",
             success: function (response, opts) {
-                var data = Ext.decode(response.responseText);
+                const data = Ext.decode(response.responseText);
+                if(!Array.isArray(data) || data.length === 0) {
+                    Ext.MessageBox.alert(t('error'), t('address_not_found') + '. <br /> <br /> ' +
+                        t('possible_causes') + ':' +
+                        `<p>${t('postal_code_format_error')}</p>` );
+
+                    return;
+                }
                 this.latitude.setValue(data[0].lat);
                 this.longitude.setValue(data[0].lon);
                 this.updateMap();

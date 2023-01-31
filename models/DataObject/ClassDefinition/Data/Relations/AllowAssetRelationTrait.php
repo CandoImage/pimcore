@@ -18,10 +18,15 @@ namespace Pimcore\Model\DataObject\ClassDefinition\Data\Relations;
 use Pimcore\Logger;
 use Pimcore\Model\Asset;
 
+/**
+ * @internal
+ */
 trait AllowAssetRelationTrait
 {
     /**
      * Checks if an asset is an allowed relation
+     *
+     * @internal
      *
      * @param Asset $asset
      *
@@ -29,12 +34,16 @@ trait AllowAssetRelationTrait
      */
     protected function allowAssetRelation($asset)
     {
+        if (!$asset instanceof Asset || $asset->getId() <= 0) {
+            return false;
+        }
+
         $allowedAssetTypes = $this->getAssetTypes();
         $allowedTypes = [];
         $allowed = true;
         if (!$this->getAssetsAllowed()) {
             $allowed = false;
-        } elseif ($this->getAssetsAllowed() and is_array($allowedAssetTypes) and count($allowedAssetTypes) > 0) {
+        } elseif ($this->getAssetsAllowed() && is_array($allowedAssetTypes) && count($allowedAssetTypes) > 0) {
             //check for allowed asset types
             foreach ($allowedAssetTypes as $t) {
                 if (is_array($t) && array_key_exists('assetTypes', $t)) {
@@ -44,7 +53,7 @@ trait AllowAssetRelationTrait
                 if ($t) {
                     if (is_string($t)) {
                         $allowedTypes[] = $t;
-                    } elseif (is_array($t) && count($t) > 0) {
+                    } elseif (is_array($t)) {
                         if (isset($t['assetTypes'])) {
                             $allowedTypes[] = $t['assetTypes'];
                         } else {

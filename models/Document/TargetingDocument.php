@@ -25,12 +25,14 @@ use Pimcore\Model\Document\Targeting\TargetingDocumentInterface;
 abstract class TargetingDocument extends PageSnippet implements TargetingDocumentInterface
 {
     /**
+     * @internal
+     *
      * @var int
      */
     private $useTargetGroup;
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function setUseTargetGroup(int $useTargetGroup = null)
     {
@@ -38,7 +40,7 @@ abstract class TargetingDocument extends PageSnippet implements TargetingDocumen
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getUseTargetGroup()
     {
@@ -46,15 +48,7 @@ abstract class TargetingDocument extends PageSnippet implements TargetingDocumen
     }
 
     /**
-     * @inheritdoc
-     */
-    public function getTargetGroupElementPrefix(int $targetGroupId = null): string
-    {
-        return $this->getTargetGroupEditablePrefix($targetGroupId);
-    }
-
-    /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getTargetGroupEditablePrefix(int $targetGroupId = null): string
     {
@@ -72,15 +66,7 @@ abstract class TargetingDocument extends PageSnippet implements TargetingDocumen
     }
 
     /**
-     * @inheritdoc
-     */
-    public function getTargetGroupElementName(string $name): string
-    {
-        return $this->getTargetGroupEditableName($name);
-    }
-
-    /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getTargetGroupEditableName(string $name): string
     {
@@ -97,17 +83,7 @@ abstract class TargetingDocument extends PageSnippet implements TargetingDocumen
     }
 
     /**
-     * @inheritDoc
-     *
-     * @deprecated since v6.7 and will be removed in Pimcore 10. Use hasTargetGroupSpecificEditables() instead.
-     */
-    public function hasTargetGroupSpecificElements(): bool
-    {
-        return $this->hasTargetGroupSpecificEditables();
-    }
-
-    /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function hasTargetGroupSpecificEditables(): bool
     {
@@ -115,15 +91,7 @@ abstract class TargetingDocument extends PageSnippet implements TargetingDocumen
     }
 
     /**
-     * @inheritDoc
-     */
-    public function getTargetGroupSpecificElementNames(): array
-    {
-        return $this->getTargetGroupSpecificEditableNames();
-    }
-
-    /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getTargetGroupSpecificEditableNames(): array
     {
@@ -131,49 +99,20 @@ abstract class TargetingDocument extends PageSnippet implements TargetingDocumen
     }
 
     /**
-     * Set an element with the given key/name
-     *
-     * @param string|Editable $name
-     * @param Editable|null $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
-    public function setEditable(/*string $name, Editable $data*/)
+    public function setEditable(Editable $editable)
     {
-        $data = null;
-        $name = null;
-
-        $arguments = func_get_args();
-        if (count($arguments) === 2) {
-            if (is_string($arguments[0]) && $arguments[1] instanceof Editable) {
-                $data = $arguments[1];
-                $name = $arguments[0];
-
-                @trigger_error(sprintf('Calling %s with 2 arguments is deprecated and will throw an exception in Pimcore 10, just use 1 argument of type %s', __METHOD__, Editable::class), E_USER_DEPRECATED);
-            } else {
-                throw new \InvalidArgumentException('One or more passed arguments do not match the expected type, expected: string $name, Editable $data');
-            }
-        } elseif (count($arguments) === 1) {
-            if ($arguments[0] instanceof Editable) {
-                $data = $arguments[0];
-                $name = $data->getName();
-            } else {
-                throw new \InvalidArgumentException(sprintf('Type of passed argument is of wrong type, expected %s', Editable::class));
-            }
-        } else {
-            throw new \InvalidArgumentException(sprintf('Invalid amount of arguments passed, expected 2, got %d', count($arguments)));
-        }
-
         if ($this->getUseTargetGroup()) {
-            $name = $this->getTargetGroupEditableName($name);
-            $data->setName($name);
+            $name = $this->getTargetGroupEditableName($editable->getName());
+            $editable->setName($name);
         }
 
-        return parent::setEditable($data);
+        return parent::setEditable($editable);
     }
 
     /**
-     * Get an element with the given key/name
+     * Get an editable with the given key/name
      *
      * @param string $name
      *
@@ -181,7 +120,7 @@ abstract class TargetingDocument extends PageSnippet implements TargetingDocumen
      */
     public function getEditable($name)
     {
-        // check if a target group is requested for this page, if yes deliver a different version of the element (prefixed)
+        // check if a target group is requested for this page, if yes deliver a different version of the editable (prefixed)
         if ($this->getUseTargetGroup()) {
             $targetGroupEditableName = $this->getTargetGroupEditableName($name);
 
@@ -211,6 +150,9 @@ abstract class TargetingDocument extends PageSnippet implements TargetingDocumen
         return parent::getEditable($name);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function __sleep()
     {
         $finalVars = [];

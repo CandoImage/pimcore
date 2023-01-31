@@ -22,7 +22,7 @@ use Pimcore\Model\Element\Service;
  * @method \Pimcore\Model\Property\Dao getDao()
  * @method void save()
  */
-class Property extends AbstractModel
+final class Property extends AbstractModel
 {
     /**
      * @var string
@@ -45,7 +45,7 @@ class Property extends AbstractModel
     protected $ctype;
 
     /**
-     * @var string
+     * @var string|null
      */
     protected $cpath;
 
@@ -65,7 +65,7 @@ class Property extends AbstractModel
     protected $inherited = false;
 
     /**
-     * Takes data from editmode and convert it to internal objects
+     * @internal
      *
      * @param mixed $data
      *
@@ -95,11 +95,11 @@ class Property extends AbstractModel
     }
 
     /**
-     * Takes data from resource and convert it to internal objects
+     * @internal
      *
      * @param mixed $data
      *
-     * @return static
+     * @return $this
      */
     public function setDataFromResource($data)
     {
@@ -129,6 +129,8 @@ class Property extends AbstractModel
     }
 
     /**
+     * enum('document','asset','object')
+     *
      * @return string
      */
     public function getCtype()
@@ -141,7 +143,6 @@ class Property extends AbstractModel
      */
     public function getData()
     {
-
         // lazy-load data of type asset, document, object
         if (in_array($this->getType(), ['document', 'asset', 'object']) && !$this->data instanceof ElementInterface && is_numeric($this->data)) {
             return Element\Service::getElementById($this->getType(), $this->data);
@@ -159,6 +160,8 @@ class Property extends AbstractModel
     }
 
     /**
+     * enum('text','document','asset','object','bool','select')
+     *
      * @return string
      */
     public function getType()
@@ -169,7 +172,7 @@ class Property extends AbstractModel
     /**
      * @param int $cid
      *
-     * @return static
+     * @return $this
      */
     public function setCid($cid)
     {
@@ -179,9 +182,11 @@ class Property extends AbstractModel
     }
 
     /**
+     * enum('document','asset','object')
+     *
      * @param string $ctype
      *
-     * @return static
+     * @return $this
      */
     public function setCtype($ctype)
     {
@@ -193,7 +198,7 @@ class Property extends AbstractModel
     /**
      * @param mixed $data
      *
-     * @return static
+     * @return $this
      */
     public function setData($data)
     {
@@ -210,7 +215,7 @@ class Property extends AbstractModel
     /**
      * @param string $name
      *
-     * @return static
+     * @return $this
      */
     public function setName($name)
     {
@@ -220,9 +225,11 @@ class Property extends AbstractModel
     }
 
     /**
+     * enum('text','document','asset','object','bool','select')
+     *
      * @param string $type
      *
-     * @return static
+     * @return $this
      */
     public function setType($type)
     {
@@ -232,7 +239,7 @@ class Property extends AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getCpath()
     {
@@ -258,9 +265,9 @@ class Property extends AbstractModel
     }
 
     /**
-     * @param string $cpath
+     * @param string|null $cpath
      *
-     * @return static
+     * @return $this
      */
     public function setCpath($cpath)
     {
@@ -272,7 +279,7 @@ class Property extends AbstractModel
     /**
      * @param bool $inherited
      *
-     * @return static
+     * @return $this
      */
     public function setInherited($inherited)
     {
@@ -292,7 +299,7 @@ class Property extends AbstractModel
     /**
      * @param bool $inheritable
      *
-     * @return static
+     * @return $this
      */
     public function setInheritable($inheritable)
     {
@@ -302,6 +309,8 @@ class Property extends AbstractModel
     }
 
     /**
+     * @internal
+     *
      * @return array
      */
     public function resolveDependencies()
@@ -331,6 +340,8 @@ class Property extends AbstractModel
      *  "asset" => array(...)
      * )
      *
+     * @internal
+     *
      * @param array $idMapping
      */
     public function rewriteIds($idMapping)
@@ -344,5 +355,19 @@ class Property extends AbstractModel
                 }
             }
         }
+    }
+
+    /**
+     * @internal
+     *
+     * @return array
+     */
+    public function serialize()
+    {
+        return [
+          'name' => $this->getName(),
+          'type' => $this->getType(),
+          'data' => $this->getData(),
+        ];
     }
 }

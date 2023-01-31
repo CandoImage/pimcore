@@ -15,9 +15,9 @@
 
 namespace Pimcore\Model\DataObject\ClassDefinition\Data;
 
-use Pimcore\Model;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\ClassDefinition\Data\Geo\AbstractGeo;
+use Pimcore\Model\Element\ValidationException;
 use Pimcore\Normalizer\NormalizerInterface;
 
 class Geobounds extends AbstractGeo implements
@@ -33,12 +33,16 @@ class Geobounds extends AbstractGeo implements
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'geobounds';
 
     /**
      * Type for the column to query
+     *
+     * @internal
      *
      * @var array
      */
@@ -52,6 +56,8 @@ class Geobounds extends AbstractGeo implements
     /**
      * Type for the column
      *
+     * @internal
+     *
      * @var array
      */
     public $columnType = [
@@ -62,16 +68,9 @@ class Geobounds extends AbstractGeo implements
     ];
 
     /**
-     * Type for the generated phpdoc
-     *
-     * @var string
-     */
-    public $phpdocType = '\\Pimcore\\Model\\DataObject\\Data\\Geobounds';
-
-    /**
      * @see ResourcePersistenceAwareInterface::getDataForResource
      *
-     * @param DataObject\Data\Geobounds $data
+     * @param DataObject\Data\Geobounds|null $data
      * @param null|DataObject\Concrete $object
      * @param mixed $params
      *
@@ -97,6 +96,25 @@ class Geobounds extends AbstractGeo implements
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
+    {
+        $isEmpty = true;
+
+        if ($data) {
+            if (!$data instanceof DataObject\Data\Geobounds) {
+                throw new ValidationException('Expected an instance of Geobounds');
+            }
+            $isEmpty = false;
+        }
+
+        if (!$omitMandatoryCheck && $this->getMandatory() && $isEmpty) {
+            throw new ValidationException('Empty mandatory field [ ' . $this->getName() . ' ]');
+        }
+    }
+
+    /**
      * @see ResourcePersistenceAwareInterface::getDataFromResource
      *
      * @param array $data
@@ -114,7 +132,9 @@ class Geobounds extends AbstractGeo implements
             $geobounds = new DataObject\Data\Geobounds($ne, $sw);
 
             if (isset($params['owner'])) {
-                $geobounds->setOwner($params['owner'], $params['fieldname'], $params['language'] ?? null);
+                $geobounds->_setOwner($params['owner']);
+                $geobounds->_setOwnerFieldname($params['fieldname']);
+                $geobounds->_setOwnerLanguage($params['language'] ?? null);
             }
 
             return $geobounds;
@@ -140,7 +160,7 @@ class Geobounds extends AbstractGeo implements
     /**
      * @see Data::getDataForEditmode
      *
-     * @param DataObject\Data\Geobounds $data
+     * @param DataObject\Data\Geobounds|null $data
      * @param null|DataObject\Concrete $object
      * @param mixed $params
      *
@@ -196,7 +216,7 @@ class Geobounds extends AbstractGeo implements
     /**
      * @see Data::getVersionPreview
      *
-     * @param DataObject\Data\Geobounds $data
+     * @param DataObject\Data\Geobounds|null $data
      * @param DataObject\Concrete|null $object
      * @param mixed $params
      *
@@ -212,14 +232,7 @@ class Geobounds extends AbstractGeo implements
     }
 
     /**
-     * converts object data to a simple string value or CSV Export
-     *
-     * @abstract
-     *
-     * @param DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getForCsvExport($object, $params = [])
     {
@@ -232,34 +245,7 @@ class Geobounds extends AbstractGeo implements
     }
 
     /**
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return null|DataObject\ClassDefinition\Data|DataObject\Data\Geobounds
-     */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
-    {
-        $points = explode('|', $importValue);
-        $value = null;
-        if (is_array($points) and count($points) == 2) {
-            $northEast = explode(',', $points[0]);
-            $southWest = explode(',', $points[1]);
-            if ($northEast[0] && $northEast[1] && $southWest[0] && $southWest[1]) {
-                $value = new DataObject\Data\Geobounds(new DataObject\Data\GeoCoordinates($northEast[1], $northEast[0]), new DataObject\Data\GeoCoordinates($southWest[1], $southWest[0]));
-            }
-        }
-
-        return $value;
-    }
-
-    /**
-     * @param DataObject\Concrete|DataObject\Objectbrick\Data\AbstractData|DataObject\Fieldcollection\Data\AbstractData $object
-     * @param mixed $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getDataForSearchIndex($object, $params = [])
     {
@@ -267,99 +253,15 @@ class Geobounds extends AbstractGeo implements
     }
 
     /**
-     * converts data to be exposed via webservices
-     *
-     * @deprecated
-     *
-     * @param DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return array|null
-     */
-    public function getForWebserviceExport($object, $params = [])
-    {
-        $data = $this->getDataFromObjectParam($object, $params);
-        if ($data instanceof DataObject\Data\Geobounds) {
-            return [
-                'NElongitude' => $data->getNorthEast()->getLongitude(),
-                'NElatitude' => $data->getNorthEast()->getLatitude(),
-                'SWlongitude' => $data->getSouthWest()->getLongitude(),
-                'SWlatitude' => $data->getSouthWest()->getLatitude(),
-            ];
-        }
-
-        return null;
-    }
-
-    /**
-     * @deprecated
-     *
-     * @param mixed $value
-     * @param null|DataObject\Concrete $object
-     * @param mixed $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @return mixed|void
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($value, $object = null, $params = [], $idMapper = null)
-    {
-        if (empty($value)) {
-            return null;
-        } else {
-            $value = (array) $value;
-            if ($value['NElongitude'] !== null && $value['NElatitude'] !== null && $value['SWlongitude'] !== null && $value['SWlatitude'] !== null) {
-                $ne = new DataObject\Data\GeoCoordinates($value['NElatitude'], $value['NElongitude']);
-                $sw = new DataObject\Data\GeoCoordinates($value['SWlatitude'], $value['SWlongitude']);
-
-                return new DataObject\Data\Geobounds($ne, $sw);
-            } else {
-                throw new \Exception('cannot get values from web service import - invalid data');
-            }
-        }
-    }
-
-    /** True if change is allowed in edit mode.
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
         return true;
     }
 
-    /** Encode value for packing it into a single column.
-     *
-     * @deprecated marshal is deprecated and will be removed in Pimcore 10. Use normalize instead.
-     *
-     * @param mixed $value
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return mixed
-     */
-    public function marshal($value, $object = null, $params = [])
-    {
-        if ($value instanceof DataObject\Data\Geobounds) {
-            return [
-                'value' => json_encode([$value->getNorthEast()->getLatitude(), $value->getNorthEast()->getLongitude()]),
-                'value2' => json_encode([$value->getSouthWest()->getLatitude(), $value->getSouthWest()->getLongitude()]),
-            ];
-        } elseif (is_array($value)) {
-            return [
-                'value' => json_encode([$value[$this->getName() . '__NElatitude'], $value[$this->getName() . '__NElongitude']]),
-                'value2' => json_encode([$value[$this->getName() . '__SWlatitude'], $value[$this->getName() . '__SWlongitude']]),
-            ];
-        }
-
-        return $value;
-    }
-
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function normalize($value, $params = [])
     {
@@ -380,7 +282,7 @@ class Geobounds extends AbstractGeo implements
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function denormalize($value, $params = [])
     {
@@ -388,35 +290,15 @@ class Geobounds extends AbstractGeo implements
             $ne = new DataObject\Data\GeoCoordinates($value['northEast']['latitude'], $value['northEast']['longitude']);
             $sw = new DataObject\Data\GeoCoordinates($value['southWest']['latitude'], $value['southWest']['longitude']);
 
-            return new DataObject\Data\Geobounds($ne, $sw);
+            $geoBounds = new DataObject\Data\Geobounds($ne, $sw);
+            $geoBounds->_setOwnerFieldname($params['fieldname'] ?? null);
+            $geoBounds->_setOwner($params['owner'] ?? null);
+            $geoBounds->_setOwnerLanguage($params['language'] ?? null);
+
+            return $geoBounds;
         }
 
         return null;
-    }
-
-    /** See marshal
-     *
-     * @deprecated unmarshal is deprecated and will be removed in Pimcore 10. Use denormalize instead.
-     *
-     * @param mixed $value
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return mixed
-     */
-    public function unmarshal($value, $object = null, $params = [])
-    {
-        if ($value && $value['value'] && $value['value2']) {
-            $dataNE = json_decode($value['value']);
-            $dataSW = json_decode($value['value2']);
-
-            $ne = new DataObject\Data\Geopoint($dataNE[1], $dataNE[0]);
-            $sw = new DataObject\Data\Geopoint($dataSW[1], $dataSW[0]);
-
-            return new DataObject\Data\Geobounds($ne, $sw);
-        }
-
-        return $value;
     }
 
     /**
@@ -458,5 +340,37 @@ class Geobounds extends AbstractGeo implements
         }
 
         return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getParameterTypeDeclaration(): ?string
+    {
+        return '?\\' . DataObject\Data\Geobounds::class;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?\\' . DataObject\Data\Geobounds::class;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
+    {
+        return '\\' . DataObject\Data\Geobounds::class . '|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return '\\' . DataObject\Data\Geobounds::class . '|null';
     }
 }

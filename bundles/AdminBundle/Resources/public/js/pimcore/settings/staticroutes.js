@@ -59,13 +59,11 @@ pimcore.settings.staticroutes = Class.create({
         this.store = pimcore.helpers.grid.buildDefaultStore(
             url,
             [
-                {name:'id', type: 'int'},
+                {name:'id'},
                 {name:'name'},
                 {name:'pattern', allowBlank:false},
                 {name:'reverse', allowBlank:true},
-                {name:'module'},
                 {name:'controller'},
-                {name:'action'},
                 {name:'variables'},
                 {name:'defaults'},
                 {name:'siteId'},
@@ -131,12 +129,6 @@ pimcore.settings.staticroutes = Class.create({
                         maxWidth: 400
                     }
                 })},
-            {text: t('bundle') + " (" + t('deprecated') + ")", flex: 50, sortable: false, dataIndex: 'module',
-                editor: new Ext.form.field.Text()
-                },
-            {text:t("action") + " (" + t('deprecated') + ")", flex:50, sortable:false, dataIndex:'action',
-                editor: new Ext.form.field.Text()
-            },
             {text:t("variables"), flex:50, sortable:false, dataIndex:'variables',
                 editor:new Ext.form.TextField({})},
             {text:t("defaults"), flex:50, sortable:false, dataIndex:'defaults',
@@ -179,20 +171,39 @@ pimcore.settings.staticroutes = Class.create({
                 xtype:'actioncolumn',
                 menuText: t('delete'),
                 width: 40,
-                items:[
-                    {
-                        tooltip:t('delete'),
-                        icon:"/bundles/pimcoreadmin/img/flat-color-icons/delete.svg",
-                        handler:function (grid, rowIndex) {
+                items: [{
+                    getClass: function (v, meta, rec) {
+                        var klass = "pimcore_action_column ";
+                        if (rec.data.writeable) {
+                            klass += "pimcore_icon_minus";
+                        }
+                        return klass;
+                    },
+                    tooltip: t('delete'),
+                    handler: function (grid, rowIndex) {
+                        var data = grid.getStore().getAt(rowIndex);
+                        if (!data.data.writeable) {
+                            return;
+                        }
+
+                        pimcore.helpers.deleteConfirm(t('staticroute'), data.data.name, function () {
                             grid.getStore().removeAt(rowIndex);
-                        }.bind(this)
-                    }
-                ]
+                        }.bind(this));
+                    }.bind(this)
+                }]
             }
         ];
 
-        this.cellEditing = Ext.create('Ext.grid.plugin.CellEditing', {
-            clicksToEdit: 1
+        this.rowEditing = Ext.create('Ext.grid.plugin.RowEditing', {
+            clicksToEdit: 1,
+            clicksToMoveEditor: 1,
+            listeners: {
+                beforeedit: function (editor, context, eOpts) {
+                    if (!context.record.data.writeable) {
+                        return false;
+                    }
+                }
+            }
         });
 
 
@@ -212,7 +223,7 @@ pimcore.settings.staticroutes = Class.create({
             },
             sm: Ext.create('Ext.selection.RowModel', {}),
             plugins: [
-                this.cellEditing
+                this.rowEditing
             ],
             tbar: {
                 cls: 'pimcore_main_toolbar',
@@ -220,7 +231,8 @@ pimcore.settings.staticroutes = Class.create({
                     {
                         text:t('add'),
                         handler:this.onAdd.bind(this),
-                        iconCls:"pimcore_icon_add"
+                        iconCls:"pimcore_icon_add",
+                        disabled: !pimcore.settings['staticroutes-writeable']
                     },
                     "->",
                     {
@@ -232,7 +244,10 @@ pimcore.settings.staticroutes = Class.create({
                 ]
             },
             viewConfig:{
-                forceFit:true
+                forceFit:true,
+                getRowClass: function (record, rowIndex) {
+                    return record.data.writeable ? '' : 'pimcore_grid_row_disabled';
+                }
             }
         });
 

@@ -49,7 +49,7 @@ class GeoPoint extends AbstractVariableCondition implements DataProviderDependen
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public static function fromConfig(array $config)
     {
@@ -61,7 +61,7 @@ class GeoPoint extends AbstractVariableCondition implements DataProviderDependen
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getDataProviderKeys(): array
     {
@@ -69,7 +69,7 @@ class GeoPoint extends AbstractVariableCondition implements DataProviderDependen
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function canMatch(): bool
     {
@@ -77,11 +77,11 @@ class GeoPoint extends AbstractVariableCondition implements DataProviderDependen
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function match(VisitorInfo $visitorInfo): bool
     {
-        /** @var GeoLocationModel $location */
+        /** @var GeoLocationModel|null $location */
         $location = $visitorInfo->get(GeoLocation::PROVIDER_KEY);
 
         if (!$location) {

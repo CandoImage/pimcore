@@ -21,9 +21,12 @@ use Pimcore\Config;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
+/**
+ * @internal
+ */
 class WebsiteConfigExtension extends AbstractExtension
 {
-    public function getFunctions()
+    public function getFunctions(): array
     {
         return [
             new TwigFunction('pimcore_website_config', [$this, 'getWebsiteConfig']),
@@ -33,13 +36,13 @@ class WebsiteConfigExtension extends AbstractExtension
     /**
      * Returns website config for the current site
      *
-     * @param null|mixed $key       Config key to directly load. If null, the whole config will be returned
-     * @param null|mixed $default   Default value to use if the key is not set
-     * @param null|mixed $language  Language to use
+     * @param string|null $key  Config key to directly load. If null, the whole config will be returned
+     * @param mixed $default    Default value to use if the key is not set
+     * @param string|null $language
      *
-     * @return Config\Config|mixed
+     * @return mixed
      */
-    public function getWebsiteConfig($key = null, $default = null, $language = null)
+    public function getWebsiteConfig($key = null, $default = null, $language = null): mixed
     {
         return Config::getWebsiteConfigValue($key, $default, $language);
     }

@@ -16,18 +16,20 @@
 namespace Pimcore\Model\DataObject\Data;
 
 use DeepCopy\DeepCopy;
+use DeepCopy\Filter\SetNullFilter;
+use DeepCopy\Matcher\PropertyNameMatcher;
 use Pimcore\Cache\Core\CacheMarshallerInterface;
-use Pimcore\Cache\Runtime;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Model\AbstractModel;
 use Pimcore\Model\DataObject\OwnerAwareFieldInterface;
 use Pimcore\Model\DataObject\Traits\OwnerAwareFieldTrait;
 use Pimcore\Model\Element\AbstractElement;
+use Pimcore\Model\Element\DeepCopy\UnmarshalMatcher;
 use Pimcore\Model\Element\ElementDescriptor;
 use Pimcore\Model\Element\ElementDumpStateInterface;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Element\Service;
 use Pimcore\Model\Version\SetDumpStateFilter;
-use Pimcore\Model\Version\UnmarshalMatcher;
 
 class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, CacheMarshallerInterface
 {
@@ -49,6 +51,8 @@ class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, Ca
     protected $data;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     protected $needsRenewReferences = false;
@@ -112,7 +116,6 @@ class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, Ca
     public function getData()
     {
         if ($this->needsRenewReferences) {
-            $container = null;
             $this->needsRenewReferences = false;
             $this->renewReferences();
         }
@@ -138,9 +141,14 @@ class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, Ca
                 function ($currentValue) {
                     if ($currentValue instanceof ElementDescriptor) {
                         $cacheKey = $currentValue->getCacheKey();
-                        if (Runtime::isRegistered($cacheKey)) {
-                            // we don't want the copy from the runtime but cache is fine
-                            Runtime::getInstance()->offsetUnset($cacheKey);
+                        $cacheKeyRenewed = $cacheKey . '_blockElementRenewed';
+
+                        if (!RuntimeCache::isRegistered($cacheKeyRenewed)) {
+                            if (RuntimeCache::isRegistered($cacheKey)) {
+                                // we don't want the copy from the runtime but cache is fine
+                                RuntimeCache::getInstance()->offsetUnset($cacheKey);
+                            }
+                            RuntimeCache::save(true, $cacheKeyRenewed);
                         }
 
                         $renewedElement = Service::getElementById($currentValue->getType(), $currentValue->getId());
@@ -177,11 +185,15 @@ class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, Ca
         $this->needsRenewReferences = true;
 
         if ($this->data instanceof OwnerAwareFieldInterface) {
-            $this->data->setOwner($this, $this->getName());
+            $this->data->_setOwner($this);
+            $this->data->_setOwnerFieldname($this->getName());
+            $this->data->_setOwnerLanguage(null);
         }
     }
 
     /**
+     * @internal
+     *
      * @return bool
      */
     public function getNeedsRenewReferences(): bool
@@ -190,6 +202,8 @@ class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, Ca
     }
 
     /**
+     * @internal
+     *
      * @param bool $needsRenewReferences
      */
     public function setNeedsRenewReferences(bool $needsRenewReferences)
@@ -205,6 +219,9 @@ class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, Ca
         $this->_language = $language;
     }
 
+    /**
+     * @return mixed
+     */
     public function marshalForCache()
     {
         $this->needsRenewReferences = true;
@@ -220,7 +237,7 @@ class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, Ca
             new \DeepCopy\TypeFilter\ReplaceFilter(
                 function ($currentValue) {
                     if ($currentValue instanceof ElementInterface) {
-                        $elementType = Service::getType($currentValue);
+                        $elementType = Service::getElementType($currentValue);
                         $descriptor = new ElementDescriptor($elementType, $currentValue->getId());
 
                         return $descriptor;
@@ -231,6 +248,8 @@ class BlockElement extends AbstractModel implements OwnerAwareFieldInterface, Ca
             ),
             new \Pimcore\Model\Element\DeepCopy\MarshalMatcher(null, null)
         );
+        $copier->addFilter(new SetNullFilter(), new PropertyNameMatcher('_owner'));
+
         $data = $copier->copy($this);
 
         return $data;

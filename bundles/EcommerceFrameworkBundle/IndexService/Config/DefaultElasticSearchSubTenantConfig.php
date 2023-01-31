@@ -31,7 +31,10 @@ class DefaultElasticSearchSubTenantConfig extends ElasticSearch
      */
     public function inIndex(IndexableInterface $object)
     {
-        $tenants = $object->getTenants();
+        $tenants = null;
+        if (method_exists($object, 'getTenants')) {
+            $tenants = $object->getTenants();
+        }
 
         return !empty($tenants);
     }
@@ -51,8 +54,13 @@ class DefaultElasticSearchSubTenantConfig extends ElasticSearch
     {
         $subTenantData = [];
         if ($this->inIndex($object)) {
+            $tenants = [];
+            if (method_exists($object, 'getTenants')) {
+                $tenants = $object->getTenants();
+            }
+
             //implementation specific tenant get logic
-            foreach ($object->getTenants() as $tenant) {
+            foreach ($tenants as $tenant) {
                 $subTenantData[] = $tenant->getId();
             }
         }

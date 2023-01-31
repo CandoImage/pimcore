@@ -25,14 +25,14 @@ class Checkbox extends Model\Document\Editable
     /**
      * Contains the checkbox value
      *
+     * @internal
+     *
      * @var bool
      */
-    public $value = false;
+    protected $value = false;
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -40,9 +40,7 @@ class Checkbox extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -50,9 +48,15 @@ class Checkbox extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
-     * @return string
+     * {@inheritdoc}
+     */
+    public function getValue()
+    {
+        return $this->getData();
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -60,11 +64,7 @@ class Checkbox extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -74,11 +74,7 @@ class Checkbox extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -88,7 +84,7 @@ class Checkbox extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -102,27 +98,4 @@ class Checkbox extends Model\Document\Editable
     {
         return $this->value;
     }
-
-    /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     *
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-        if ($data->bool === null || is_bool($data)) {
-            $this->value = (bool) $data->value;
-        } else {
-            throw new \Exception('cannot get values from web service import - invalid data');
-        }
-    }
 }
-
-class_alias(Checkbox::class, 'Pimcore\Model\Document\Tag\Checkbox');

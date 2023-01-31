@@ -16,6 +16,7 @@
 namespace Pimcore\Model\DataObject\ClassDefinition\Data;
 
 use Pimcore\Model;
+use Pimcore\Model\DataObject\ClassDefinition\Service;
 use Pimcore\Tool;
 
 class Language extends Model\DataObject\ClassDefinition\Data\Select
@@ -23,15 +24,22 @@ class Language extends Model\DataObject\ClassDefinition\Data\Select
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'language';
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $onlySystemLanguages = false;
 
+    /**
+     * @internal
+     */
     public function configureOptions()
     {
         $validLanguages = (array) Tool::getValidLanguages();
@@ -87,6 +95,33 @@ class Language extends Model\DataObject\ClassDefinition\Data\Select
         return $obj;
     }
 
+    /**
+     * @return $this
+     */
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize()// : static
+    {
+        if (Service::doRemoveDynamicOptions()) {
+            $this->options = null;
+        }
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function resolveBlockedVars(): array
+    {
+        $blockedVars = parent::resolveBlockedVars();
+        $blockedVars[] = 'options';
+
+        return $blockedVars;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isFilterable(): bool
     {
         return true;

@@ -17,31 +17,34 @@ namespace Pimcore\Model\DataObject\Classificationstore;
 
 use Pimcore\Event\DataObjectClassificationStoreEvents;
 use Pimcore\Event\Model\DataObject\ClassificationStore\StoreConfigEvent;
+use Pimcore\Event\Traits\RecursionBlockingEventDispatchHelperTrait;
 use Pimcore\Model;
 
 /**
  * @method \Pimcore\Model\DataObject\Classificationstore\StoreConfig\Dao getDao()
  */
-class StoreConfig extends Model\AbstractModel
+final class StoreConfig extends Model\AbstractModel
 {
+    use RecursionBlockingEventDispatchHelperTrait;
+
     /**
-     * @var int
+     * @var int|null
      */
-    public $id;
+    protected $id;
 
     /**
      * The store name.
      *
-     * @var string
+     * @var string|null
      */
-    public $name;
+    protected $name;
 
     /**
      * The store description.
      *
-     * @var string
+     * @var string|null
      */
-    public $description;
+    protected $description;
 
     /**
      * @param int $id
@@ -52,10 +55,10 @@ class StoreConfig extends Model\AbstractModel
     {
         try {
             $config = new self();
-            $config->getDao()->getById(intval($id));
+            $config->getDao()->getById((int)$id);
 
             return $config;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -72,7 +75,7 @@ class StoreConfig extends Model\AbstractModel
             $config->getDao()->getByName($name);
 
             return $config;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -101,7 +104,7 @@ class StoreConfig extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getName()
     {
@@ -111,7 +114,7 @@ class StoreConfig extends Model\AbstractModel
     /**
      * Returns the description.
      *
-     * @return string
+     * @return string|null
      */
     public function getDescription()
     {
@@ -137,9 +140,9 @@ class StoreConfig extends Model\AbstractModel
      */
     public function delete()
     {
-        \Pimcore::getEventDispatcher()->dispatch(DataObjectClassificationStoreEvents::STORE_CONFIG_PRE_DELETE, new StoreConfigEvent($this));
+        $this->dispatchEvent(new StoreConfigEvent($this), DataObjectClassificationStoreEvents::STORE_CONFIG_PRE_DELETE);
         $this->getDao()->delete();
-        \Pimcore::getEventDispatcher()->dispatch(DataObjectClassificationStoreEvents::STORE_CONFIG_POST_DELETE, new StoreConfigEvent($this));
+        $this->dispatchEvent(new StoreConfigEvent($this), DataObjectClassificationStoreEvents::STORE_CONFIG_POST_DELETE);
     }
 
     /**
@@ -151,24 +154,24 @@ class StoreConfig extends Model\AbstractModel
 
         if ($this->getId()) {
             $isUpdate = true;
-            \Pimcore::getEventDispatcher()->dispatch(DataObjectClassificationStoreEvents::STORE_CONFIG_PRE_UPDATE, new StoreConfigEvent($this));
+            $this->dispatchEvent(new StoreConfigEvent($this), DataObjectClassificationStoreEvents::STORE_CONFIG_PRE_UPDATE);
         } else {
-            \Pimcore::getEventDispatcher()->dispatch(DataObjectClassificationStoreEvents::STORE_CONFIG_PRE_ADD, new StoreConfigEvent($this));
+            $this->dispatchEvent(new StoreConfigEvent($this), DataObjectClassificationStoreEvents::STORE_CONFIG_PRE_ADD);
         }
 
         $model = $this->getDao()->save();
 
         if ($isUpdate) {
-            \Pimcore::getEventDispatcher()->dispatch(DataObjectClassificationStoreEvents::STORE_CONFIG_POST_UPDATE, new StoreConfigEvent($this));
+            $this->dispatchEvent(new StoreConfigEvent($this), DataObjectClassificationStoreEvents::STORE_CONFIG_POST_UPDATE);
         } else {
-            \Pimcore::getEventDispatcher()->dispatch(DataObjectClassificationStoreEvents::STORE_CONFIG_POST_ADD, new StoreConfigEvent($this));
+            $this->dispatchEvent(new StoreConfigEvent($this), DataObjectClassificationStoreEvents::STORE_CONFIG_POST_ADD);
         }
 
         return $model;
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {

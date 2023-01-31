@@ -18,9 +18,14 @@ namespace Pimcore\Tool;
 use Pimcore\Bundle\AdminBundle\Security\User\TokenStorageUserResolver;
 use Pimcore\Event\SystemEvents;
 use Pimcore\File;
+use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Model\User;
 use Pimcore\Tool\Text\Csv;
+use Symfony\Component\EventDispatcher\GenericEvent;
 
+/**
+ * @internal
+ */
 class Admin
 {
     /**
@@ -71,7 +76,7 @@ class Admin
 
                         if (($adminLang != null && in_array($languageCode, array_values($adminLang))) || $adminLang == null) {
                             if ($parts[1] === 'json' || $parts[0] === 'admin') {
-                                if (\Pimcore::getContainer()->get('pimcore.locale')->isLocale($languageCode)) {
+                                if (\Pimcore::getContainer()->get(LocaleServiceInterface::class)->isLocale($languageCode)) {
                                     $languages[] = $languageCode;
                                 }
                             }
@@ -88,31 +93,20 @@ class Admin
      * @static
      *
      * @param string $scriptContent
-     * @param bool $asUrl
      *
-     * @return mixed
+     * @return array
      */
-    public static function getMinimizedScriptPath($scriptContent, bool $asUrl = true)
+    public static function getMinimizedScriptPath($scriptContent)
     {
-        $scriptPath = PIMCORE_SYSTEM_TEMP_DIRECTORY . '/minified_javascript_core_'.md5($scriptContent).'.js';
+        $scriptPath = 'minified_javascript_core_'.md5($scriptContent).'.js';
 
-        if (!is_file($scriptPath)) {
-            File::put($scriptPath, $scriptContent);
-        }
+        $storage = Storage::get('admin');
+        $storage->write($scriptPath, $scriptContent);
 
         $params = [
-            'scripts' => basename($scriptPath),
+            'storageFile' => basename($scriptPath),
             '_dc' => \Pimcore\Version::getRevision(),
         ];
-
-        if ($asUrl) {
-            @trigger_error(
-                'Calling Pimcore\Tool::getMinimizedScriptPath with $asUrl true is deprecated and will be removed with Pimcore 10.0',
-                E_USER_DEPRECATED
-            );
-
-            return '/admin/misc/script-proxy?'.array_toquerystring($params);
-        }
 
         return $params;
     }
@@ -124,7 +118,6 @@ class Admin
      */
     public static function determineCsvDialect($file)
     {
-
         // minimum 10 lines, to be sure take more
         $sample = '';
         for ($i = 0; $i < 10; $i++) {
@@ -160,6 +153,9 @@ class Admin
         return PIMCORE_CONFIGURATION_DIRECTORY . '/maintenance.php';
     }
 
+    /**
+     * @return string
+     */
     public static function getMaintenanceModeScheduleLoginFile()
     {
         return PIMCORE_CONFIGURATION_DIRECTORY . '/maintenance-schedule-login.php';
@@ -186,7 +182,7 @@ class Admin
 
         @chmod(self::getMaintenanceModeFile(), 0666); // so it can be removed also via FTP, ...
 
-        \Pimcore::getEventDispatcher()->dispatch(SystemEvents::MAINTENANCE_MODE_ACTIVATE);
+        \Pimcore::getEventDispatcher()->dispatch(new GenericEvent(), SystemEvents::MAINTENANCE_MODE_ACTIVATE);
     }
 
     /**
@@ -196,7 +192,7 @@ class Admin
     {
         @unlink(self::getMaintenanceModeFile());
 
-        \Pimcore::getEventDispatcher()->dispatch(SystemEvents::MAINTENANCE_MODE_DEACTIVATE);
+        \Pimcore::getEventDispatcher()->dispatch(new GenericEvent(), SystemEvents::MAINTENANCE_MODE_DEACTIVATE);
     }
 
     /**
@@ -244,14 +240,14 @@ class Admin
 
         @chmod(self::getMaintenanceModeScheduleLoginFile(), 0666); // so it can be removed also via FTP, ...
 
-        \Pimcore::getEventDispatcher()->dispatch(SystemEvents::MAINTENANCE_MODE_SCHEDULE_LOGIN);
+        \Pimcore::getEventDispatcher()->dispatch(new GenericEvent(), SystemEvents::MAINTENANCE_MODE_SCHEDULE_LOGIN);
     }
 
     public static function unscheduleMaintenanceModeOnLogin()
     {
         @unlink(self::getMaintenanceModeScheduleLoginFile());
 
-        \Pimcore::getEventDispatcher()->dispatch(SystemEvents::MAINTENANCE_MODE_UNSCHEDULE_LOGIN);
+        \Pimcore::getEventDispatcher()->dispatch(new GenericEvent(), SystemEvents::MAINTENANCE_MODE_UNSCHEDULE_LOGIN);
     }
 
     /**

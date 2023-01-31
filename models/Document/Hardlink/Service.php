@@ -53,6 +53,8 @@ class Service
     }
 
     /**
+     * @internal
+     *
      * @static
      *
      * @param Document $doc
@@ -79,6 +81,8 @@ class Service
     }
 
     /**
+     * @internal
+     *
      * this is used to get children below a hardlink by a path
      * for example: the requested path is /de/service/contact but /de/service is a hardlink to /en/service
      * then $hardlink would be /en/service and $path /de/service/contact and this function returns then /en/service/contact
@@ -111,6 +115,8 @@ class Service
     }
 
     /**
+     * @internal
+     *
      * @param Document\Hardlink $hardlink
      * @param string $path
      *
@@ -128,9 +134,7 @@ class Service
             foreach ($pathParts as $pathPart) {
                 $tmpPathes[] = $pathPart;
                 $t = implode('/', $tmpPathes);
-                if (!empty($t)) {
-                    $pathes[] = $t;
-                }
+                $pathes[] = $t;
             }
 
             $pathes = array_reverse($pathes);

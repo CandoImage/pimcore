@@ -21,6 +21,9 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class RunScriptCommand extends AbstractCommand
 {
     use DryRun;
@@ -39,7 +42,7 @@ class RunScriptCommand extends AbstractCommand
         $this->configureDryRunOption();
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $script = $input->getArgument('script');
 

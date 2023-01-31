@@ -14,39 +14,50 @@
 pimcore.registerNS("pimcore.document.editables.select");
 pimcore.document.editables.select = Class.create(pimcore.document.editable, {
 
-    initialize: function(id, name, config, data, inherited) {
-        this.id = id;
-        this.name = name;
+    initialize: function($super, id, name, config, data, inherited) {
+        $super(id, name, config, data, inherited);
 
-        config = this.parseConfig(config);
-
-        config.listeners = {};
+        this.config.listeners = {};
 
         // onchange event
-        if (config.onchange) {
-            config.listeners.select = eval(config.onchange);
+        if (this.config.onchange) {
+            this.config.listeners.select = eval(config.onchange);
         }
 
-        if (config["reload"]) {
-            config.listeners.select = this.reloadDocument;
+        if (this.config["reload"]) {
+            this.config.listeners.select = this.reloadDocument;
         }
 
-        if(typeof config["defaultValue"] !== "undefined" && data === null) {
-            data = config["defaultValue"];
+        if(typeof this.config["defaultValue"] !== "undefined" && data === null) {
+            data = this.config["defaultValue"];
         }
 
-        config.name = id + "_editable";
-        config.triggerAction = 'all';
-        config.editable = false;
-        config.value = data;
-
-        this.config = config;
+        this.config.name = id + "_editable";
+        this.config.triggerAction = 'all';
+        this.config.editable = config.editable ? config.editable : false;
+        this.config.value = data;
     },
 
     render: function() {
         this.setupWrapper();
+
+        if (this.config["required"]) {
+            this.required = this.config["required"];
+        }
+
         this.element = new Ext.form.ComboBox(this.config);
         this.element.render(this.id);
+
+        this.element.on("select", this.checkValue.bind(this, true));
+        this.checkValue();
+    },
+
+    checkValue: function (mark) {
+        var value = this.getValue();
+
+        if (this.required) {
+            this.validateRequiredValue(value, this.element, this, mark);
+        }
     },
 
     getValue: function () {

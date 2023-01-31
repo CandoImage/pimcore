@@ -16,7 +16,7 @@
 namespace Pimcore\Event\Model;
 
 use Pimcore\Model\Tool\Targeting\TargetGroup;
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 class TargetGroupEvent extends Event
 {
@@ -25,6 +25,9 @@ class TargetGroupEvent extends Event
      */
     protected $targetGroup;
 
+    /**
+     * @var array
+     */
     protected $arguments;
 
     /**

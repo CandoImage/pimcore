@@ -43,8 +43,6 @@ class EncryptedField implements OwnerAwareFieldInterface
     protected $encrypted;
 
     /**
-     * EncryptedField constructor.
-     *
      * @param mixed $plain
      * @param Data $delegate
      */
@@ -102,14 +100,15 @@ class EncryptedField implements OwnerAwareFieldInterface
                 $data = $this->plain;
                 //clear owner to avoid recursion
                 if ($data instanceof OwnerAwareFieldInterface) {
-                    $data->setOwner(null, '');
+                    $data->_setOwner(null);
+                    $data->_setOwnerFieldname('');
                 }
                 $data = Serialize::serialize($data);
 
                 $data = Crypto::encrypt($data, $key, true);
                 $this->encrypted = $data;
             } catch (\Exception $e) {
-                Logger::error($e);
+                Logger::error((string) $e);
 
                 throw new \Exception('could not load key');
             }
@@ -135,12 +134,13 @@ class EncryptedField implements OwnerAwareFieldInterface
                 $data = Serialize::unserialize($data);
 
                 if ($data instanceof OwnerAwareFieldInterface) {
-                    $data->setOwner($this->_owner, '_owner');
+                    $data->_setOwner($this->_owner);
+                    $data->_setOwnerFieldname('_owner');
                 }
 
                 $this->plain = $data;
             } catch (\Exception $e) {
-                Logger::error($e);
+                Logger::error((string) $e);
 
                 throw new \Exception('could not load key');
             }

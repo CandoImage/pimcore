@@ -20,16 +20,22 @@ use Pimcore\Model\Document;
 abstract class AbstractBlockItem
 {
     /**
+     * @internal
+     *
      * @var Document\PageSnippet
      */
     protected $document;
 
     /**
+     * @internal
+     *
      * @var array
      */
     protected $parentBlockNames;
 
     /**
+     * @internal
+     *
      * @var int
      */
     protected $index;
@@ -47,24 +53,10 @@ abstract class AbstractBlockItem
      * @param string $name
      *
      * @return Document\Editable|null
-     *
-     * @deprecated and will be removed in Pimcore 10. Use getEditable() instead.
-     */
-    public function getElement(string $name)
-    {
-        return $this->getEditable($name);
-    }
-
-    /**
-     * @param string $name
-     *
-     * @return Document\Editable|null
      */
     public function getEditable(string $name)
     {
-        $namingStrategy = \Pimcore::getContainer()->get('pimcore.document.tag.naming.strategy');
-
-        $id = $namingStrategy->buildChildElementTagName($name, $this->getItemType(), $this->parentBlockNames, $this->index);
+        $id = Document\Editable::buildChildEditableName($name, $this->getItemType(), $this->parentBlockNames, $this->index);
         $editable = $this->document->getEditable($id);
 
         if ($editable) {
@@ -92,5 +84,3 @@ abstract class AbstractBlockItem
         return null;
     }
 }
-
-class_alias(AbstractBlockItem::class, 'Pimcore\Model\Document\Tag\Block\AbstractBlockItem');

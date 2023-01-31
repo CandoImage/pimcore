@@ -18,29 +18,29 @@ namespace Pimcore\Model\Metadata\Predefined\Listing;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Metadata\Predefined\Listing $model
  */
-class Dao extends Model\Dao\PhpArrayTable
+class Dao extends Model\Metadata\Predefined\Dao
 {
-    public function configure()
-    {
-        parent::configure();
-        $this->setFile('predefined-asset-metadata');
-    }
-
     /**
      * Loads a list of predefined metadata definitions for the specicified parameters, returns an array of
      * Metadata\Predefined elements
      *
      * @return \Pimcore\Model\Metadata\Predefined[]
      */
-    public function load()
+    public function loadList()
     {
         $properties = [];
-        $definitions = $this->db->fetchAll($this->model->getFilter(), $this->model->getOrder());
-
-        foreach ($definitions as $propertyData) {
-            $properties[] = Model\Metadata\Predefined::getById($propertyData['id']);
+        foreach ($this->loadIdList() as $id) {
+            $properties[] = Model\Metadata\Predefined::getById($id);
+        }
+        if ($this->model->getFilter()) {
+            $properties = array_filter($properties, $this->model->getFilter());
+        }
+        if ($this->model->getOrder()) {
+            usort($properties, $this->model->getOrder());
         }
 
         $this->model->setDefinitions($properties);
@@ -53,9 +53,6 @@ class Dao extends Model\Dao\PhpArrayTable
      */
     public function getTotalCount()
     {
-        $data = $this->db->fetchAll($this->model->getFilter(), $this->model->getOrder());
-        $amount = count($data);
-
-        return $amount;
+        return count($this->loadList());
     }
 }

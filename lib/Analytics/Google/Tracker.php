@@ -28,8 +28,8 @@ use Pimcore\Analytics\SiteId\SiteIdProvider;
 use Pimcore\Config\Config as ConfigObject;
 use Pimcore\Event\Analytics\GoogleAnalyticsEvents;
 use Psr\Log\LoggerAwareTrait;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Templating\EngineInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Twig\Environment;
 
 class Tracker extends AbstractTracker
 {
@@ -65,9 +65,9 @@ class Tracker extends AbstractTracker
     private $eventDispatcher;
 
     /**
-     * @var EngineInterface
+     * @var Environment
      */
-    private $templatingEngine;
+    private $twig;
 
     /**
      * @var string|null
@@ -91,16 +91,19 @@ class Tracker extends AbstractTracker
         SiteIdProvider $siteIdProvider,
         ConfigProvider $configProvider,
         EventDispatcherInterface $eventDispatcher,
-        EngineInterface $templatingEngine
+        Environment $twig
     ) {
         parent::__construct($siteIdProvider);
 
         $this->siteIdProvider = $siteIdProvider;
         $this->configProvider = $configProvider;
         $this->eventDispatcher = $eventDispatcher;
-        $this->templatingEngine = $templatingEngine;
+        $this->twig = $twig;
     }
 
+    /**
+     * @return string|null
+     */
     public function getDefaultPath()
     {
         return $this->defaultPath;
@@ -116,6 +119,11 @@ class Tracker extends AbstractTracker
         return new CodeCollector($this->blocks, self::BLOCK_AFTER_TRACK);
     }
 
+    /**
+     * @param SiteId $siteId
+     *
+     * @return string|null
+     */
     protected function buildCode(SiteId $siteId)
     {
         $config = $this->configProvider->getConfig();
@@ -150,6 +158,13 @@ class Tracker extends AbstractTracker
         return $this->doBuildCode($siteId, $config, $siteConfig);
     }
 
+    /**
+     * @param SiteId $siteId
+     * @param Config $config
+     * @param ConfigObject $siteConfig
+     *
+     * @return string
+     */
     private function doBuildCode(SiteId $siteId, Config $config, ConfigObject $siteConfig)
     {
         $data = [
@@ -177,7 +192,7 @@ class Tracker extends AbstractTracker
         $blocks = $this->buildCodeBlocks($siteId, $siteConfig);
 
         $event = new TrackingDataEvent($config, $siteId, $data, $blocks, $template);
-        $this->eventDispatcher->dispatch(GoogleAnalyticsEvents::CODE_TRACKING_DATA, $event);
+        $this->eventDispatcher->dispatch($event, GoogleAnalyticsEvents::CODE_TRACKING_DATA);
 
         return $this->renderTemplate($event);
     }
@@ -191,7 +206,7 @@ class Tracker extends AbstractTracker
                 $config = $jsonConfig;
             } else {
                 $this->logger->warning('Failed to parse analytics tracker custom configuration: {error}', [
-                    'error' => json_last_error_msg() ?? 'not an array',
+                    'error' => json_last_error_msg(),
                 ]);
             }
         }
@@ -243,7 +258,7 @@ class Tracker extends AbstractTracker
         $data = $event->getData();
         $data['blocks'] = $event->getBlocks();
 
-        $code = $this->templatingEngine->render(
+        $code = $this->twig->render(
             $event->getTemplate(),
             $data
         );

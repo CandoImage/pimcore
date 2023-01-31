@@ -15,6 +15,9 @@
 
 namespace Pimcore;
 
+/**
+ * @internal
+ */
 class Video
 {
     /**
@@ -63,7 +66,7 @@ class Video
     /**
      * @return Video\Adapter|null
      */
-    public static function getDefaultAdapter()
+    private static function getDefaultAdapter()
     {
         $adapters = ['Ffmpeg'];
 
@@ -76,7 +79,7 @@ class Video
                         return $adapter;
                     }
                 } catch (\Exception $e) {
-                    Logger::warning($e);
+                    Logger::warning((string) $e);
                 }
             }
         }

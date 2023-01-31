@@ -275,7 +275,7 @@ class Container extends \ArrayObject
      * Start capturing content to push into placeholder
      *
      * @param int|string $type How to capture content into placeholder; append, prepend, or set
-     * @param null       $key
+     * @param mixed $key
      *
      * @throws Exception
      *
@@ -411,5 +411,3 @@ class Container extends \ArrayObject
         return $this->toString();
     }
 }
-
-class_alias(Container::class, 'Pimcore\Templating\Helper\Placeholder\Container');

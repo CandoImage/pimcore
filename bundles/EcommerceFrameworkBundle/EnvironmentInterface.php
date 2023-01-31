@@ -88,30 +88,28 @@ interface EnvironmentInterface extends ComponentInterface
     /**
      * Sets current assortment tenant which is used for indexing and product lists
      *
-     * @param string $tenant
+     * @param string|null $tenant
      */
     public function setCurrentAssortmentTenant($tenant);
 
     /**
      * Returns current assortment tenant which is used for indexing and product lists
      *
-     * @return string
+     * @return string|null
      */
     public function getCurrentAssortmentTenant();
 
     /**
      * Sets current assortment sub tenant which is used for indexing and product lists
      *
-     * TODO: is this mixed or string?
-     *
-     * @param mixed $subTenant
+     * @param string|null $subTenant
      */
     public function setCurrentAssortmentSubTenant($subTenant);
 
     /**
      * Returns current sub assortment tenant which is used for indexing and product lists
      *
-     * @return mixed
+     * @return string|null
      */
     public function getCurrentAssortmentSubTenant();
 
@@ -160,46 +158,4 @@ interface EnvironmentInterface extends ComponentInterface
      * @return null|string
      */
     public function getSystemLocale();
-
-    /**
-     * ===========================================
-     *
-     *  deprecated functions
-     *
-     * ===========================================
-     */
-
-    /**
-     * @deprecated use setCurrentAssortmentTenant instead
-     *
-     * @param string $tenant
-     *
-     * @return mixed
-     */
-    public function setCurrentTenant($tenant);
-
-    /**
-     * @deprecated use getCurrentAssortmentTenant instead
-     *
-     * @return string
-     */
-    public function getCurrentTenant();
-
-    /**
-     * @deprecated use setCurrentAssortmentSubTenant instead
-     *
-     * @param mixed $tenant
-     *
-     * @return mixed
-     */
-    public function setCurrentSubTenant($tenant);
-
-    /**
-     * @deprecated use getCurrentAssortmentSubTenant instead
-     *
-     * @return mixed
-     */
-    public function getCurrentSubTenant();
 }
-
-class_alias(EnvironmentInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\IEnvironment');

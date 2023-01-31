@@ -15,13 +15,19 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class JSON extends AbstractOperator
+/**
+ * @internal
+ */
+final class JSON extends AbstractOperator
 {
     /**
      * @var string
      */
     private $mode;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -29,6 +35,9 @@ class JSON extends AbstractOperator
         $this->mode = $config->mode ?? '';
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();
@@ -52,7 +61,6 @@ class JSON extends AbstractOperator
                 $childValues = [$childValues];
             }
 
-            /** @var array $childValues */
             if (is_array($childValues)) {
                 foreach ($childValues as $childValue) {
                     $valueArray[] = $childValue;

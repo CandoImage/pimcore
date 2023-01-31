@@ -16,36 +16,53 @@
 namespace Pimcore\Model\Asset\MetaData\ClassDefinition\Data;
 
 use Pimcore\Model\DataObject\AbstractObject;
-use Pimcore\Model\Element\AbstractElement;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Element\Service;
 
 class DataObject extends Data
 {
     /**
-     * @param mixed $value
-     * @param array $params
-     *
-     * @return null|int
+     * {@inheritdoc}
      */
-    public function marshal($value, $params = [])
+    public function normalize($value, $params = [])
     {
         $element = Service::getElementByPath('object', $value);
         if ($element) {
             return $element->getId();
-        } else {
-            return null;
         }
+
+        return null;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function denormalize($value, $params = [])
+    {
+        $element = null;
+        if (is_numeric($value)) {
+            $element = Service::getElementById('object', $value);
+        }
+
+        return $element;
     }
 
     /**
      * @param mixed $value
      * @param array $params
      *
+     * @deprecated use denormalize() instead, will be removed in Pimcore 11
+     *
      * @return string
      */
     public function unmarshal($value, $params = [])
     {
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.4',
+            sprintf('%s is deprecated, please use denormalize() instead. It will be removed in Pimcore 11.', __METHOD__)
+        );
+
         $element = null;
         if (is_numeric($value)) {
             $element = Service::getElementById('object', $value);
@@ -93,7 +110,7 @@ class DataObject extends Data
      * @param mixed $data
      * @param array $params
      *
-     * @return mixed
+     * @return int|string|null
      */
     public function getDataFromEditMode($data, $params = [])
     {
@@ -120,7 +137,9 @@ class DataObject extends Data
         return $data;
     }
 
-    /** @inheritDoc */
+    /**
+     * {@inheritdoc}
+     */
     public function getDataForEditMode($data, $params = [])
     {
         if (is_numeric($data)) {
@@ -180,12 +199,12 @@ class DataObject extends Data
      * @param mixed $data
      * @param array $params
      *
-     * @return mixed
+     * @return int|null
      */
     public function getDataFromListfolderGrid($data, $params = [])
     {
         $data = \Pimcore\Model\DataObject::getByPath($data);
-        if ($data instanceof AbstractElement) {
+        if ($data instanceof ElementInterface) {
             return $data->getId();
         }
 

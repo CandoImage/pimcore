@@ -19,6 +19,9 @@ namespace Pimcore\DependencyInjection;
 
 use Psr\Container\ContainerInterface;
 
+/**
+ * @internal
+ */
 class ServiceCollection implements \IteratorAggregate
 {
     /**
@@ -31,13 +34,20 @@ class ServiceCollection implements \IteratorAggregate
      */
     private $ids = [];
 
+    /**
+     * @param ContainerInterface $container
+     * @param array $ids
+     */
     public function __construct(ContainerInterface $container, array $ids)
     {
         $this->container = $container;
         $this->ids = $ids;
     }
 
-    public function getIterator()
+    /**
+     * {@inheritdoc}
+     */
+    public function getIterator(): \Traversable
     {
         foreach ($this->ids as $id) {
             yield $this->container->get($id);

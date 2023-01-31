@@ -17,22 +17,23 @@ namespace Pimcore\Bundle\AdminBundle\Controller\Admin;
 
 use Pimcore\Analytics\Google\Config\SiteConfigProvider;
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
-use Pimcore\Controller\EventedControllerInterface;
+use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\Document;
 use Pimcore\Model\Site;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * @Route("/portal")
+ *
+ * @internal
  */
-class PortalController extends AdminController implements EventedControllerInterface
+class PortalController extends AdminController implements KernelControllerEventInterface
 {
     /**
      * @var \Pimcore\Helper\Dashboard
@@ -91,7 +92,7 @@ class PortalController extends AdminController implements EventedControllerInter
         $dashboards = $this->dashboardHelper->getAllDashboards();
         $key = trim($request->get('key'));
 
-        if ($dashboards[$key]) {
+        if (isset($dashboards[$key])) {
             return $this->adminJson(['success' => false, 'message' => 'name_already_in_use']);
         } elseif (!empty($key)) {
             $this->dashboardHelper->saveDashboard($key);
@@ -264,9 +265,6 @@ class PortalController extends AdminController implements EventedControllerInter
         $response['documents'] = [];
 
         foreach ($list as $doc) {
-            /**
-             * @var Document $doc
-             */
             if ($doc->isAllowed('view')) {
                 $response['documents'][] = [
                     'id' => $doc->getId(),
@@ -336,9 +334,6 @@ class PortalController extends AdminController implements EventedControllerInter
         $response['objects'] = [];
 
         foreach ($list as $object) {
-            /**
-             * @var DataObject $object
-             */
             if ($object->isAllowed('view')) {
                 $response['objects'][] = [
                     'id' => $object->getId(),
@@ -364,7 +359,7 @@ class PortalController extends AdminController implements EventedControllerInter
         $db = \Pimcore\Db::get();
 
         $days = 31;
-        $startDate = mktime(23, 59, 59, date('m'), date('d'), date('Y'));
+        $startDate = mktime(23, 59, 59, (int) date('m'), (int) date('d'), (int) date('Y'));
 
         $data = [];
 
@@ -414,7 +409,6 @@ class PortalController extends AdminController implements EventedControllerInter
             ],
         ];
 
-        /** @var Site $site */
         foreach ($sites->load() as $site) {
             if ($siteConfigProvider->isSiteReportingConfigured($site)) {
                 $data[] = [
@@ -428,23 +422,14 @@ class PortalController extends AdminController implements EventedControllerInter
     }
 
     /**
-     * @param FilterControllerEvent $event
+     * @param ControllerEvent $event
      */
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelControllerEvent(ControllerEvent $event)
     {
-        $isMasterRequest = $event->isMasterRequest();
-        if (!$isMasterRequest) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
         $this->dashboardHelper = new \Pimcore\Helper\Dashboard($this->getAdminUser());
-    }
-
-    /**
-     * @param FilterResponseEvent $event
-     */
-    public function onKernelResponse(FilterResponseEvent $event)
-    {
-        // nothing to do
     }
 }

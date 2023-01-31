@@ -20,6 +20,7 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\VoucherServiceException;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractSetProductEntry;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\CheckoutableInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\MockProduct;
 use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\PricingManagerTokenInformation;
 use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Reservation;
 use Pimcore\Logger;
@@ -28,24 +29,15 @@ use Pimcore\Model\DataObject\Concrete;
 
 abstract class AbstractCart extends AbstractModel implements CartInterface
 {
-    const CART_READ_ONLY_MODE_STRICT = 'strict';
-
-    const CART_READ_ONLY_MODE_DEACTIVATED = 'deactivated';
-
-    /**
-     * @var bool
-     */
-    private $ignoreReadonly = false;
-
     /**
      * @var int
      */
     protected $userId;
 
     /**
-     * @var CartItemInterface[]
+     * @var CartItemInterface[]|null
      */
-    protected $items = null;
+    protected $items;
 
     /**
      * @var array
@@ -58,27 +50,27 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     protected $name;
 
     /**
-     * @var \DateTime
+     * @var \DateTime|null
      */
     protected $creationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $creationDateTimestamp;
 
     /**
-     * @var \DateTime
+     * @var \DateTime|null
      */
     protected $modificationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $modificationDateTimestamp;
 
     /**
-     * @var mixed
+     * @var string|int|null
      */
     protected $id;
 
@@ -88,17 +80,17 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     protected $giftItems = [];
 
     /**
-     * @var CartPriceCalculatorInterface
+     * @var CartPriceCalculatorInterface|null
      */
     protected $priceCalculator;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $itemAmount;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $subItemAmount;
 
@@ -108,12 +100,12 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     protected $mainAndSubItemAmount;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $itemCount;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $subItemCount;
 
@@ -122,34 +114,9 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      */
     protected $mainAndSubItemCount;
 
-    /**
-     * @var string
-     */
-    protected $currentReadonlyMode = self::CART_READ_ONLY_MODE_STRICT;
-
     public function __construct()
     {
-        $this->setIgnoreReadonly();
         $this->setCreationDate(new \DateTime());
-        $this->unsetIgnoreReadonly();
-    }
-
-    /**
-     * @param string $currentReadonlyMode
-     */
-    public function setCurrentReadonlyMode(string $currentReadonlyMode): void
-    {
-        $this->currentReadonlyMode = $currentReadonlyMode;
-    }
-
-    /**
-     * @deprecated use checkout implementation V7 instead
-     *
-     * @return bool
-     */
-    public function getIgnoreReadonly()
-    {
-        return $this->ignoreReadonly;
     }
 
     /**
@@ -163,67 +130,6 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     abstract protected function getCartCheckoutDataClassName();
 
     /**
-     * @deprecated use checkout implementation V7 instead
-     */
-    protected function setIgnoreReadonly()
-    {
-        $this->ignoreReadonly = true;
-    }
-
-    /**
-     * @deprecated use checkout implementation V7 instead
-     */
-    protected function unsetIgnoreReadonly()
-    {
-        $this->ignoreReadonly = false;
-    }
-
-    /**
-     * @return bool
-     *
-     * @throws InvalidConfigException
-     * @throws \Pimcore\Bundle\EcommerceFrameworkBundle\Exception\UnsupportedException
-     *
-     * @deprecated use checkout implementation V7 instead
-     */
-    public function isCartReadOnly()
-    {
-        switch ($this->currentReadonlyMode) {
-
-            case self::CART_READ_ONLY_MODE_STRICT:
-                $order = Factory::getInstance()->getOrderManager()->getOrderFromCart($this);
-
-                return !empty($order) && !empty($order->getOrderState());
-
-            case self::CART_READ_ONLY_MODE_DEACTIVATED:
-                //read only mode deactivated, always return false
-                return false;
-
-            default:
-                throw new InvalidConfigException("Unknown Readonly Mode '" . $this->currentReadonlyMode . "'");
-
-        }
-    }
-
-    /**
-     * @return bool
-     *
-     * @throws \Exception
-     *
-     * @deprecated use checkout implementation V7 instead
-     */
-    protected function checkCartIsReadOnly()
-    {
-        if (!$this->getIgnoreReadonly()) {
-            if ($this->isCartReadOnly()) {
-                throw new \Exception('Cart ' . $this->getId() . ' is readonly.');
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * @param CheckoutableInterface&Concrete $product
      * @param int $count
      * @param string|null $itemKey
@@ -232,12 +138,10 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      * @param AbstractSetProductEntry[] $subProducts
      * @param string|null $comment
      *
-     * @return mixed
+     * @return string
      */
     public function addItem(CheckoutableInterface $product, $count, $itemKey = null, $replace = false, $params = [], $subProducts = [], $comment = null)
     {
-        $this->checkCartIsReadOnly();
-
         if (empty($itemKey)) {
             $itemKey = $product->getId();
 
@@ -262,8 +166,6 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      */
     public function updateItem($itemKey, CheckoutableInterface $product, $count, $replace = false, $params = [], $subProducts = [], $comment = null)
     {
-        $this->checkCartIsReadOnly();
-
         //load items first in order to lazyload items (if they are lazy loaded)
         $this->getItems();
 
@@ -326,7 +228,7 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
         //load items first in order to lazyload items (if they are lazy loaded)
         $this->getItems();
 
-        if ($this->items[$itemKey]) {
+        if (!empty($this->items[$itemKey])) {
             $this->items[$itemKey]->setCount($count);
         }
 
@@ -346,8 +248,6 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      */
     public function addGiftItem(CheckoutableInterface $product, $count, $itemKey = null, $replace = false, $params = [], $subProducts = [], $comment = null)
     {
-        $this->checkCartIsReadOnly();
-
         if (empty($itemKey)) {
             $itemKey = $product->getId();
 
@@ -372,8 +272,6 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      */
     public function updateGiftItem($itemKey, CheckoutableInterface $product, $count, $replace = false, $params = [], $subProducts = [], $comment = null)
     {
-        $this->checkCartIsReadOnly();
-
         // item already exists?
         if (!array_key_exists($itemKey, $this->giftItems)) {
             $className = $this->getCartItemClassName();
@@ -397,7 +295,7 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
         if (!empty($subProducts)) {
             $subItems = [];
             foreach ($subProducts as $subProduct) {
-                if ($subItems[$subProduct->getProduct()->getId()]) {
+                if (isset($subItems[$subProduct->getProduct()->getId()])) {
                     $subItem = $subItems[$subProduct->getProduct()->getId()];
                     $subItem->setCount($subItem->getCount() + $subProduct->getQuantity());
                 } else {
@@ -420,8 +318,6 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
 
     public function clear()
     {
-        $this->checkCartIsReadOnly();
-
         $this->items = [];
         $this->giftItems = [];
 
@@ -432,26 +328,12 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     }
 
     /**
-     * @param mixed $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
+     * @param string $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
      *
      * @return int
      */
-    public function getItemAmount(/*?string*/ $countSubItems = false)
+    public function getItemAmount(string $countSubItems = self::COUNT_MAIN_ITEMS_ONLY)
     {
-        if (is_bool($countSubItems) || $countSubItems === null) {
-            @trigger_error(
-                'Use of true/false for $countSubItems is deprecated and will be removed in version 10.0.0. Use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS instead.',
-                E_USER_DEPRECATED
-            );
-        }
-
-        //TODO remove this in Pimcore 10.0.0
-        if ($countSubItems === false) {
-            $countSubItems = self::COUNT_MAIN_ITEMS_ONLY;
-        } elseif ($countSubItems !== self::COUNT_MAIN_ITEMS_ONLY && $countSubItems !== self::COUNT_MAIN_OR_SUB_ITEMS && $countSubItems !== self::COUNT_MAIN_AND_SUB_ITEMS) {
-            $countSubItems = self::COUNT_MAIN_OR_SUB_ITEMS;
-        }
-
         switch ($countSubItems) {
             case self::COUNT_MAIN_OR_SUB_ITEMS:
 
@@ -517,26 +399,12 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     }
 
     /**
-     * @param mixed $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
+     * @param string $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
      *
      * @return int
      */
-    public function getItemCount(/*?string*/ $countSubItems = false)
+    public function getItemCount(string $countSubItems = self::COUNT_MAIN_ITEMS_ONLY)
     {
-        if (is_bool($countSubItems) || $countSubItems === null) {
-            @trigger_error(
-                'Use of true/false for $countSubItems is deprecated and will be removed in version 10.0.0. Use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS instead.',
-                E_USER_DEPRECATED
-            );
-        }
-
-        //TODO remove this in Pimcore 10.0.0
-        if ($countSubItems === false) {
-            $countSubItems = self::COUNT_MAIN_ITEMS_ONLY;
-        } elseif ($countSubItems !== self::COUNT_MAIN_ITEMS_ONLY && $countSubItems !== self::COUNT_MAIN_OR_SUB_ITEMS && $countSubItems !== self::COUNT_MAIN_AND_SUB_ITEMS) {
-            $countSubItems = self::COUNT_MAIN_AND_SUB_ITEMS;
-        }
-
         switch ($countSubItems) {
             case self::COUNT_MAIN_OR_SUB_ITEMS:
 
@@ -637,7 +505,7 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     /**
      * @param string $itemKey
      *
-     * @return CartItemInterface
+     * @return CartItemInterface|null
      */
     public function getGiftItem($itemKey)
     {
@@ -650,12 +518,10 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     }
 
     /**
-     * @param CartItemInterface[] $items
+     * @param CartItemInterface[]|null $items
      */
     public function setItems($items)
     {
-        $this->checkCartIsReadOnly();
-
         $this->items = $items;
 
         // trigger cart has been modified
@@ -667,8 +533,6 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      */
     public function removeItem($itemKey)
     {
-        $this->checkCartIsReadOnly();
-
         //load items first in order to lazyload items (if they are lazy loaded)
         $this->getItems();
 
@@ -709,7 +573,7 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     }
 
     /**
-     * @param int $id
+     * @param string|int $id
      */
     public function setId($id)
     {
@@ -717,7 +581,7 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     }
 
     /**
-     * @return int
+     * @return string|int|null
      */
     public function getId()
     {
@@ -738,12 +602,10 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     }
 
     /**
-     * @param \DateTime $creationDate
+     * @param \DateTime|null $creationDate
      */
     public function setCreationDate(\DateTime $creationDate = null)
     {
-        $this->checkCartIsReadOnly();
-
         $this->creationDate = $creationDate;
         if ($creationDate) {
             $this->creationDateTimestamp = $creationDate->getTimestamp();
@@ -757,8 +619,6 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      */
     public function setCreationDateTimestamp($creationDateTimestamp)
     {
-        $this->checkCartIsReadOnly();
-
         $this->creationDateTimestamp = $creationDateTimestamp;
         $this->creationDate = null;
     }
@@ -772,7 +632,7 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     }
 
     /**
-     * @return \DateTime
+     * @return \DateTime|null
      */
     public function getModificationDate()
     {
@@ -785,12 +645,10 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     }
 
     /**
-     * @param \DateTime $modificationDate
+     * @param \DateTime|null $modificationDate
      */
     public function setModificationDate(\DateTime $modificationDate = null)
     {
-        $this->checkCartIsReadOnly();
-
         $this->modificationDate = $modificationDate;
         if ($modificationDate) {
             $this->modificationDateTimestamp = $modificationDate->getTimestamp();
@@ -804,14 +662,12 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      */
     public function setModificationDateTimestamp($modificationDateTimestamp)
     {
-        $this->checkCartIsReadOnly();
-
         $this->modificationDateTimestamp = $modificationDateTimestamp;
         $this->modificationDate = null;
     }
 
     /**
-     * @return mixed
+     * @return int|null
      */
     public function getModificationDateTimestamp()
     {
@@ -847,16 +703,16 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     /**
      * @param string $key
      *
-     * @return string
+     * @return string|null
      */
     public function getCheckoutData($key)
     {
         $entry = $this->checkoutData[$key] ?? null;
         if ($entry) {
             return $this->checkoutData[$key]->getData();
-        } else {
-            return null;
         }
+
+        return null;
     }
 
     /**
@@ -922,7 +778,7 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
     /**
      * @param int $count
      *
-     * @return CheckoutableInterface[]
+     * @return array<int, CartItemInterface>
      */
     public function getRecentlyAddedItems($count)
     {
@@ -955,13 +811,10 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      *
      * @return bool
      *
-     * @throws \Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException
      * @throws \Exception
      */
     public function addVoucherToken($code)
     {
-        $this->checkCartIsReadOnly();
-
         $service = Factory::getInstance()->getVoucherService();
         if ($service->checkToken($code, $this)) {
             if ($service->reserveToken($code, $this)) {
@@ -992,6 +845,8 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
 
     /**
      * Removes all tokens form cart and releases the token reservations.
+     *
+     * @throws InvalidConfigException
      */
     public function removeAllVoucherTokens()
     {
@@ -1005,15 +860,12 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      *
      * @param string $code
      *
-     * @throws \Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException
      * @throws \Exception
      *
      * @return bool
      */
     public function removeVoucherToken($code)
     {
-        $this->checkCartIsReadOnly();
-
         $service = Factory::getInstance()->getVoucherService();
         $key = array_search($code, $this->getVoucherTokenCodes());
 
@@ -1078,7 +930,7 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
             //check for each voucher token if reservation is valid or it is already applied to order
             foreach ($this->getVoucherTokenCodes() as $code) {
                 $reservation = Reservation::get($code, $this);
-                if (!$reservation->check($this->getId()) && !array_key_exists($code, $appliedVoucherCodes)) {
+                if (!$reservation && !array_key_exists($code, $appliedVoucherCodes)) {
                     unset($this->checkoutData['voucher_'.$code]);
                 }
             }
@@ -1094,12 +946,13 @@ abstract class AbstractCart extends AbstractModel implements CartInterface
      */
     protected static function isValidCartItem(CartItemInterface $item)
     {
-        if ($item->getProduct() instanceof CheckoutableInterface) {
+        $product = $item->getProduct();
+        if ($product instanceof CheckoutableInterface && !$product instanceof MockProduct) {
             return true;
-        } else {
-            Logger::warn('product ' . $item->getProductId() . ' not found');
-
-            return false;
         }
+
+        Logger::warn('Product ' . $item->getProduct()->getId() . ' not found');
+
+        return false;
     }
 }

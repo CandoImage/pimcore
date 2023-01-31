@@ -15,6 +15,8 @@
 
 namespace Pimcore\Model;
 
+use Pimcore\Model\Exception\NotFoundException;
+
 /**
  * @method \Pimcore\Model\Glossary\Dao getDao()
  * @method void delete()
@@ -23,59 +25,74 @@ namespace Pimcore\Model;
 class Glossary extends AbstractModel
 {
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $id;
+    protected $id;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
-    public $text;
+    protected $text;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
-    public $link;
+    protected $link;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
-    public $abbr;
+    protected $abbr;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
-    public $acronym;
+    protected $language;
 
     /**
-     * @var string
-     */
-    public $language;
-
-    /**
+     * @internal
+     *
      * @var bool
      */
-    public $casesensitive;
+    protected $casesensitive = false;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $exactmatch;
+    protected $exactmatch = false;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $site;
+    protected $site;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
      * @param int $id
@@ -86,11 +103,11 @@ class Glossary extends AbstractModel
     {
         try {
             $glossary = new self();
-            $glossary->setId(intval($id));
+            $glossary->setId((int)$id);
             $glossary->getDao()->getById();
 
             return $glossary;
-        } catch (\Exception $e) {
+        } catch (NotFoundException $e) {
             return null;
         }
     }
@@ -119,7 +136,7 @@ class Glossary extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {
@@ -139,7 +156,7 @@ class Glossary extends AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getText()
     {
@@ -159,7 +176,7 @@ class Glossary extends AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getLink()
     {
@@ -179,31 +196,11 @@ class Glossary extends AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getAbbr()
     {
         return $this->abbr;
-    }
-
-    /**
-     * @param string $acronym
-     *
-     * @return $this
-     */
-    public function setAcronym($acronym)
-    {
-        $this->acronym = $acronym;
-
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    public function getAcronym()
-    {
-        return $this->acronym;
     }
 
     /**
@@ -219,7 +216,7 @@ class Glossary extends AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getLanguage()
     {
@@ -282,7 +279,7 @@ class Glossary extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getSite()
     {
@@ -302,7 +299,7 @@ class Glossary extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {

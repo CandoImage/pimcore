@@ -19,6 +19,9 @@ use Pimcore\Workflow\Transition;
 use Symfony\Component\Workflow\Definition;
 use Symfony\Component\Workflow\Marking;
 
+/**
+ * @internal
+ */
 class StateMachineGraphvizDumper extends GraphvizDumper
 {
     /**
@@ -32,7 +35,7 @@ class StateMachineGraphvizDumper extends GraphvizDumper
      *  * node: The default options for nodes (places)
      *  * edge: The default options for edges
      */
-    public function dump(Definition $definition, Marking $marking = null, array $options = [])
+    public function dump(Definition $definition, Marking $marking = null, array $options = []): string
     {
         $places = $this->findPlaces($definition, $marking, $options['workflowName']);
         $edges = $this->findEdges($definition);

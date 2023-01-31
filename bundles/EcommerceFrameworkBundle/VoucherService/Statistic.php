@@ -15,6 +15,9 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService;
 
+use Pimcore\Db\Helper;
+use Pimcore\Model\Exception\NotFoundException;
+
 /**
  * @method Statistic\Dao getDao()
  */
@@ -47,7 +50,7 @@ class Statistic extends \Pimcore\Model\AbstractModel
             $config->getDao()->getById($id);
 
             return $config;
-        } catch (\Exception $ex) {
+        } catch (NotFoundException $ex) {
             //            Logger::debug($ex->getMessageN());
             return false;
         }
@@ -59,7 +62,7 @@ class Statistic extends \Pimcore\Model\AbstractModel
      *
      * @throws \Exception
      *
-     * @return bool
+     * @return bool|array
      */
     public static function getBySeriesId($seriesId, $usagePeriod = null)
     {
@@ -75,7 +78,7 @@ class Statistic extends \Pimcore\Model\AbstractModel
         $query .= ' GROUP BY date';
 
         try {
-            $result = $db->fetchPairs($query, $params);
+            $result = Helper::fetchPairs($db, $query, $params);
 
             return $result;
         } catch (\Exception $e) {
@@ -94,7 +97,7 @@ class Statistic extends \Pimcore\Model\AbstractModel
         $db = $db = \Pimcore\Db::get();
 
         try {
-            $db->query('INSERT INTO ' . \Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Statistic\Dao::TABLE_NAME . ' (voucherSeriesId,date) VALUES (?,NOW())', [intval($seriesId)]);
+            $db->executeQuery('INSERT INTO ' . \Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Statistic\Dao::TABLE_NAME . ' (voucherSeriesId,date) VALUES (?,NOW())', [(int)$seriesId]);
 
             return true;
         } catch (\Exception $e) {
@@ -122,7 +125,7 @@ class Statistic extends \Pimcore\Model\AbstractModel
         $db = \Pimcore\Db::get();
 
         try {
-            $db->query($query, $params);
+            $db->executeQuery($query, $params);
 
             return true;
         } catch (\Exception $e) {

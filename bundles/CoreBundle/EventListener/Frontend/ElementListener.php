@@ -17,6 +17,8 @@ namespace Pimcore\Bundle\CoreBundle\EventListener\Frontend;
 
 use Pimcore\Bundle\AdminBundle\Security\User\UserLoader;
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\PimcoreContextAwareTrait;
+use Pimcore\Cache\RuntimeCache;
+use Pimcore\Config;
 use Pimcore\Http\Request\Resolver\DocumentResolver;
 use Pimcore\Http\Request\Resolver\EditmodeResolver;
 use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
@@ -24,80 +26,53 @@ use Pimcore\Http\RequestHelper;
 use Pimcore\Model\DataObject\Service;
 use Pimcore\Model\Document;
 use Pimcore\Model\Staticroute;
+use Pimcore\Model\User;
 use Pimcore\Model\Version;
 use Pimcore\Targeting\Document\DocumentTargetingConfigurator;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
- * Handles element setup logic from request. Basically this does what the init() method
- * on the ZF frontend controller did.
+ * Handles element setup logic from request.
+ *
+ * @internal
  */
 class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
 {
     use LoggerAwareTrait;
     use PimcoreContextAwareTrait;
 
-    const FORCE_ALLOW_PROCESSING_UNPUBLISHED_ELEMENTS = '_force_allow_processing_unpublished_elements';
-
-    /**
-     * @var DocumentResolver
-     */
-    protected $documentResolver;
-
-    /**
-     * @var EditmodeResolver
-     */
-    protected $editmodeResolver;
-
-    /**
-     * @var RequestHelper
-     */
-    protected $requestHelper;
-
-    /**
-     * @var UserLoader
-     */
-    protected $userLoader;
-
-    /**
-     * @var DocumentTargetingConfigurator
-     */
-    private $targetingConfigurator;
+    public const FORCE_ALLOW_PROCESSING_UNPUBLISHED_ELEMENTS = '_force_allow_processing_unpublished_elements';
 
     public function __construct(
-        DocumentResolver $documentResolver,
-        EditmodeResolver $editmodeResolver,
-        RequestHelper $requestHelper,
-        UserLoader $userLoader,
-        DocumentTargetingConfigurator $targetingConfigurator
+        protected DocumentResolver $documentResolver,
+        protected EditmodeResolver $editmodeResolver,
+        protected RequestHelper $requestHelper,
+        protected UserLoader $userLoader,
+        private DocumentTargetingConfigurator $targetingConfigurator,
+        private Config $config
     ) {
-        $this->documentResolver = $documentResolver;
-        $this->editmodeResolver = $editmodeResolver;
-        $this->requestHelper = $requestHelper;
-        $this->userLoader = $userLoader;
-        $this->targetingConfigurator = $targetingConfigurator;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
-            KernelEvents::CONTROLLER => ['onKernelController', 3], // has to be after DocumentFallbackListener
+            KernelEvents::CONTROLLER => ['onKernelController', 30], // has to be after DocumentFallbackListener
         ];
     }
 
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelController(ControllerEvent $event)
     {
-        if ($event->isMasterRequest()) {
+        if ($event->isMainRequest()) {
             $request = $event->getRequest();
             if (!$this->matchesPimcoreContext($request, PimcoreContextResolver::CONTEXT_DEFAULT)) {
                 return;
@@ -110,7 +85,7 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
             $document = $this->documentResolver->getDocument($request);
             $adminRequest =
                 $this->requestHelper->isFrontendRequestByAdmin($request) ||
-                $this->requestHelper->isFrontendRequestByAdmin($this->requestHelper->getMasterRequest());
+                $this->requestHelper->isFrontendRequestByAdmin($this->requestHelper->getMainRequest());
 
             $user = null;
             if ($adminRequest) {
@@ -122,12 +97,28 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
                     $document->getFullPath(),
                 ]);
 
+                if (
+                    (
+                        ($request->get('object') && $request->get('urlSlug')) ||
+                        $request->get('pimcore_request_source') == 'staticroute'
+                    ) &&
+                    !$this->config['routing']['allow_processing_unpublished_fallback_document']
+                ) {
+                    trigger_deprecation(
+                        'pimcore/pimcore',
+                        '10.2',
+                        'Blocking routes where the underlying fallback document is unpublished is deprecated and will be
+                        removed in Pimcore 11. If you rely on this behavior please change your controllers accordingly and
+                        set the config option `pimcore.routing.allow_processing_unpublished_fallback_document=true`'
+                    );
+                }
+
                 throw new AccessDeniedHttpException(sprintf('Access denied for %s', $document->getFullPath()));
             }
 
             // editmode, pimcore_preview & pimcore_version
             if ($user) {
-                $document = $this->handleAdminUserDocumentParams($request, $document);
+                $document = $this->handleAdminUserDocumentParams($request, $document, $user);
                 $this->handleObjectParams($request);
             }
 
@@ -151,8 +142,8 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
      */
     protected function handleVersion(Request $request, Document $document)
     {
-        if ($request->get('v')) {
-            if ($version = Version::getById($request->get('v'))) {
+        if ($v = $request->get('v')) {
+            if ($version = Version::getById((int) $v)) {
                 if ($version->getPublic()) {
                     $this->logger->info('Setting version to {version} for document {document}', [
                         'version' => $version->getId(),
@@ -194,10 +185,11 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
     /**
      * @param Request $request
      * @param Document|null $document
+     * @param User $user
      *
      * @return Document|null
      */
-    protected function handleAdminUserDocumentParams(Request $request, ?Document $document)
+    private function handleAdminUserDocumentParams(Request $request, ?Document $document, User $user)
     {
         if (!$document) {
             return null;
@@ -205,7 +197,7 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
 
         // editmode document
         if ($this->editmodeResolver->isEditmode($request)) {
-            $document = $this->handleEditmode($document);
+            $document = $this->handleEditmode($document, $user);
         }
 
         // document preview
@@ -228,9 +220,9 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
         // for version preview
         if ($request->get('pimcore_version')) {
             // TODO there was a check with a registry flag here - check if the master request handling is sufficient
-            if ($version = Version::getById($request->get('pimcore_version'))) {
-                $document = $version->getData();
-
+            $version = Version::getById((int) $request->get('pimcore_version'));
+            if ($documentVersion = $version?->getData()) {
+                $document = $documentVersion;
                 $this->logger->debug('Loading version {version} for document {document} from pimcore_version parameter', [
                     'version' => $version->getId(),
                     'document' => $document->getFullPath(),
@@ -252,10 +244,11 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
 
     /**
      * @param Document $document
+     * @param User $user
      *
-     * @return mixed|Document|Document\PageSnippet
+     * @return Document
      */
-    protected function handleEditmode(Document $document)
+    protected function handleEditmode(Document $document, User $user)
     {
         // check if there is the document in the session
         if ($documentFromSession = Document\Service::getElementFromSession('document', $document->getId())) {
@@ -270,12 +263,14 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
             ]);
 
             // set the latest available version for editmode if there is no doc in the session
-            $latestVersion = $document->getLatestVersion();
-            if ($latestVersion) {
-                $latestDoc = $latestVersion->loadData();
+            if ($document instanceof Document\PageSnippet) {
+                $latestVersion = $document->getLatestVersion($user->getId());
+                if ($latestVersion) {
+                    $latestDoc = $latestVersion->loadData();
 
-                if ($latestDoc instanceof Document\PageSnippet) {
-                    $document = $latestDoc;
+                    if ($latestDoc instanceof Document\PageSnippet) {
+                        $document = $latestDoc;
+                    }
                 }
             }
         }
@@ -298,7 +293,7 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
 
                 // TODO remove \Pimcore\Cache\Runtime
                 // add the object to the registry so every call to DataObject::getById() will return this object instead of the real one
-                \Pimcore\Cache\Runtime::set('object_' . $object->getId(), $object);
+                RuntimeCache::set('object_' . $object->getId(), $object);
             }
         }
     }

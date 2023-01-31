@@ -15,9 +15,12 @@
 
 namespace Pimcore\Model\Element\WorkflowState;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Element\WorkflowState $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -27,14 +30,14 @@ class Dao extends Model\Dao\AbstractDao
      * @param string $ctype
      * @param string $workflow
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getByPrimary(int $cid, string $ctype, string $workflow)
     {
-        $data = $this->db->fetchRow('SELECT * FROM element_workflow_state WHERE cid = ? AND ctype = ? AND workflow = ?', [$cid, $ctype, $workflow]);
+        $data = $this->db->fetchAssociative('SELECT * FROM element_workflow_state WHERE cid = ? AND ctype = ? AND workflow = ?', [$cid, $ctype, $workflow]);
 
-        if (!$data['cid']) {
-            throw new \Exception('WorkflowStatus item for workflow ' . $workflow . ' with cid ' . $cid . ' and ctype ' . $ctype . ' not found');
+        if (empty($data['cid'])) {
+            throw new Model\Exception\NotFoundException('WorkflowStatus item for workflow ' . $workflow . ' with cid ' . $cid . ' and ctype ' . $ctype . ' not found');
         }
         $this->assignVariablesToModel($data);
     }
@@ -57,7 +60,7 @@ class Dao extends Model\Dao\AbstractDao
             }
         }
 
-        $this->db->insertOrUpdate('element_workflow_state', $data);
+        Helper::insertOrUpdate($this->db, 'element_workflow_state', $data);
 
         return true;
     }

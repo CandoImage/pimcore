@@ -18,7 +18,6 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList;
 use Monolog\Logger;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException;
 use Pimcore\Bundle\EcommerceFrameworkBundle\FilterService\FilterType\Findologic\SelectCategory;
-use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config\ConfigInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config\FindologicConfigInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\IndexableInterface;
@@ -41,7 +40,7 @@ class DefaultFindologic implements ProductListInterface
     protected $revision = '0.1';
 
     /**
-     * @var IndexableInterface[]
+     * @var IndexableInterface[]|null
      */
     protected $products = null;
 
@@ -88,17 +87,17 @@ class DefaultFindologic implements ProductListInterface
     /**
      * json result from findologic
      *
-     * @var string[]
+     * @var \SimpleXMLElement
      */
     protected $response;
 
     /**
-     * @var string[]
+     * @var array<string,\stdClass>
      */
     protected $groupedValues;
 
     /**
-     * @var string[]
+     * @var array
      */
     protected $conditions = [];
 
@@ -108,12 +107,12 @@ class DefaultFindologic implements ProductListInterface
     protected $queryConditions = [];
 
     /**
-     * @var float
+     * @var float|null
      */
     protected $conditionPriceFrom = null;
 
     /**
-     * @var float
+     * @var float|null
      */
     protected $conditionPriceTo = null;
 
@@ -143,9 +142,9 @@ class DefaultFindologic implements ProductListInterface
     protected $timeout = 3;
 
     /**
-     * @param ConfigInterface $tenantConfig
+     * @param FindologicConfigInterface $tenantConfig
      */
-    public function __construct(ConfigInterface $tenantConfig)
+    public function __construct(FindologicConfigInterface $tenantConfig)
     {
         $this->tenantName = $tenantConfig->getTenantName();
         $this->tenantConfig = $tenantConfig;
@@ -158,9 +157,7 @@ class DefaultFindologic implements ProductListInterface
         $this->referer = $_SERVER['HTTP_REFERER'];
     }
 
-    /**
-     * @return \Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractProduct[]
-     */
+    /** @inheritDoc */
     public function getProducts()
     {
         if ($this->products === null) {
@@ -171,7 +168,7 @@ class DefaultFindologic implements ProductListInterface
     }
 
     /**
-     * @param string $condition
+     * @param array|string $condition
      * @param string $fieldname
      */
     public function addCondition($condition, $fieldname = '')
@@ -377,15 +374,12 @@ class DefaultFindologic implements ProductListInterface
             switch ($this->getVariantMode()) {
                 case self::VARIANT_MODE_INCLUDE:
                 case self::VARIANT_MODE_HIDE:
-                    $id = $item['id'];
+                    $id = (int) $item['id'];
 
                     break;
-
                 case self::VARIANT_MODE_VARIANTS_ONLY:
                 case self::VARIANT_MODE_INCLUDE_PARENT_OBJECT:
                     throw new InvalidConfigException('Variant Mode ' . $this->getVariantMode() . ' not supported.');
-
-                    break;
             }
 
             if ($id) {
@@ -394,7 +388,7 @@ class DefaultFindologic implements ProductListInterface
                     $this->products[] = $product;
                 }
             } else {
-                $this->getLogger()->err(sprintf('object "%s" not found', $id));
+                $this->getLogger()->error(sprintf('object "%s" not found', $id));
             }
         }
 
@@ -620,7 +614,7 @@ class DefaultFindologic implements ProductListInterface
      * @param bool $countValues
      * @param bool $fieldnameShouldBeExcluded
      *
-     * @return array|void
+     * @return array
      */
     public function getGroupByValues($fieldname, $countValues = false, $fieldnameShouldBeExcluded = true)
     {
@@ -702,7 +696,7 @@ class DefaultFindologic implements ProductListInterface
      * @param bool   $countValues
      * @param bool   $fieldnameShouldBeExcluded
      *
-     * @return array|void
+     * @return array
      */
     public function getGroupByRelationValues($fieldname, $countValues = false, $fieldnameShouldBeExcluded = true)
     {
@@ -797,9 +791,7 @@ class DefaultFindologic implements ProductListInterface
             throw new \Exception((string)$response->getBody());
         }
 
-        $data = simplexml_load_string((string)$response->getBody());
-
-        return $data;
+        return simplexml_load_string((string)$response->getBody());
     }
 
     /**
@@ -811,17 +803,10 @@ class DefaultFindologic implements ProductListInterface
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Count elements of an object
-     *
-     * @link http://php.net/manual/en/countable.count.php
-     *
-     * @return int The custom count as an integer.
-     * </p>
-     * <p>
-     * The return value is cast to an integer.
+     * @return int
      */
-    public function count()
+    #[\ReturnTypeWillChange]
+    public function count()// : int
     {
         $this->getProducts();
 
@@ -829,19 +814,14 @@ class DefaultFindologic implements ProductListInterface
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Return the current element
-     *
-     * @link http://php.net/manual/en/iterator.current.php
-     *
-     * @return mixed Can return any type.
+     * @return IndexableInterface|false
      */
-    public function current()
+    #[\ReturnTypeWillChange]
+    public function current()// : IndexableInterface|false
     {
         $this->getProducts();
-        $var = current($this->products);
 
-        return $var;
+        return current($this->products);
     }
 
     /**
@@ -861,75 +841,42 @@ class DefaultFindologic implements ProductListInterface
     }
 
     /**
-     * Return a fully configured Paginator Adapter from this method.
-     *
-     * @deprecated will be removed in Pimcore 10
-     *
-     * @return self
+     * @return int|null
      */
-    public function getPaginatorAdapter()
-    {
-        return $this;
-    }
-
-    /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Return the key of the current element
-     *
-     * @link http://php.net/manual/en/iterator.key.php
-     *
-     * @return scalar on success, integer
-     * 0 on failure.
-     */
-    public function key()
+    #[\ReturnTypeWillChange]
+    public function key()// : int|null
     {
         $this->getProducts();
-        $var = key($this->products);
 
-        return $var;
+        return key($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Move forward to next element
-     *
-     * @link http://php.net/manual/en/iterator.next.php
-     *
-     * @return void Any returned value is ignored.
+     * @return void
      */
-    public function next()
+    #[\ReturnTypeWillChange]
+    public function next()// : void
     {
         $this->getProducts();
         next($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Rewind the Iterator to the first element
-     *
-     * @link http://php.net/manual/en/iterator.rewind.php
-     *
-     * @return void Any returned value is ignored.
+     * @return void
      */
-    public function rewind()
+    #[\ReturnTypeWillChange]
+    public function rewind()// : void
     {
         $this->getProducts();
         reset($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Checks if current position is valid
-     *
-     * @link http://php.net/manual/en/iterator.valid.php
-     *
-     * @return bool The return value will be casted to boolean and then evaluated.
-     * Returns true on success or false on failure.
+     * @return bool
      */
-    public function valid()
+    #[\ReturnTypeWillChange]
+    public function valid()// : bool
     {
-        $var = $this->current() !== false;
-
-        return $var;
+        return $this->current() !== false;
     }
 }

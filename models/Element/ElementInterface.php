@@ -15,21 +15,25 @@
 
 namespace Pimcore\Model\Element;
 
+use Pimcore\Model\Dependency;
 use Pimcore\Model\ModelInterface;
 use Pimcore\Model\Property;
 use Pimcore\Model\Schedule\Task;
 use Pimcore\Model\User;
 use Pimcore\Model\Version;
 
+/**
+ * @method static setParent(?ElementInterface $parent)
+ */
 interface ElementInterface extends ModelInterface
 {
     /**
-     * @return int
+     * @return int|null
      */
     public function getId();
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getKey();
 
@@ -41,7 +45,7 @@ interface ElementInterface extends ModelInterface
     public function setKey($key);
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getPath();
 
@@ -73,7 +77,7 @@ interface ElementInterface extends ModelInterface
     public function getType();
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate();
 
@@ -85,7 +89,7 @@ interface ElementInterface extends ModelInterface
     public function setCreationDate($creationDate);
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate();
 
@@ -97,7 +101,7 @@ interface ElementInterface extends ModelInterface
     public function setModificationDate($modificationDate);
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getUserOwner();
 
@@ -109,7 +113,7 @@ interface ElementInterface extends ModelInterface
     public function setUserOwner($userOwner);
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getUserModification();
 
@@ -124,7 +128,7 @@ interface ElementInterface extends ModelInterface
      *
      * @param int $id
      *
-     * @return ElementInterface $resource
+     * @return static|null
      */
     public static function getById($id);
 
@@ -139,6 +143,42 @@ interface ElementInterface extends ModelInterface
      * @return Property[]
      */
     public function getProperties();
+
+    /**
+     * @param Property[]|null $properties
+     *
+     * @return $this
+     */
+    public function setProperties(?array $properties);
+
+    /**
+     * Get specific property data or the property object itself ($asContainer=true) by its name, if the
+     * property doesn't exists return null
+     *
+     * @param string $name
+     * @param bool $asContainer
+     *
+     * @return mixed
+     */
+    public function getProperty($name, $asContainer = false);
+
+    /**
+     * @param string $name
+     * @param string $type
+     * @param mixed $data
+     * @param bool $inherited
+     * @param bool $inheritable
+     *
+     * @return $this
+     */
+    public function setProperty($name, $type, $data, $inherited = false, $inheritable = false);
+
+    /**
+     * @param string $name
+     *
+     * @return bool
+     */
+    public function hasProperty($name);
 
     /**
      * returns true if the element is locked
@@ -164,16 +204,14 @@ interface ElementInterface extends ModelInterface
     public function getLocked();
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getParentId();
 
     /**
-     * This method will be required in Pimcore 10
-     *
-     * @return mixed
+     * @return self|null
      */
-    //public function getParent();
+    public function getParent();
 
     /**
      * @return string
@@ -185,7 +223,7 @@ interface ElementInterface extends ModelInterface
      *
      * @return array
      */
-    public function getCacheTags($tags = []);
+    public function getCacheTags(array $tags = []): array;
 
     /**
      * @return bool
@@ -195,7 +233,7 @@ interface ElementInterface extends ModelInterface
     /**
      * @param int|null $versionCount
      *
-     * @return self
+     * @return $this
      */
     public function setVersionCount(?int $versionCount): self;
 
@@ -217,7 +255,7 @@ interface ElementInterface extends ModelInterface
     public function clearDependentCache($additionalTags = []);
 
     /**
-     * @param int $id
+     * @param int|null $id
      *
      * @return $this
      */
@@ -242,4 +280,14 @@ interface ElementInterface extends ModelInterface
      * @return Version[]
      */
     public function getVersions();
+
+    /**
+     * @return Dependency
+     */
+    public function getDependencies();
+
+    /**
+     * @return string
+     */
+    public function __toString();
 }

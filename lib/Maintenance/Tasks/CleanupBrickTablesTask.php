@@ -21,7 +21,10 @@ use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Objectbrick\Definition;
 use Psr\Log\LoggerInterface;
 
-final class CleanupBrickTablesTask implements TaskInterface
+/**
+ * @internal
+ */
+class CleanupBrickTablesTask implements TaskInterface
 {
     /**
      * @var LoggerInterface
@@ -45,7 +48,7 @@ final class CleanupBrickTablesTask implements TaskInterface
         $tableTypes = ['store', 'query', 'localized'];
         foreach ($tableTypes as $tableType) {
             $prefix = 'object_brick_' . $tableType . '_';
-            $tableNames = $db->fetchAll("SHOW TABLES LIKE '" . $prefix . "%'");
+            $tableNames = $db->fetchAllAssociative("SHOW TABLES LIKE '" . $prefix . "%'");
 
             foreach ($tableNames as $tableName) {
                 $tableName = current($tableName);
@@ -67,7 +70,7 @@ final class CleanupBrickTablesTask implements TaskInterface
 
                 $classId = substr($fieldDescriptor, $idx + 1);
 
-                $classDefinition = ClassDefinition::getById($classId);
+                $classDefinition = ClassDefinition::getByIdIgnoreCase($classId);
                 if (!$classDefinition) {
                     $this->logger->error("Classdefinition '" . $classId . "' not found. Please check table " . $tableName);
 
@@ -75,7 +78,7 @@ final class CleanupBrickTablesTask implements TaskInterface
                 }
 
                 $fieldsQuery = 'SELECT fieldname FROM ' . $tableName . ' GROUP BY fieldname';
-                $fieldNames = $db->fetchCol($fieldsQuery);
+                $fieldNames = $db->fetchFirstColumn($fieldsQuery);
 
                 foreach ($fieldNames as $fieldName) {
                     $fieldDef = $classDefinition->getFieldDefinition($fieldName);
@@ -88,7 +91,7 @@ final class CleanupBrickTablesTask implements TaskInterface
 
                     if (!$fieldDef) {
                         $this->logger->info("Field '" . $fieldName . "' of class '" . $classId . "' does not exist anymore. Cleaning " . $tableName);
-                        $db->deleteWhere($tableName, 'fieldname = ' . $db->quote($fieldName));
+                        $db->delete($tableName, ['fieldname' => $fieldName]);
                     }
                 }
             }

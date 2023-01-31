@@ -19,6 +19,9 @@ use DeepCopy\Matcher\Matcher;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Concrete;
 
+/**
+ * @internal
+ */
 class PimcoreClassDefinitionMatcher implements Matcher
 {
     /** @var string $matchType */
@@ -55,6 +58,3 @@ class PimcoreClassDefinitionMatcher implements Matcher
         return false;
     }
 }
-
-//TODO: remove in Pimcore 10
-class_alias(PimcoreClassDefinitionMatcher::class, 'Pimcore\Model\Version\PimcoreClassDefinitionMatcher');

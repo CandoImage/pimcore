@@ -17,65 +17,51 @@ declare(strict_types=1);
 
 namespace Pimcore\Routing\Dynamic;
 
-use Pimcore\Controller\Config\ConfigNormalizer;
+use Pimcore\Bundle\CoreBundle\EventListener\Frontend\ElementListener;
+use Pimcore\Config;
 use Pimcore\Http\Request\Resolver\SiteResolver;
-use Pimcore\Http\RequestHelper;
 use Pimcore\Model\DataObject;
-use Pimcore\Model\Document;
 use Pimcore\Routing\DataObjectRoute;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\RouteCollection;
 
-class DataObjectRouteHandler implements DynamicRouteHandlerInterface
+/**
+ * @internal
+ */
+final class DataObjectRouteHandler implements DynamicRouteHandlerInterface
 {
-    /**
-     * @var Document\Service
-     */
-    private $documentService;
-
     /**
      * @var SiteResolver
      */
     private $siteResolver;
 
     /**
-     * @var RequestHelper
+     * @var Config
      */
-    private $requestHelper;
+    private $config;
 
     /**
-     * @var ConfigNormalizer
-     */
-    private $configNormalizer;
-
-    /**
-     * @param Document\Service $documentService
      * @param SiteResolver $siteResolver
-     * @param RequestHelper $requestHelper
-     * @param ConfigNormalizer $configNormalizer
+     * @param Config $config
      */
     public function __construct(
-        Document\Service $documentService,
         SiteResolver $siteResolver,
-        RequestHelper $requestHelper,
-        ConfigNormalizer $configNormalizer
+        Config $config
     ) {
-        $this->documentService = $documentService;
         $this->siteResolver = $siteResolver;
-        $this->requestHelper = $requestHelper;
-        $this->configNormalizer = $configNormalizer;
+        $this->config = $config;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getRouteByName(string $name)
     {
-        if (preg_match('/^data_object_(\d+)_(.*)$/', $name, $match)) {
-            $slug = DataObject\Data\UrlSlug::resolveSlug($match[2]);
+        if (preg_match('/^data_object_(\d+)_(\d+)_(.*)$/', $name, $match)) {
+            $slug = DataObject\Data\UrlSlug::resolveSlug($match[3], (int) $match[2]);
             if ($slug && $slug->getObjectId() == $match[1]) {
                 /** @var DataObject\Concrete $object * */
-                $object = DataObject::getById($match[1]);
+                $object = DataObject::getById((int) $match[1]);
                 if ($object instanceof DataObject\Concrete && $object->isPublished()) {
                     return $this->buildRouteForFromSlug($slug, $object);
                 }
@@ -86,11 +72,10 @@ class DataObjectRouteHandler implements DynamicRouteHandlerInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function matchRequest(RouteCollection $collection, DynamicRequestContext $context)
     {
-        $slug = null;
         $site = $this->siteResolver->getSite($context->getRequest());
         $slug = DataObject\Data\UrlSlug::resolveSlug($context->getOriginalPath(), $site ? $site->getId() : 0);
         if ($slug) {
@@ -112,13 +97,24 @@ class DataObjectRouteHandler implements DynamicRouteHandlerInterface
      */
     private function buildRouteForFromSlug(DataObject\Data\UrlSlug $slug, DataObject\Concrete $object): DataObjectRoute
     {
+        $site = $this->siteResolver->getSite();
         $route = new DataObjectRoute($slug->getSlug());
         $route->setOption('utf8', true);
         $route->setObject($object);
         $route->setSlug($slug);
+        $route->setSite($site);
         $route->setDefault('_controller', $slug->getAction());
         $route->setDefault('object', $object);
         $route->setDefault('urlSlug', $slug);
+
+        if ($slug->getOwnertype() === 'localizedfield') {
+            $route->setDefault('_locale', $slug->getPosition());
+        }
+
+        $route->setDefault(
+            ElementListener::FORCE_ALLOW_PROCESSING_UNPUBLISHED_ELEMENTS,
+            $this->config['routing']['allow_processing_unpublished_fallback_document']
+        );
 
         return $route;
     }

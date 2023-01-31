@@ -20,74 +20,87 @@ use Pimcore\Logger;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Metadata\Predefined\Dao getDao()
  * @method void save()
  * @method void delete()
+ * @method bool isWriteable()
+ * @method string getWriteTarget()
  */
-class Predefined extends Model\AbstractModel
+final class Predefined extends Model\AbstractModel
 {
     /**
-     * @var int
+     * @var string
      */
-    public $id;
+    protected $id;
 
     /**
      * @var string
      */
-    public $name;
+    protected $name;
+
+    /**
+     * @var string|null
+     */
+    protected $description;
+
+    /**
+     * @TODO if required?
+     *
+     * @var string
+     */
+    protected $key;
 
     /**
      * @var string
      */
-    public $description;
+    protected $type;
 
     /**
-     * @var string
+     * @var string|null
      */
-    public $key;
-
-    /**
-     * @var string
-     */
-    public $type;
-
-    /**
-     * @var string
-     */
-    public $targetSubtype;
+    protected $targetSubtype;
 
     /**
      * @var mixed
      */
-    public $data;
+    protected $data;
 
     /**
+     * @var string|null
+     */
+    protected $config;
+
+    /**
+     * @TODO if required?
+     *
      * @var string
      */
-    public $config;
+    protected $ctype;
 
     /**
-     * @var string
+     * @var string|null
      */
-    public $ctype;
+    protected $language;
 
     /**
-     * @var string
+     * @var string|null
      */
-    public $language;
+    protected $group;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
-     * @param int $id
+     * @param string $id
      *
      * @return self|null
      */
@@ -98,7 +111,7 @@ class Predefined extends Model\AbstractModel
             $metadata->getDao()->getById($id);
 
             return $metadata;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -108,6 +121,8 @@ class Predefined extends Model\AbstractModel
      * @param string $language
      *
      * @return self|null
+     *
+     * @throws \Exception
      */
     public static function getByName($name, $language = '')
     {
@@ -117,7 +132,7 @@ class Predefined extends Model\AbstractModel
             $metadata->getDao()->getByNameAndLanguage($name, $language);
 
             return $metadata;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -128,7 +143,6 @@ class Predefined extends Model\AbstractModel
     public static function create()
     {
         $type = new self();
-        $type->save();
 
         return $type;
     }
@@ -194,7 +208,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return string
      */
     public function getId()
     {
@@ -202,19 +216,19 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @param int $id
+     * @param string $id
      *
      * @return $this
      */
     public function setId($id)
     {
-        $this->id = (int) $id;
+        $this->id = $id;
 
         return $this;
     }
 
     /**
-     * @param string $description
+     * @param string|null $description
      *
      * @return $this
      */
@@ -226,7 +240,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getDescription()
     {
@@ -246,7 +260,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -266,7 +280,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
@@ -274,7 +288,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @param string $language
+     * @param string|null $language
      */
     public function setLanguage($language)
     {
@@ -282,7 +296,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getLanguage()
     {
@@ -290,7 +304,23 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @param string $targetSubtype
+     * @param string|null $group
+     */
+    public function setGroup($group)
+    {
+        $this->group = $group;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getGroup()
+    {
+        return $this->group;
+    }
+
+    /**
+     * @param string|null $targetSubtype
      */
     public function setTargetSubtype($targetSubtype)
     {
@@ -298,7 +328,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getTargetSubtype()
     {
@@ -306,7 +336,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getConfig()
     {
@@ -314,7 +344,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @param string $config
+     * @param string|null $config
      */
     public function setConfig($config)
     {
@@ -327,7 +357,7 @@ class Predefined extends Model\AbstractModel
             $loader = \Pimcore::getContainer()->get('pimcore.implementation_loader.asset.metadata.data');
             /** @var Model\Asset\MetaData\ClassDefinition\Data\Data $instance */
             $instance = $loader->build($this->type);
-            $this->data = $instance->marshal($this->data);
+            $this->data = $instance->getDataFromEditMode($this->data);
         } catch (UnsupportedException $e) {
             Logger::error('could not resolve asset metadata implementation for ' . $this->type);
         }
@@ -339,9 +369,17 @@ class Predefined extends Model\AbstractModel
             $loader = \Pimcore::getContainer()->get('pimcore.implementation_loader.asset.metadata.data');
             /** @var Model\Asset\MetaData\ClassDefinition\Data\Data $instance */
             $instance = $loader->build($this->type);
-            $this->data = $instance->unmarshal($this->data);
+            $this->data = $instance->getDataForEditmode($this->data);
         } catch (UnsupportedException $e) {
             Logger::error('could not resolve asset metadata implementation for ' . $this->type);
+        }
+    }
+
+    public function __clone()
+    {
+        if ($this->dao) {
+            $this->dao = clone $this->dao;
+            $this->dao->setModel($this);
         }
     }
 }

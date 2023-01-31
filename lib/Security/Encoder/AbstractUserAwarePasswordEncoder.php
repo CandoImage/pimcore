@@ -19,15 +19,20 @@ use Symfony\Component\Security\Core\Encoder\BasePasswordEncoder;
 use Symfony\Component\Security\Core\Exception\RuntimeException;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+/**
+ * @internal
+ *
+ * @deprecated
+ */
 abstract class AbstractUserAwarePasswordEncoder extends BasePasswordEncoder implements UserAwarePasswordEncoderInterface
 {
     /**
-     * @var UserInterface
+     * @var UserInterface|null
      */
     protected $user;
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function setUser(UserInterface $user)
     {
@@ -39,7 +44,7 @@ abstract class AbstractUserAwarePasswordEncoder extends BasePasswordEncoder impl
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getUser()
     {

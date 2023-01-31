@@ -104,7 +104,7 @@ class DefaultFindologic extends AbstractConfig implements FindologicConfigInterf
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function setTenantWorker(WorkerInterface $tenantWorker)
     {
@@ -135,7 +135,7 @@ class DefaultFindologic extends AbstractConfig implements FindologicConfigInterf
      * @param mixed $data
      * @param array $relations
      *
-     * @return mixed
+     * @return DefaultMockup
      */
     public function createMockupObject($objectId, $data, $relations)
     {

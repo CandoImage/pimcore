@@ -15,14 +15,17 @@
 
 namespace Pimcore\Maintenance\Tasks;
 
-use Pimcore\Db;
+use Doctrine\DBAL\Connection;
 use Pimcore\Maintenance\TaskInterface;
 use Psr\Log\LoggerInterface;
 
-final class DbCleanupBrokenViewsTask implements TaskInterface
+/**
+ * @internal
+ */
+class DbCleanupBrokenViewsTask implements TaskInterface
 {
     /**
-     * @var Db\ConnectionInterface
+     * @var Connection
      */
     private $db;
 
@@ -32,10 +35,10 @@ final class DbCleanupBrokenViewsTask implements TaskInterface
     private $logger;
 
     /**
-     * @param Db\ConnectionInterface   $db
+     * @param Connection $db
      * @param LoggerInterface $logger
      */
-    public function __construct(Db\ConnectionInterface $db, LoggerInterface $logger)
+    public function __construct(Connection $db, LoggerInterface $logger)
     {
         $this->db = $db;
         $this->logger = $logger;
@@ -46,7 +49,7 @@ final class DbCleanupBrokenViewsTask implements TaskInterface
      */
     public function execute()
     {
-        $tables = $this->db->fetchAll('SHOW FULL TABLES');
+        $tables = $this->db->fetchAllAssociative('SHOW FULL TABLES');
         foreach ($tables as $table) {
             reset($table);
             $name = current($table);
@@ -54,15 +57,15 @@ final class DbCleanupBrokenViewsTask implements TaskInterface
 
             if ($type === 'VIEW') {
                 try {
-                    $createStatement = $this->db->fetchRow('SHOW FIELDS FROM '.$name);
+                    $createStatement = $this->db->fetchAssociative('SHOW FIELDS FROM '.$name);
                 } catch (\Exception $e) {
                     if (strpos($e->getMessage(), 'references invalid table') !== false) {
                         $this->logger->error('view '.$name.' seems to be a broken one, it will be removed');
                         $this->logger->error('error message was: '.$e->getMessage());
 
-                        $this->db->query('DROP VIEW '.$name);
+                        $this->db->executeQuery('DROP VIEW '.$name);
                     } else {
-                        $this->logger->error($e);
+                        $this->logger->error((string) $e);
                     }
                 }
             }

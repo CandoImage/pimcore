@@ -15,17 +15,30 @@
 
 namespace Pimcore\Model\Asset\Image\Thumbnail\Config;
 
+use Pimcore\Messenger\CleanupThumbnailsMessage;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Asset\Image\Thumbnail\Config $model
  */
-class Dao extends Model\Dao\PhpArrayTable
+class Dao extends Model\Dao\PimcoreLocationAwareConfigDao
 {
+    /**
+     * {@inheritdoc}
+     */
     public function configure()
     {
-        parent::configure();
-        $this->setFile('image-thumbnails');
+        $config = \Pimcore::getContainer()->getParameter('pimcore.config');
+
+        parent::configure([
+            'containerConfig' => $config['assets']['image']['thumbnails']['definitions'],
+            'settingsStoreScope' => 'pimcore_image_thumbnails',
+            'storageDirectory' => $_SERVER['PIMCORE_CONFIG_STORAGE_DIR_IMAGE_THUMBNAILS'] ?? PIMCORE_CONFIGURATION_DIRECTORY . '/image-thumbnails',
+            'legacyConfigFile' => 'image-thumbnails.php',
+            'writeTargetEnvVariableName' => 'PIMCORE_WRITE_TARGET_IMAGE_THUMBNAILS',
+        ]);
     }
 
     /**
@@ -39,13 +52,20 @@ class Dao extends Model\Dao\PhpArrayTable
             $this->model->setName($id);
         }
 
-        $data = $this->db->getById($this->model->getName());
+        $data = $this->getDataByName($this->model->getName());
 
-        if (isset($data['id'])) {
+        if ($data && $id != null) {
+            $data['id'] = $id;
+        }
+
+        if ($data) {
             $this->assignVariablesToModel($data);
             $this->model->setName($data['id']);
         } else {
-            throw new \Exception('Thumbnail with id: ' . $this->model->getName() . ' does not exist');
+            throw new Model\Exception\NotFoundException(sprintf(
+                'Thumbnail with ID "%s" does not exist.',
+                $this->model->getName()
+            ));
         }
     }
 
@@ -56,13 +76,15 @@ class Dao extends Model\Dao\PhpArrayTable
      */
     public function exists(string $name): bool
     {
-        return (bool) $this->db->getById($this->model->getName());
+        return (bool) $this->getDataByName($this->model->getName());
     }
 
     /**
+     * @param bool $forceClearTempFiles force removing generated thumbnail files of saved thumbnail config
+     *
      * @throws \Exception
      */
-    public function save()
+    public function save($forceClearTempFiles = false)
     {
         $ts = time();
         if (!$this->model->getCreationDate()) {
@@ -74,7 +96,7 @@ class Dao extends Model\Dao\PhpArrayTable
         $data = [];
         $allowedProperties = ['name', 'description', 'group', 'items', 'medias', 'format',
             'quality', 'highResolution', 'creationDate', 'modificationDate', 'preserveColor', 'preserveMetaData',
-            'rasterizeSVG', 'downloadable', 'forcePictureTag', ];
+            'rasterizeSVG', 'downloadable', 'preserveAnimation', ];
 
         foreach ($dataRaw as $key => $value) {
             if (in_array($key, $allowedProperties)) {
@@ -82,24 +104,72 @@ class Dao extends Model\Dao\PhpArrayTable
             }
         }
 
-        $this->db->insertOrUpdate($data, $this->model->getName());
-        $this->autoClearTempFiles();
+        $this->saveData($this->model->getName(), $data);
+
+        if ($forceClearTempFiles) {
+            $this->model->clearTempFiles();
+        } elseif ($this->dataSource) {
+            // thumbnail already existed
+            $this->autoClearTempFiles();
+        }
+
+        $this->clearDatabaseCache();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function prepareDataStructureForYaml(string $id, $data)
+    {
+        return [
+            'pimcore' => [
+                'assets' => [
+                    'image' => [
+                        'thumbnails' => [
+                            'definitions' => [
+                                $id => $data,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 
     /**
      * Deletes object from database
+     *
+     * @param bool $forceClearTempFiles force removing generated thumbnail files of saved thumbnail config
      */
-    public function delete()
+    public function delete($forceClearTempFiles = false)
     {
-        $this->db->delete($this->model->getName());
-        $this->autoClearTempFiles();
+        $this->deleteData($this->model->getName());
+
+        if ($forceClearTempFiles) {
+            $this->model->clearTempFiles();
+        } else {
+            $this->autoClearTempFiles();
+        }
+
+        $this->clearDatabaseCache();
+    }
+
+    private function clearDatabaseCache(): void
+    {
+        \Pimcore\Db::get()->delete('assets_image_thumbnail_cache', [
+            'name' => $this->model->getName(),
+        ]);
+
+        Model\Asset\Dao::$thumbnailStatusCache = [];
     }
 
     protected function autoClearTempFiles()
     {
         $enabled = \Pimcore::getContainer()->getParameter('pimcore.config')['assets']['image']['thumbnails']['auto_clear_temp_files'];
         if ($enabled) {
-            $this->model->clearTempFiles();
+            \Pimcore::getContainer()->get('messenger.bus.pimcore-core')->dispatch(
+                new CleanupThumbnailsMessage('image', $this->model->getName())
+            );
         }
     }
 }

@@ -18,6 +18,7 @@ namespace Pimcore\Tests\Helper;
 use Codeception\Exception\ModuleException;
 use Codeception\Lib\ModuleContainer;
 use Codeception\Module;
+use Codeception\TestInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Pimcore\Bundle\InstallBundle\Installer;
@@ -28,12 +29,19 @@ use Pimcore\Kernel;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\ClassDefinition\ClassDefinitionManager;
 use Pimcore\Model\Document;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\EventDispatcher\GenericEvent;
 use Symfony\Component\Filesystem\Filesystem;
 
 class Pimcore extends Module\Symfony
 {
     /**
-     * @inheritDoc
+     * @var null|ContainerInterface
+     */
+    protected static $testServiceContainer = null;
+
+    /**
+     * {@inheritdoc}
      */
     public function __construct(ModuleContainer $moduleContainer, $config = null)
     {
@@ -84,10 +92,25 @@ class Pimcore extends Module\Symfony
         return $this->kernel->getContainer();
     }
 
-    public function _initialize()
+    /**
+     * @param string $serviceId
+     *
+     * @return object|null
+     *
+     * @throws \Exception
+     */
+    public function grabService(string $serviceId)
     {
-        Config::setEnvironment($this->config['environment']);
+        if (empty(self::$testServiceContainer)) {
+            $container = $this->getContainer();
+            self::$testServiceContainer = $container->has('test.service_container') ? $container->get('test.service_container') : $container;
+        }
 
+        return self::$testServiceContainer->get($serviceId);
+    }
+
+    public function _initialize(): void
+    {
         // don't initialize the kernel multiple times if running multiple suites
         // TODO can this lead to side-effects?
         if (null !== $kernel = \Pimcore::getKernel()) {
@@ -124,14 +147,14 @@ class Pimcore extends Module\Symfony
         }
 
         // dispatch kernel booted event - will be used from services which need to reset state between tests
-        $this->kernel->getContainer()->get('event_dispatcher')->dispatch(TestEvents::KERNEL_BOOTED);
+        $this->kernel->getContainer()->get('event_dispatcher')->dispatch(new GenericEvent(), TestEvents::KERNEL_BOOTED);
     }
 
     protected function setupPimcoreDirectories()
     {
         $directories = [
             PIMCORE_CLASS_DIRECTORY,
-            PIMCORE_ASSET_DIRECTORY,
+            PIMCORE_CLASS_DEFINITION_DIRECTORY,
         ];
 
         $filesystem = new Filesystem();
@@ -221,10 +244,14 @@ class Pimcore extends Module\Symfony
 
         $installer = new Installer($this->getContainer()->get('monolog.logger.pimcore'), $this->getContainer()->get('event_dispatcher'));
         $installer->setImportDatabaseDataDump(false);
-        $installer->setupDatabase([
+        $errors = $installer->setupDatabase([
             'username' => 'admin',
             'password' => microtime(),
         ]);
+
+        if ($errors) {
+            throw new \Exception('Setup Database failed: ' . implode("\n", $errors));
+        }
 
         $this->debug(sprintf('[DB] Initialized the test DB %s', $dbName));
 
@@ -279,19 +306,26 @@ class Pimcore extends Module\Symfony
      */
     protected function purgeClassDirectory()
     {
-        $filesystem = new Filesystem();
-        if (file_exists(PIMCORE_CLASS_DIRECTORY)) {
-            $this->debug('[INIT] Purging class directory ' . PIMCORE_CLASS_DIRECTORY);
+        $directories = [
+            PIMCORE_CLASS_DIRECTORY,
+            PIMCORE_CLASS_DEFINITION_DIRECTORY,
+        ];
 
-            $filesystem->remove(PIMCORE_CLASS_DIRECTORY);
-            $filesystem->mkdir(PIMCORE_CLASS_DIRECTORY, 0755);
+        $filesystem = new Filesystem();
+        foreach ($directories as $directory) {
+            if (file_exists($directory)) {
+                $this->debug('[INIT] Purging class directory ' . $directory);
+
+                $filesystem->remove($directory);
+                $filesystem->mkdir($directory, 0755);
+            }
         }
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function _before(\Codeception\TestInterface $test)
+    public function _before(TestInterface $test): void
     {
         parent::_before($test);
 
@@ -321,5 +355,10 @@ class Pimcore extends Module\Symfony
         DataObject::setHideUnpublished(true);
         DataObject::setGetInheritedValues(true);
         DataObject\Localizedfield::setGetFallbackValues(true);
+    }
+
+    public function makeHtmlSnapshot($name = null)
+    {
+        // TODO: Implement makeHtmlSnapshot() method.
     }
 }

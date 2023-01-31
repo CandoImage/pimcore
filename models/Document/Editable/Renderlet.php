@@ -15,7 +15,7 @@
 
 namespace Pimcore\Model\Document\Editable;
 
-use Pimcore\Document\Editable\EditableHandlerInterface;
+use Pimcore\Document\Editable\EditableHandler;
 use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\Asset;
@@ -27,40 +27,46 @@ use Pimcore\Targeting\Document\DocumentTargetingConfigurator;
 /**
  * @method \Pimcore\Model\Document\Editable\Dao getDao()
  */
-class Renderlet extends Model\Document\Editable
+class Renderlet extends Model\Document\Editable implements IdRewriterInterface, EditmodeDataInterface, LazyLoadingInterface
 {
     /**
      * Contains the ID of the linked object
      *
+     * @internal
+     *
      * @var int|null
      */
-    public $id;
+    protected $id;
 
     /**
      * Contains the object
      *
+     * @internal
+     *
      * @var Document|Asset|DataObject|null
      */
-    public $o;
+    protected $o;
 
     /**
      * Contains the type
      *
+     * @internal
+     *
      * @var string|null
      */
-    public $type;
+    protected $type;
 
     /**
      * Contains the subtype
      *
+     * @internal
+     *
      * @var string|null
      */
-    public $subtype;
+    protected $subtype;
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -68,9 +74,7 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -82,11 +86,9 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * Converts the data so it's suitable for the editmode
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
-    public function getDataEditmode()
+    public function getDataEditmode() /** : mixed */
     {
         if ($this->o instanceof Element\ElementInterface) {
             return [
@@ -100,25 +102,26 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function frontend()
     {
-        // TODO inject services via DI when tags are built through container
+        // TODO inject services via DI when editables are built through container
         $container = \Pimcore::getContainer();
-        $editableHandler = $container->get(EditableHandlerInterface::class);
+        $editableHandler = $container->get(EditableHandler::class);
 
-        if (!$editableHandler->supports($this->view)) {
-            return '';
+        if (!is_array($this->config)) {
+            $this->config = [];
+        }
+
+        if (empty($this->config['controller']) && !empty($this->config['template'])) {
+            $this->config['controller'] = $container->getParameter('pimcore.documents.default_controller');
         }
 
         if (empty($this->config['controller'])) {
-            if (is_null($this->config)) {
-                $this->config = [];
-            }
-            $this->config['controller'] = $container->getParameter('pimcore.documents.default_controller');
+            // this can be the case e.g. in \Pimcore\Model\Search\Backend\Data::setDataFromElement() where
+            // this method is called without the config, so it would just render the default controller with the default template
+            return '';
         }
 
         $this->load();
@@ -136,7 +139,7 @@ class Renderlet extends Model\Document\Editable
                 $targetingConfigurator->configureTargetGroup($this->o);
             }
 
-            $blockparams = ['action', 'controller', 'module', 'bundle', 'template'];
+            $blockparams = ['controller', 'template'];
 
             $params = [
                 'template' => isset($this->config['template']) ? $this->config['template'] : null,
@@ -152,19 +155,8 @@ class Renderlet extends Model\Document\Editable
                 }
             }
 
-            $moduleOrBundle = null;
-
-            if (isset($this->config['bundle'])) {
-                $moduleOrBundle = $this->config['bundle'];
-            } elseif (isset($this->config['module'])) {
-                $moduleOrBundle = $this->config['module'];
-            }
-
             return $editableHandler->renderAction(
-                $this->view,
                 $this->config['controller'],
-                $this->config['action'] ?? null,
-                $moduleOrBundle,
                 $params
             );
         }
@@ -173,11 +165,7 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -193,11 +181,7 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -225,7 +209,7 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function resolveDependencies()
     {
@@ -255,7 +239,7 @@ class Renderlet extends Model\Document\Editable
      *
      * @internal param mixed $data
      */
-    public function getObjectType($object = null)
+    private function getObjectType($object = null)
     {
         $this->load();
 
@@ -263,14 +247,14 @@ class Renderlet extends Model\Document\Editable
             $object = $this->o;
         }
         if ($object instanceof Element\ElementInterface) {
-            return Element\Service::getType($object);
+            return Element\Service::getElementType($object);
         }
 
         return null;
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -284,64 +268,7 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-        if ($data->id !== null) {
-            $this->type = $data->type;
-            $this->subtype = $data->subtype;
-            if (is_numeric($data->id)) {
-                $id = $data->id;
-                if ($idMapper) {
-                    $id = $idMapper->getMappedId($data->type, $data->id);
-                }
-                $this->id = $id;
-
-                if ($this->type == 'asset') {
-                    $this->o = Asset::getById($id);
-                    if (!$this->o instanceof Asset) {
-                        if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                            $idMapper->recordMappingFailure('document', $this->getDocumentId(), $this->type, $this->id);
-                        } else {
-                            throw new \Exception('cannot get values from web service import - referenced asset with id [ '.$this->id.' ] is unknown');
-                        }
-                    }
-                } elseif ($this->type == 'document') {
-                    $this->o = Document::getById($id);
-                    if (!$this->o instanceof Document) {
-                        if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                            $idMapper->recordMappingFailure('document', $this->getDocumentId(), $this->type, $this->id);
-                        } else {
-                            throw new \Exception('cannot get values from web service import - referenced document with id [ '.$this->id.' ] is unknown');
-                        }
-                    }
-                } elseif ($this->type == 'object') {
-                    $this->o = DataObject::getById($id);
-                    if (!$this->o instanceof DataObject\AbstractObject) {
-                        if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                            $idMapper->recordMappingFailure('document', $this->getDocumentId(), $this->type, $this->id);
-                        } else {
-                            throw new \Exception('cannot get values from web service import - referenced object with id [ '.$this->id.' ] is unknown');
-                        }
-                    }
-                } else {
-                    throw new \Exception('cannot get values from web service import - type is not valid');
-                }
-            } else {
-                throw new \Exception('cannot get values from web service import - id is not valid');
-            }
-        }
-    }
-
-    /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function checkValidity()
     {
@@ -362,7 +289,7 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function __sleep()
     {
@@ -379,9 +306,9 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * this method is called by Document\Service::loadAllDocumentFields() to load all lazy loading fields
+     * {@inheritdoc}
      */
-    public function load()
+    public function load() /** : void */
     {
         if (!$this->o) {
             $this->setElement();
@@ -409,7 +336,7 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @param Asset|Document|Object $o
+     * @param Asset|Document|DataObject|null $o
      *
      * @return Document\Editable\Renderlet
      */
@@ -421,7 +348,7 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * @return Asset|Document|Object|null
+     * @return Asset|Document|DataObject|null
      */
     public function getO()
     {
@@ -449,26 +376,14 @@ class Renderlet extends Model\Document\Editable
     }
 
     /**
-     * Rewrites id from source to target, $idMapping contains
-     * array(
-     *  "document" => array(
-     *      SOURCE_ID => TARGET_ID,
-     *      SOURCE_ID => TARGET_ID
-     *  ),
-     *  "object" => array(...),
-     *  "asset" => array(...)
-     * )
-     *
-     * @param array $idMapping
+     * { @inheritdoc }
      */
-    public function rewriteIds($idMapping)
+    public function rewriteIds($idMapping) /** : void */
     {
         $type = (string) $this->type;
-        if ($type && array_key_exists($this->type, $idMapping) and array_key_exists($this->getId(), $idMapping[$this->type])) {
+        if ($type && array_key_exists($this->type, $idMapping) && array_key_exists($this->getId(), $idMapping[$this->type])) {
             $this->setId($idMapping[$this->type][$this->getId()]);
             $this->setO(null);
         }
     }
 }
-
-class_alias(Renderlet::class, 'Pimcore\Model\Document\Tag\Renderlet');

@@ -15,13 +15,19 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class Base64 extends AbstractOperator
+/**
+ * @internal
+ */
+final class Base64 extends AbstractOperator
 {
     /**
      * @var string
      */
     private $mode;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -29,6 +35,9 @@ class Base64 extends AbstractOperator
         $this->mode = $config->mode ?? '';
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();
@@ -52,7 +61,6 @@ class Base64 extends AbstractOperator
                 $childValues = [$childValues];
             }
 
-            /** @var array $childValues */
             if (is_array($childValues)) {
                 foreach ($childValues as $childValue) {
                     $valueArray[] = $childValue;

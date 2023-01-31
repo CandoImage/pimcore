@@ -13,6 +13,9 @@ The select editable generates select-box component in Editmode.
 | `width`  | integer | Width of the select box in pixel                                                   |
 | `class`  | string  | A CSS class that is added to the surrounding container of this element in editmode |
 | `defaultValue`  | string   | A default value for the available options. Note: This value needs to be saved before calling getData() or use setDataFromResource().                          |
+| `required` | boolean  | (default: false) set to true to make field value required for publish    |
+| `editable` | boolean  | (default: false) set to true to allow custom option   |
+
 ## Methods
 
 | Name        | Return | Description                                                           |
@@ -26,29 +29,6 @@ The select editable generates select-box component in Editmode.
 
 The code below shows a select box in editmode,
 in the frontend preview you will see simply the value of the chosen option.
-
-<div class="code-section">
-
-```php
-<?php
-if($this->editmode):
-
-    echo $this->select("valid_for", [
-            "store" => [
-                ['one-month', 'One month'],
-                ['three-months', 'Three months'],
-                ['unlimited', 'Unlimited']
-            ],
-            "defaultValue" => "unlimited"
-        ]);
-
-else:
-?>
-<p>
-    <?= $this->translate("Something is valid for") ?>: <?= $this->translate($this->select("valid_for")->getData()) ?>
-</p>
-<?php endif; ?>
-```
 
 ```twig
 {% if editmode %}
@@ -67,8 +47,6 @@ else:
 {% endif %}
 ```
 
-</div>
-
 Editmode:
 ![Select editable in editmode](../../img/editables_select_editmode_preview.png)
 
@@ -77,19 +55,6 @@ Frontend:
 
 ### Preselect the option
 You can *_preselect_* an option in your select editable by using `setDataFromResource()`
-
-<div class="code-section">
-
-```php
-if($this->editmode):
-    if($this->select("valid_for")->isEmpty()):
-        $this->select("valid_for")->setDataFromResource("unlimited");
-    endif;
-    
-    ...
-    
-endif;
-```
 
 ```twig
 {% if editmode %}
@@ -101,5 +66,3 @@ endif;
     
 {% endif %}
 ```
-
-</div>

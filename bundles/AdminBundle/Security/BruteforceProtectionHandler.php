@@ -22,6 +22,11 @@ use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\HttpFoundation\Request;
 
+/**
+ * @internal
+ *
+ * @deprecated
+ */
 class BruteforceProtectionHandler implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -37,10 +42,15 @@ class BruteforceProtectionHandler implements LoggerAwareInterface
     protected $logFile;
 
     /**
+     * @var bool
+     */
+    protected $disabled;
+
+    /**
      * @param RequestHelper $requestHelper
      * @param string|null $logFile
      */
-    public function __construct(RequestHelper $requestHelper, $logFile = null)
+    public function __construct(RequestHelper $requestHelper, $logFile = null, $disabled = false)
     {
         $this->requestHelper = $requestHelper;
 
@@ -49,6 +59,7 @@ class BruteforceProtectionHandler implements LoggerAwareInterface
         }
 
         $this->logFile = $logFile;
+        $this->disabled = $disabled;
     }
 
     /**
@@ -62,6 +73,11 @@ class BruteforceProtectionHandler implements LoggerAwareInterface
      */
     public function checkProtection($username = null, Request $request = null)
     {
+        //disabled for Authenticator system as it uses login throttling
+        if ($this->disabled) {
+            return;
+        }
+
         $username = $this->normalizeUsername($username);
         $ip = $this->requestHelper->getAnonymizedClientIp($request);
 
@@ -115,6 +131,11 @@ class BruteforceProtectionHandler implements LoggerAwareInterface
      */
     public function addEntry($username = null, Request $request = null)
     {
+        //disabled for Authenticator system as it uses login throttling
+        if ($this->disabled) {
+            return;
+        }
+
         $username = $this->normalizeUsername($username);
         $ip = $this->requestHelper->getAnonymizedClientIp($request);
 
@@ -161,7 +182,7 @@ class BruteforceProtectionHandler implements LoggerAwareInterface
         $lines = explode("\n", $data);
         $entries = [];
 
-        if (is_array($lines) && count($lines) > 0) {
+        if (is_array($lines)) {
             foreach ($lines as $line) {
                 $entries[] = explode(',', $line);
             }
@@ -180,7 +201,7 @@ class BruteforceProtectionHandler implements LoggerAwareInterface
     {
         $entries = $this->getLogEntries();
         $entries[] = [
-            date(\DateTime::ISO8601),
+            date(\DateTimeInterface::ISO8601),
             $ip ?: '',
             $username ?: '',
         ];

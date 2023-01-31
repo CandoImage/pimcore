@@ -26,7 +26,7 @@ class LockableAttributeBag extends AttributeBag implements LockableAttributeBagI
     protected $locked = false;
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function lock()
     {
@@ -34,7 +34,7 @@ class LockableAttributeBag extends AttributeBag implements LockableAttributeBagI
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function unlock()
     {
@@ -42,7 +42,7 @@ class LockableAttributeBag extends AttributeBag implements LockableAttributeBagI
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function isLocked()
     {
@@ -50,7 +50,7 @@ class LockableAttributeBag extends AttributeBag implements LockableAttributeBagI
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function set($name, $value)
     {
@@ -60,7 +60,7 @@ class LockableAttributeBag extends AttributeBag implements LockableAttributeBagI
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function replace(array $attributes)
     {
@@ -70,9 +70,12 @@ class LockableAttributeBag extends AttributeBag implements LockableAttributeBagI
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
+     *
+     * @return mixed
      */
-    public function remove($name)
+    #[\ReturnTypeWillChange]
+    public function remove($name)//: mixed
     {
         $this->checkLock();
 
@@ -80,9 +83,12 @@ class LockableAttributeBag extends AttributeBag implements LockableAttributeBagI
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
+     *
+     * @return mixed
      */
-    public function clear()
+    #[\ReturnTypeWillChange]
+    public function clear()//: mixed
     {
         $this->checkLock();
 

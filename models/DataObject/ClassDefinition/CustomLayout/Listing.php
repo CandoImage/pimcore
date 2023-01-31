@@ -16,34 +16,62 @@
 namespace Pimcore\Model\DataObject\ClassDefinition\CustomLayout;
 
 use Pimcore\Model;
+use Pimcore\Model\Listing\CallableFilterListingInterface;
+use Pimcore\Model\Listing\CallableOrderListingInterface;
+use Pimcore\Model\Listing\Traits\FilterListingTrait;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\DataObject\ClassDefinition\CustomLayout\Listing\Dao getDao()
  * @method Model\DataObject\ClassDefinition\CustomLayout[] load()
- * @method Model\DataObject\ClassDefinition\CustomLayout current()
+ * @method Model\DataObject\ClassDefinition\CustomLayout|false current()
  */
-class Listing extends Model\Listing\AbstractListing
+class Listing extends Model\Listing\AbstractListing implements CallableFilterListingInterface, CallableOrderListingInterface
 {
-    /**
-     * @var array|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $layoutDefinitions = null;
+    use FilterListingTrait;
 
-    public function __construct()
+    protected ?array $layoutDefinitions = null;
+
+    /**
+     * @return array|string|callable|null
+     */
+    public function getOrder()
     {
-        $this->layoutDefinitions = & $this->data;
+        return $this->order;
+    }
+
+    /**
+     * @param array|string|callable|null $order
+     */
+    public function setOrder($order)
+    {
+        if (is_array($order) || is_string($order)) {
+            trigger_deprecation(
+                'pimcore/pimcore',
+                '10.5',
+                sprintf('Passing array or string to %s is deprecated,
+                please pass callable function instead.', __METHOD__)
+            );
+
+            return parent::setOrder($order);
+        }
+
+        $this->order = $order;
+
+        return $this;
     }
 
     /**
      * @param Model\DataObject\ClassDefinition\CustomLayout[]|null $layoutDefinitions
      *
-     * @return self
+     * @return $this
      */
     public function setLayoutDefinitions($layoutDefinitions)
     {
-        return $this->setData($layoutDefinitions);
+        $this->layoutDefinitions = $layoutDefinitions;
+
+        return $this;
     }
 
     /**
@@ -51,6 +79,10 @@ class Listing extends Model\Listing\AbstractListing
      */
     public function getLayoutDefinitions()
     {
-        return $this->getData();
+        if ($this->layoutDefinitions === null) {
+            $this->layoutDefinitions = $this->load();
+        }
+
+        return $this->layoutDefinitions;
     }
 }

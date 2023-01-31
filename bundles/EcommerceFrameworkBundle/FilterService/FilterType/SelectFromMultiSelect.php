@@ -18,10 +18,11 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\FilterService\FilterType;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Worker\WorkerInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinitionType;
+use Pimcore\Db;
 
 class SelectFromMultiSelect extends AbstractFilterType
 {
-    public function getFilterFrontend(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter)
+    public function getFilterValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, array $currentFilter): array
     {
         $field = $this->getField($filterDefinition);
         $rawValues = $productList->getGroupByValues($field, true);
@@ -40,7 +41,7 @@ class SelectFromMultiSelect extends AbstractFilterType
             }
         }
 
-        return $this->render($this->getTemplate($filterDefinition), [
+        return [
             'hideFilter' => $filterDefinition->getRequiredFilterField() && empty($currentFilter[$filterDefinition->getRequiredFilterField()]),
             'label' => $filterDefinition->getLabel(),
             'currentValue' => $currentFilter[$field],
@@ -48,7 +49,7 @@ class SelectFromMultiSelect extends AbstractFilterType
             'fieldname' => $field,
             'metaData' => $filterDefinition->getMetaData(),
             'resultCount' => $productList->count(),
-        ]);
+        ];
     }
 
     public function addCondition(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter, $params, $isPrecondition = false)
@@ -68,13 +69,14 @@ class SelectFromMultiSelect extends AbstractFilterType
         $value = trim($value);
 
         $currentFilter[$field] = $value;
+        $db = Db::get();
 
         if (!empty($value)) {
             $value = '%' . WorkerInterface::MULTISELECT_DELIMITER  . $value .  WorkerInterface::MULTISELECT_DELIMITER . '%';
             if ($isPrecondition) {
-                $productList->addCondition($field . ' LIKE ' . $productList->quote($value), 'PRECONDITION_' . $field);
+                $productList->addCondition($field . ' LIKE ' . $db->quote($value), 'PRECONDITION_' . $field);
             } else {
-                $productList->addCondition($field . ' LIKE ' . $productList->quote($value), $field);
+                $productList->addCondition($field . ' LIKE ' . $db->quote($value), $field);
             }
         }
 

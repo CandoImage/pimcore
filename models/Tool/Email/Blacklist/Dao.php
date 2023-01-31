@@ -15,9 +15,12 @@
 
 namespace Pimcore\Model\Tool\Email\Blacklist;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Tool\Email\Blacklist $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -25,22 +28,20 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param string $address
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException(
      */
     public function getByAddress($address)
     {
-        $data = $this->db->fetchRow('SELECT * FROM email_blacklist WHERE address = ?', $address);
+        $data = $this->db->fetchAssociative('SELECT * FROM email_blacklist WHERE address = ?', [$address]);
 
         if (empty($data['address'])) {
-            throw new \Exception('blacklist item with address ' . $address . ' not found');
+            throw new Model\Exception\NotFoundException('blacklist item with address ' . $address . ' not found');
         }
         $this->assignVariablesToModel($data);
     }
 
     /**
      * Save object to database
-     *
-     * @todo: $data could be undefined
      */
     public function save()
     {
@@ -63,7 +64,7 @@ class Dao extends Model\Dao\AbstractDao
             }
         }
 
-        $this->db->insertOrUpdate('email_blacklist', $data);
+        Helper::insertOrUpdate($this->db, 'email_blacklist', $data);
     }
 
     /**

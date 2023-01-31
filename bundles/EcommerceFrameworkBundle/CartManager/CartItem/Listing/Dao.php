@@ -15,6 +15,11 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartItem\Listing;
 
+/**
+ * @internal
+ *
+ * @property \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartItem\Listing $model
+ */
 class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
 {
     /**
@@ -28,7 +33,7 @@ class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
     public function load()
     {
         $items = [];
-        $cartItems = $this->db->fetchAll('SELECT cartid, itemKey, parentItemKey FROM ' . \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartItem\Dao::TABLE_NAME .
+        $cartItems = $this->db->fetchAllAssociative('SELECT cartid, itemKey, parentItemKey FROM ' . \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartItem\Dao::TABLE_NAME .
                                                  $this->getCondition() . $this->getOrder() . $this->getOffsetLimit());
 
         foreach ($cartItems as $item) {

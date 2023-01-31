@@ -20,22 +20,12 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\GridConfigFavourite\Listing\Dao getDao()
  * @method Model\GridConfigFavourite[] load()
- * @method Model\GridConfigFavourite current()
+ * @method Model\GridConfigFavourite|false current()
+ *
+ * @internal
  */
 class Listing extends Model\Listing\AbstractListing
 {
-    /**
-     * @var array|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $gridconfigFavourites = null;
-
-    public function __construct()
-    {
-        $this->gridconfigFavourites = & $this->data;
-    }
-
     /**
      * @return Model\GridConfigFavourite[]
      */
@@ -45,7 +35,9 @@ class Listing extends Model\Listing\AbstractListing
     }
 
     /**
-     * @param array $gridconfigFavourites
+     * @param Model\GridConfigFavourite[]|null $gridconfigFavourites
+     *
+     * @return $this
      */
     public function setGridconfigFavourites($gridconfigFavourites)
     {

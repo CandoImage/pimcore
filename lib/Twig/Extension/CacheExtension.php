@@ -17,10 +17,12 @@ namespace Pimcore\Twig\Extension;
 
 use Pimcore\Cache as CacheManager;
 use Pimcore\Http\Request\Resolver\EditmodeResolver;
-use Pimcore\Tool;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
+/**
+ * @internal
+ */
 class CacheExtension extends AbstractExtension
 {
     /**
@@ -65,16 +67,12 @@ class CacheExtension extends AbstractExtension
      * @param int|null $lifetime
      * @param bool $force
      *
-     * @return mixed
+     * @return $this
      */
     public function init($name, $lifetime = null, $force = false)
     {
         $this->key = 'pimcore_viewcache_' . $name;
         $this->force = $force;
-
-        if (Tool\Frontend::hasWebpSupport()) {
-            $this->key .= 'webp';
-        }
 
         if (!$lifetime) {
             $lifetime = null;
@@ -111,7 +109,7 @@ class CacheExtension extends AbstractExtension
      */
     public function end()
     {
-        if ($this->captureEnabled[$this->key]) {
+        if ($this->captureEnabled[$this->key] ?? false) {
             $this->captureEnabled[$this->key] = false;
 
             $tags = ['in_template'];

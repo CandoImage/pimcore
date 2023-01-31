@@ -19,6 +19,9 @@ namespace Pimcore\Loader\ImplementationLoader;
 
 use Pimcore\Loader\ImplementationLoader\Exception\UnsupportedException;
 
+/**
+ * @internal
+ */
 abstract class AbstractClassNameLoader implements LoaderInterface, ClassNameLoaderInterface
 {
     /**
@@ -29,7 +32,7 @@ abstract class AbstractClassNameLoader implements LoaderInterface, ClassNameLoad
     abstract protected function getClassName(string $name);
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function build(string $name, array $params = [])
     {
@@ -45,11 +48,17 @@ abstract class AbstractClassNameLoader implements LoaderInterface, ClassNameLoad
         return $instance;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function supportsClassName(string $name): bool
     {
         return $this->supports($name);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getClassNameFor(string $name): string
     {
         if (!$this->supports($name)) {

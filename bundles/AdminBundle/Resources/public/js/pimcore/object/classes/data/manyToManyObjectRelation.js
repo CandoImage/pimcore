@@ -63,17 +63,28 @@ pimcore.object.classes.data.manyToManyObjectRelation = Class.create(pimcore.obje
 
         this.specificPanel.add([
             {
-                xtype: "numberfield",
+                xtype: "textfield",
                 fieldLabel: t("width"),
                 name: "width",
                 value: this.datax.width
             },
             {
-                xtype: "numberfield",
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('width_explanation')
+            },
+            {
+                xtype: "textfield",
                 fieldLabel: t("height"),
                 name: "height",
                 value: this.datax.height
-            },{
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('height_explanation')
+            },
+            {
                 xtype: "numberfield",
                 fieldLabel: t("maximum_items"),
                 name: "maxItems",
@@ -179,13 +190,21 @@ pimcore.object.classes.data.manyToManyObjectRelation = Class.create(pimcore.obje
         });
         this.specificPanel.add(this.fieldSelect);
 
+        this.specificPanel.add({
+            xtype: "checkbox",
+            boxLabel: t("enable_text_selection"),
+            name: "enableTextSelection",
+            value: this.datax.enableTextSelection
+        });
+
+        this.specificPanel.add({
+            xtype: "checkbox",
+            boxLabel: t("allow_to_create_new_object"),
+            name: "allowToCreateNewObject",
+            value: this.datax.allowToCreateNewObject
+        });
+
         if(this.context == 'class') {
-            this.specificPanel.add({
-                xtype: "checkbox",
-                boxLabel: t("allow_to_create_new_object"),
-                name: "allowToCreateNewObject",
-                value: this.datax.allowToCreateNewObject
-            });
             this.specificPanel.add({
                 xtype: "checkbox",
                 boxLabel: t("enable_admin_async_load"),
@@ -225,6 +244,3 @@ pimcore.object.classes.data.manyToManyObjectRelation = Class.create(pimcore.obje
     }
 
 });
-
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.classes.data.objects = pimcore.object.classes.data.manyToManyObjectRelation;

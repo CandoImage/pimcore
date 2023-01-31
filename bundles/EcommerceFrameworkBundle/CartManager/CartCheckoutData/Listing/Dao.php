@@ -15,6 +15,13 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartCheckoutData\Listing;
 
+use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartCheckoutData;
+
+/**
+ * @internal
+ *
+ * @property CartCheckoutData\Listing $model
+ */
 class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
 {
     /**
@@ -24,7 +31,7 @@ class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
     {
         $items = [];
 
-        $cartCheckoutDataItems = $this->db->fetchAll('SELECT cartid, `key` FROM ' . \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartCheckoutData\Dao::TABLE_NAME .
+        $cartCheckoutDataItems = $this->db->fetchAllAssociative('SELECT cartid, `key` FROM ' . \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartCheckoutData\Dao::TABLE_NAME .
                                                  $this->getCondition() . $this->getOrder() . $this->getOffsetLimit());
 
         foreach ($cartCheckoutDataItems as $item) {

@@ -20,7 +20,7 @@ namespace Pimcore\Targeting;
 use Pimcore\Event\Targeting\BuildConditionEvent;
 use Pimcore\Event\TargetingEvents;
 use Pimcore\Targeting\Condition\ConditionInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class ConditionFactory implements ConditionFactoryInterface
 {
@@ -30,12 +30,12 @@ class ConditionFactory implements ConditionFactoryInterface
     private $eventDispatcher;
 
     /**
-     * @var array
+     * @var string[]
      */
     private $conditions = [];
 
     /**
-     * @var array
+     * @var string[]
      */
     private $blacklistedKeys = ['type', 'operator', 'bracketLeft', 'bracketRight'];
 
@@ -48,11 +48,11 @@ class ConditionFactory implements ConditionFactoryInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function build(array $config): ConditionInterface
     {
-        /** @var string $type */
+        /** @var string|null $type */
         $type = $config['type'] ?? null;
 
         if (empty($type)) {
@@ -71,7 +71,7 @@ class ConditionFactory implements ConditionFactoryInterface
         }, ARRAY_FILTER_USE_BOTH);
 
         $event = new BuildConditionEvent($type, $this->conditions[$type], $typeConfig);
-        $this->eventDispatcher->dispatch(TargetingEvents::BUILD_CONDITION, $event);
+        $this->eventDispatcher->dispatch($event, TargetingEvents::BUILD_CONDITION);
 
         if ($event->hasCondition()) {
             return $event->getCondition();
@@ -82,12 +82,19 @@ class ConditionFactory implements ConditionFactoryInterface
 
     protected function buildInstance(string $type, array $config): ConditionInterface
     {
-        /** @var ConditionInterface $class */
         $class = $this->conditions[$type];
 
         if (!class_exists($class)) {
             throw new \RuntimeException(sprintf(
                 'Configured condition class "%s" for type "%s" does not exist',
+                $class,
+                $type
+            ));
+        }
+
+        if (!is_subclass_of($class, ConditionInterface::class)) {
+            throw new \RuntimeException(sprintf(
+                'Configured condition class "%s" for type "%s" has not the ConditionInterface',
                 $class,
                 $type
             ));

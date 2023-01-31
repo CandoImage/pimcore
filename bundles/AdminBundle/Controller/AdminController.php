@@ -16,22 +16,52 @@
 namespace Pimcore\Bundle\AdminBundle\Controller;
 
 use Pimcore\Bundle\AdminBundle\HttpFoundation\JsonResponse;
-use Pimcore\Bundle\AdminBundle\Security\CsrfProtectionHandler;
 use Pimcore\Bundle\AdminBundle\Security\User\TokenStorageUserResolver;
 use Pimcore\Bundle\AdminBundle\Security\User\User as UserProxy;
 use Pimcore\Controller\Controller;
+use Pimcore\Extension\Bundle\PimcoreBundleManager;
+use Pimcore\Logger;
 use Pimcore\Model\User;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Translation\Exception\InvalidArgumentException;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 abstract class AdminController extends Controller implements AdminControllerInterface
 {
     /**
-     * @inheritDoc
+     * @var TokenStorageUserResolver
+     */
+    protected $tokenResolver;
+
+    /**
+     * @var TranslatorInterface
+     */
+    protected $translator;
+
+    /**
+     * @var PimcoreBundleManager
+     */
+    protected $bundleManager;
+
+    /**
+     * @return string[]
+     */
+    public static function getSubscribedServices()// : array
+    {
+        $services = parent::getSubscribedServices();
+        $services['translator'] = TranslatorInterface::class;
+        $services[TokenStorageUserResolver::class] = TokenStorageUserResolver::class;
+        $services[PimcoreBundleManager::class] = PimcoreBundleManager::class;
+        $services['pimcore_admin.serializer'] = '?Pimcore\\Admin\\Serializer';
+
+        return $services;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function needsSessionDoubleAuthenticationCheck()
     {
@@ -39,11 +69,26 @@ abstract class AdminController extends Controller implements AdminControllerInte
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function needsStorageDoubleAuthenticationCheck()
     {
         return true;
+    }
+
+    public function getTranslator()
+    {
+        return $this->container->get('translator');
+    }
+
+    public function getBundleManager()
+    {
+        return $this->container->get(PimcoreBundleManager::class);
+    }
+
+    public function getTokenResolver()
+    {
+        return $this->container->get(TokenStorageUserResolver::class);
     }
 
     /**
@@ -51,17 +96,15 @@ abstract class AdminController extends Controller implements AdminControllerInte
      *
      * @param bool $proxyUser Return the proxy user (UserInterface) instead of the pimcore model
      *
-     * @return UserProxy|User
+     * @return UserProxy|User|null
      */
     protected function getAdminUser($proxyUser = false)
     {
-        $resolver = $this->get(TokenStorageUserResolver::class);
-
         if ($proxyUser) {
-            return $resolver->getUserProxy();
-        } else {
-            return $resolver->getUser();
+            return $this->getTokenResolver()->getUserProxy();
         }
+
+        return $this->getTokenResolver()->getUser();
     }
 
     /**
@@ -74,10 +117,10 @@ abstract class AdminController extends Controller implements AdminControllerInte
     protected function checkPermission($permission)
     {
         if (!$this->getAdminUser() || !$this->getAdminUser()->isAllowed($permission)) {
-            $this->get('monolog.logger.security')->error(
+            Logger::error(
                 'User {user} attempted to access {permission}, but has no permission to do so',
                 [
-                    'user' => $this->getAdminUser()->getName(),
+                    'user' => $this->getAdminUser()?->getName(),
                     'permission' => $permission,
                 ]
             );
@@ -97,7 +140,7 @@ abstract class AdminController extends Controller implements AdminControllerInte
     protected function createAccessDeniedHttpException(string $message = 'Access Denied.', \Throwable $previous = null, int $code = 0, array $headers = []): AccessDeniedHttpException
     {
         // $headers parameter not supported by Symfony 3.4
-        return new AccessDeniedHttpException($message, $previous, $code);
+        return new AccessDeniedHttpException($message, $previous, $code, $headers);
     }
 
     /**
@@ -116,7 +159,7 @@ abstract class AdminController extends Controller implements AdminControllerInte
         }
 
         if (!$this->getAdminUser() || !$allowed) {
-            $this->get('monolog.logger.security')->error(
+            Logger::error(
                 'User {user} attempted to access {permission}, but has no permission to do so',
                 [
                     'user' => $this->getAdminUser()->getName(),
@@ -131,11 +174,11 @@ abstract class AdminController extends Controller implements AdminControllerInte
     /**
      * Check permission against all controller actions. Can optionally exclude a list of actions.
      *
-     * @param FilterControllerEvent $event
+     * @param ControllerEvent $event
      * @param string $permission
      * @param array $unrestrictedActions
      */
-    protected function checkActionPermission(FilterControllerEvent $event, string $permission, array $unrestrictedActions = [])
+    protected function checkActionPermission(ControllerEvent $event, string $permission, array $unrestrictedActions = [])
     {
         $actionName = null;
         $controller = $event->getController();
@@ -156,6 +199,8 @@ abstract class AdminController extends Controller implements AdminControllerInte
      * @param array $context Context to pass to serializer when using serializer component
      * @param int $options   Options passed to json_encode
      * @param bool $useAdminSerializer
+     *
+     * @TODO check if $useAdminSerializer still required?
      *
      * @return string
      */
@@ -235,22 +280,6 @@ abstract class AdminController extends Controller implements AdminControllerInte
      */
     public function trans($id, array $parameters = [], $domain = 'admin', $locale = null)
     {
-        $translator = $this->get('translator');
-
-        return $translator->trans($id, $parameters, $domain, $locale);
-    }
-
-    /**
-     * @param Request $request
-     *
-     * @deprecated
-     */
-    public function checkCsrfToken(Request $request)
-    {
-        @trigger_error(sprintf('Calling '.__METHOD__.' is deprecated since version 6.9.0 and will be removed in Pimcore 10. ' .
-            'Use %s service instead.', CsrfProtectionHandler::class), E_USER_DEPRECATED);
-
-        $csrfCheck = $this->container->get('Pimcore\Bundle\AdminBundle\EventListener\CsrfProtectionListener');
-        $csrfCheck->checkCsrfToken($request);
+        return $this->getTranslator()->trans($id, $parameters, $domain, $locale);
     }
 }

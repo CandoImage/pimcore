@@ -15,9 +15,13 @@
 
 namespace Pimcore\Model\DataObject\Concrete\Dao;
 
+use Doctrine\DBAL\Connection;
 use Pimcore\Db\ConnectionInterface;
 use Pimcore\Model\DataObject;
 
+/**
+ * @internal
+ */
 class InheritanceHelper
 {
     const STORE_TABLE = 'object_store_';
@@ -31,7 +35,7 @@ class InheritanceHelper
     const DEFAULT_QUERY_ID_COLUMN = 'ooo_id';
 
     /**
-     * @var ConnectionInterface
+     * @var ConnectionInterface|Connection
      */
     protected $db;
 
@@ -225,10 +229,10 @@ class InheritanceHelper
                 $fields = ', `' . $fields . '`';
             }
 
-            $result = $this->db->fetchRow('SELECT ' . $this->idField . ' AS id' . $fields . ' FROM ' . $this->storetable . ' WHERE ' . $this->idField . ' = ?', $oo_id);
+            $result = $this->db->fetchAssociative('SELECT ' . $this->idField . ' AS id' . $fields . ' FROM ' . $this->storetable . ' WHERE ' . $this->idField . ' = ?', [$oo_id]);
             $o = [
                 'id' => $result['id'],
-                'values' => $result ?? null,
+                'values' => $result,
             ];
 
             $o['children'] = $this->buildTree($result['id'], $fields, null, $params);
@@ -276,15 +280,26 @@ class InheritanceHelper
                 $object = DataObject\Concrete::getById($oo_id);
                 $classId = $object->getClassId();
 
-                $query = 'SELECT b.o_id AS id '
-                    . ' FROM objects b LEFT JOIN ' . $this->querytable . ' a ON b.o_id = a.' . $this->idField
-                    . ' WHERE b.o_classId = ' . $this->db->quote($classId)
-                    . ' AND o_path LIKE '. $this->db->quote($this->db->escapeLike($object->getRealFullPath()).'/%')
-                    . ' AND ISNULL(a.' . $this->queryIdField . ')';
-                $missingIds = $this->db->fetchCol($query);
+                $query = "
+                    WITH RECURSIVE cte(id, classId) as (
+                        SELECT c.o_id AS id, c.o_classId AS classId
+                        FROM objects c
+                        WHERE c.o_parentId = {$object->getId()}
+                        UNION ALL
+                        SELECT p.o_id AS id, p.o_classId AS classId
+                        FROM objects p
+                        INNER JOIN cte on (p.o_parentId = cte.id)
+                    ) select x.id
+                    FROM cte x
+                    LEFT JOIN {$this->querytable} l on (x.id = l.{$this->idField})
+                    where x.classId = {$this->db->quote($classId)}
+                    AND l.{$this->queryIdField} is null;
+                ";
+
+                $missingIds = $this->db->fetchFirstColumn($query);
 
                 // create entries for children that don't have an entry yet
-                $originalEntry = $this->db->fetchRow('SELECT * FROM ' . $this->querytable . ' WHERE ' . $this->idField . ' = ?', $oo_id);
+                $originalEntry = $this->db->fetchAssociative('SELECT * FROM ' . $this->querytable . ' WHERE ' . $this->idField . ' = ?', [$oo_id]);
                 foreach ($missingIds as $id) {
                     $originalEntry[$this->idField] = $id;
                     $this->db->insert($this->querytable, $originalEntry);
@@ -355,12 +370,12 @@ class InheritanceHelper
         // remove the query row entirely ...
         if ($affectedIds) {
             $objectsWithBrickIds = [];
-            $objectsWithBricks = $this->db->fetchAll('SELECT ' . $this->idField . ' FROM ' . $this->storetable . ' WHERE ' . $this->idField . ' IN (' . implode(',', $affectedIds) . ')');
+            $objectsWithBricks = $this->db->fetchAllAssociative('SELECT ' . $this->idField . ' FROM ' . $this->storetable . ' WHERE ' . $this->idField . ' IN (' . implode(',', $affectedIds) . ')');
             foreach ($objectsWithBricks as $item) {
                 $objectsWithBrickIds[] = $item[$this->idField];
             }
 
-            $currentQueryItems = $this->db->fetchAll('SELECT * FROM ' . $this->querytable . ' WHERE ' . $this->idField . ' IN (' . implode(',', $affectedIds) . ')');
+            $currentQueryItems = $this->db->fetchAllAssociative('SELECT * FROM ' . $this->querytable . ' WHERE ' . $this->idField . ' IN (' . implode(',', $affectedIds) . ')');
 
             foreach ($currentQueryItems as $queryItem) {
                 $toBeRemoved = true;
@@ -382,7 +397,7 @@ class InheritanceHelper
         }
 
         if ($toBeRemovedItemIds) {
-            $this->db->deleteWhere($this->querytable, $this->idField . ' IN (' . implode(',', $toBeRemovedItemIds) . ')');
+            $this->db->executeStatement('DELETE FROM ' . $this->querytable . ' WHERE ' . $this->idField . ' IN (' . implode(',', $toBeRemovedItemIds) . ')');
         }
     }
 
@@ -417,15 +432,50 @@ class InheritanceHelper
     protected function buildTree($currentParentId, $fields = '', $parentIdGroups = null, $params = [])
     {
         $objects = [];
+        $storeTable = $this->storetable;
+        $idfield = $this->idField;
 
         if (!$parentIdGroups) {
             $object = DataObject::getById($currentParentId);
             if (isset($params['language'])) {
-                $query = "SELECT a.language as language, b.o_id AS id $fields, b.o_classId AS classId, b.o_parentId AS parentId FROM objects b LEFT JOIN " . $this->storetable . ' a ON b.o_id = a.' . $this->idField . ' WHERE o_path LIKE ' . $this->db->quote($this->db->escapeLike($object->getRealFullPath()) . '/%')
-                    . ' HAVING `language` = "' . $params['language'] . '" OR ISNULL(`language`)'
-                    . ' ORDER BY LENGTH(o_path) ASC';
+                $language = $params['language'];
+
+                $query = "
+                WITH RECURSIVE cte(id, classId, parentId, o_path) as (
+                    SELECT c.o_id AS id, c.o_classId AS classId, c.o_parentId AS parentId, c.o_path AS o_path
+                    FROM objects c
+                    WHERE c.o_parentId = $currentParentId
+                    UNION ALL
+                    SELECT p.o_id AS id, p.o_classId AS classId, p.o_parentId AS parentId, p.o_path AS o_path
+                    FROM objects p
+                    INNER JOIN cte on (p.o_parentId = cte.id)
+                ) SELECT l.language AS `language`,
+                         x.id AS id,
+                         x.classId AS classId,
+                         x.parentId AS parentId
+                         $fields
+                    FROM cte x
+                    LEFT JOIN $storeTable l ON x.id = l.$idfield
+                   WHERE COALESCE(`language`, " . $this->db->quote($language) . ') = ' . $this->db->quote($language) .
+                   ' ORDER BY x.o_path ASC';
             } else {
-                $query = "SELECT b.o_id AS id $fields, b.o_classId AS classId, b.o_parentId AS parentId FROM objects b LEFT JOIN " . $this->storetable . ' a ON b.o_id = a.' . $this->idField . ' WHERE o_path LIKE ' . $this->db->quote($this->db->escapeLike($object->getRealFullPath()).'/%') . ' GROUP BY b.o_id ORDER BY LENGTH(o_path) ASC';
+                $query = "
+                    WITH RECURSIVE cte(id, classId, parentId, o_path) as (
+                        SELECT c.o_id AS id, c.o_classId AS classId, c.o_parentId AS parentId, c.o_path AS o_path
+                        FROM objects c
+                        WHERE c.o_parentId = $currentParentId
+                        UNION ALL
+                        SELECT p.o_id AS id, p.o_classId AS classId, p.o_parentId AS parentId, p.o_path AS o_path
+                        FROM objects p
+                        INNER JOIN cte on (p.o_parentId = cte.id)
+                    )	SELECT x.id AS id,
+                               x.classId AS classId,
+                               x.parentId AS parentId
+                               $fields
+                        FROM cte x
+                        LEFT JOIN $storeTable a ON x.id = a.$idfield
+                        GROUP BY x.id
+                        ORDER BY x.o_path ASC";
             }
             $queryCacheKey = 'tree_'.md5($query);
 
@@ -434,7 +484,7 @@ class InheritanceHelper
             }
 
             if (!$parentIdGroups) {
-                $result = $this->db->fetchAll($query);
+                $result = $this->db->fetchAllAssociative($query);
 
                 if (isset($params['language'])) {
                     $result = $this->filterResultByLanguage($result, $params['language'], 'language');
@@ -511,7 +561,7 @@ class InheritanceHelper
      * @param array $node
      * @param array $params
      *
-     * @return mixed
+     * @return array
      */
     protected function getRelationsForNode(&$node, $params = [])
     {
@@ -523,12 +573,12 @@ class InheritanceHelper
         $relationCondition = $this->getRelationCondition($params);
 
         if (isset($params['language'])) {
-            $objectRelationsResult = $this->db->fetchAll('SELECT src_id as id, fieldname, position, count(*) as COUNT FROM ' . $this->relationtable . ' WHERE ' . $relationCondition . " src_id = ? AND fieldname IN('" . implode("','", array_keys($this->relations)) . "') "
+            $objectRelationsResult = $this->db->fetchAllAssociative('SELECT src_id as id, fieldname, position, count(*) as COUNT FROM ' . $this->relationtable . ' WHERE ' . $relationCondition . " src_id = ? AND fieldname IN('" . implode("','", array_keys($this->relations)) . "') "
                 . ' GROUP BY position, fieldname'
                 . ' HAVING `position` = "' . $params['language'] . '" OR ISNULL(`position`)', [$node['id']]);
             $objectRelationsResult = $this->filterResultByLanguage($objectRelationsResult, $params['language'], 'position');
         } else {
-            $objectRelationsResult = $this->db->fetchAll('SELECT fieldname, count(*) as COUNT FROM ' . $this->relationtable . ' WHERE ' . $relationCondition . " src_id = ? AND fieldname IN('" . implode("','", array_keys($this->relations)) . "') GROUP BY fieldname;", [$node['id']]);
+            $objectRelationsResult = $this->db->fetchAllAssociative('SELECT fieldname, count(*) as COUNT FROM ' . $this->relationtable . ' WHERE ' . $relationCondition . " src_id = ? AND fieldname IN('" . implode("','", array_keys($this->relations)) . "') GROUP BY fieldname;", [$node['id']]);
         }
 
         $objectRelations = [];
@@ -642,8 +692,8 @@ class InheritanceHelper
     protected function updateQueryTable($oo_id, $ids, $fieldname)
     {
         if (!empty($ids)) {
-            $value = $this->db->fetchOne("SELECT `$fieldname` FROM " . $this->querytable . ' WHERE ' . $this->idField . ' = ?', $oo_id);
-            $this->db->updateWhere($this->querytable, [$fieldname => $value], $this->idField . ' IN (' . implode(',', $ids) . ')');
+            $value = $this->db->fetchOne("SELECT `$fieldname` FROM " . $this->querytable . ' WHERE ' . $this->idField . ' = ?', [$oo_id]);
+            $this->db->executeStatement('UPDATE ' . $this->querytable .' SET ' . $this->db->quoteIdentifier($fieldname) . '=? WHERE ' . $this->db->quoteIdentifier($this->idField) . ' IN (' . implode(',', $ids) . ')', [$value]);
         }
     }
 
@@ -656,7 +706,7 @@ class InheritanceHelper
     {
         if (!empty($ids)) {
             $value = null;
-            $this->db->updateWhere($this->querytable, [$fieldname => $value], $this->idField . ' IN (' . implode(',', $ids) . ')');
+            $this->db->executeStatement('UPDATE ' . $this->querytable .' SET ' . $this->db->quoteIdentifier($fieldname) . '=? WHERE ' . $this->db->quoteIdentifier($this->idField) . ' IN (' . implode(',', $ids) . ')', [$value]);
         }
     }
 }

@@ -22,6 +22,7 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartPriceCalculator;
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartPriceModificator\Shipping;
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\SessionCart;
+use Pimcore\Bundle\EcommerceFrameworkBundle\EventListener\SessionBagListener;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractProduct;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\CheckoutableInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\Currency;
@@ -30,7 +31,6 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\Price;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\TaxManagement\TaxEntry;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\PricingManager;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\PricingManagerLocator;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Tools\SessionConfigurator;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Type\Decimal;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Fieldcollection;
@@ -49,7 +49,7 @@ class CartTaxManagementTest extends EcommerceTestCase
         foreach ($taxes as $name => $tax) {
             $entry = new TaxEntryFieldcollection();
             $entry->setPercent($tax);
-            $entry->setName($name);
+            $entry->setName((string)$name);
             $taxEntries->add($entry);
         }
 
@@ -110,7 +110,7 @@ class CartTaxManagementTest extends EcommerceTestCase
      */
     private function setUpCart()
     {
-        $sessionBag = $this->buildSession()->getBag(SessionConfigurator::ATTRIBUTE_BAG_CART);
+        $sessionBag = $this->buildSession()->getBag(SessionBagListener::ATTRIBUTE_BAG_CART);
 
         /** @var SessionCart|\PHPUnit_Framework_MockObject_Stub $cart */
         $cart = Stub::construct(SessionCart::class, [], [
@@ -174,12 +174,12 @@ class CartTaxManagementTest extends EcommerceTestCase
     public function testCartWithTaxEntriesCombine()
     {
         $product = $this->setUpProduct(100, [
-            1 => 10,
-            2 => 15,
+            '1' => 10,
+            '2' => 15,
         ], TaxEntry::CALCULATION_MODE_COMBINE);
 
         $product2 = $this->setUpProduct(50, [
-            1 => 10,
+            '1' => 10,
         ], TaxEntry::CALCULATION_MODE_COMBINE);
 
         $cart = $this->setUpCart();
@@ -219,12 +219,12 @@ class CartTaxManagementTest extends EcommerceTestCase
     public function testPriceSystemWithTaxEntriesOneAfterAnother()
     {
         $product = $this->setUpProduct(100, [
-            1 => 10,
-            2 => 15,
+            '1' => 10,
+            '2' => 15,
         ], TaxEntry::CALCULATION_MODE_ONE_AFTER_ANOTHER);
 
         $product2 = $this->setUpProduct(50, [
-            1 => 10,
+            '1' => 10,
         ], TaxEntry::CALCULATION_MODE_ONE_AFTER_ANOTHER);
 
         $cart = $this->setUpCart();
@@ -286,8 +286,8 @@ class CartTaxManagementTest extends EcommerceTestCase
 
     public function testCartWithTaxEntriesCombineWithModificators()
     {
-        $product = $this->setUpProduct(100, [1 => 10, 2 => 15], TaxEntry::CALCULATION_MODE_COMBINE);
-        $product2 = $this->setUpProduct(50, [1 => 10], TaxEntry::CALCULATION_MODE_COMBINE);
+        $product = $this->setUpProduct(100, ['1' => 10, '2' => 15], TaxEntry::CALCULATION_MODE_COMBINE);
+        $product2 = $this->setUpProduct(50, ['1' => 10], TaxEntry::CALCULATION_MODE_COMBINE);
 
         $cart = $this->setUpCart();
         $cart->addItem($product, 2);
@@ -324,8 +324,8 @@ class CartTaxManagementTest extends EcommerceTestCase
 
     public function testPriceSystemWithTaxEntriesOneAfterAnotherWithModificators()
     {
-        $product = $this->setUpProduct(100, [1 => 10, 2 => 15], TaxEntry::CALCULATION_MODE_ONE_AFTER_ANOTHER);
-        $product2 = $this->setUpProduct(50, [1 => 10], TaxEntry::CALCULATION_MODE_ONE_AFTER_ANOTHER);
+        $product = $this->setUpProduct(100, ['1' => 10, '2' => 15], TaxEntry::CALCULATION_MODE_ONE_AFTER_ANOTHER);
+        $product2 = $this->setUpProduct(50, ['1' => 10], TaxEntry::CALCULATION_MODE_ONE_AFTER_ANOTHER);
 
         $cart = $this->setUpCart();
         $cart->addItem($product, 2);

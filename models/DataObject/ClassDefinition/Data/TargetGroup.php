@@ -16,12 +16,15 @@
 namespace Pimcore\Model\DataObject\ClassDefinition\Data;
 
 use Pimcore\Model;
+use Pimcore\Model\DataObject\ClassDefinition\Service;
 use Pimcore\Model\Tool;
 
 class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
 {
     /**
      * Static type of this element
+     *
+     * @internal
      *
      * @var string
      */
@@ -40,7 +43,7 @@ class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
     {
         if (!empty($data)) {
             try {
-                $this->checkValidity($data, true);
+                $this->checkValidity($data, true, $params);
             } catch (\Exception $e) {
                 $data = null;
             }
@@ -52,7 +55,7 @@ class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
     /**
      * @see ResourcePersistenceAwareInterface::getDataForResource
      *
-     * @param string $data
+     * @param string|null $data
      * @param Model\DataObject\Concrete|null $object
      * @param mixed $params
      *
@@ -62,7 +65,7 @@ class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
     {
         if (!empty($data)) {
             try {
-                $this->checkValidity($data, true);
+                $this->checkValidity($data, true, $params);
             } catch (\Exception $e) {
                 $data = null;
             }
@@ -71,6 +74,9 @@ class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
         return $data;
     }
 
+    /**
+     * @internal
+     */
     public function configureOptions()
     {
         /** @var Tool\Targeting\TargetGroup\Listing|Tool\Targeting\TargetGroup\Listing\Dao $list */
@@ -92,16 +98,11 @@ class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
-        if (!$omitMandatoryCheck and $this->getMandatory() and empty($data)) {
+        if (!$omitMandatoryCheck && $this->getMandatory() && empty($data)) {
             throw new Model\Element\ValidationException('Empty mandatory field [ '.$this->getName().' ]');
         }
 
@@ -128,5 +129,29 @@ class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
         }
 
         return $obj;
+    }
+
+    /**
+     * @return $this
+     */
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize()// : static
+    {
+        if (Service::doRemoveDynamicOptions()) {
+            $this->options = null;
+        }
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function resolveBlockedVars(): array
+    {
+        $blockedVars = parent::resolveBlockedVars();
+        $blockedVars[] = 'options';
+
+        return $blockedVars;
     }
 }

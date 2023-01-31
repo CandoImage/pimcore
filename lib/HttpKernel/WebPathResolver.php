@@ -21,6 +21,8 @@ use Symfony\Component\HttpKernel\Bundle\BundleInterface;
  * Builds public web path for a resource saved in Resources/public of a bundle
  *
  * @see http://stackoverflow.com/questions/21017639/get-path-of-image-in-specified-bundle
+ *
+ * @internal
  */
 class WebPathResolver
 {
@@ -35,7 +37,7 @@ class WebPathResolver
      */
     public function getPrefix(BundleInterface $bundle)
     {
-        if (!is_dir($bundle->getPath() . '/Resources/public')) {
+        if (!is_dir($bundle->getPath() . '/Resources/public') && !is_dir($bundle->getPath() . '/public')) {
             throw new \InvalidArgumentException(sprintf(
                 'Bundle %s does not have Resources/public folder',
                 $bundle->getName()

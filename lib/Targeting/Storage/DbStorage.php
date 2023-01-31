@@ -18,8 +18,9 @@ declare(strict_types=1);
 namespace Pimcore\Targeting\Storage;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver\Result;
 use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use Pimcore\Targeting\Model\VisitorInfo;
 use Pimcore\Targeting\Storage\Traits\TimestampsTrait;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -63,6 +64,9 @@ class DbStorage implements TargetingStorageInterface, MaintenanceStorageInterfac
         $resolver->setAllowedTypes('tableName', 'string');
     }
 
+    /**
+     * {@inheritdoc }
+     */
     public function all(VisitorInfo $visitorInfo, string $scope): array
     {
         if (!$visitorInfo->hasVisitorId()) {
@@ -86,16 +90,20 @@ class DbStorage implements TargetingStorageInterface, MaintenanceStorageInterfac
         $this->addExpiryParam($qb, $scope);
 
         $stmt = $qb->execute();
-        $result = $stmt->fetchAll();
-
         $data = [];
-        foreach ($result as $row) {
-            $data[$row['name']] = json_decode($row['value'], true);
+
+        if ($stmt instanceof Result) {
+            while ($row = $stmt->fetchAssociative()) {
+                $data[$row['name']] = json_decode($row['value'], true);
+            }
         }
 
         return $data;
     }
 
+    /**
+     * {@inheritdoc }
+     */
     public function has(VisitorInfo $visitorInfo, string $scope, string $name): bool
     {
         if (!$visitorInfo->hasVisitorId()) {
@@ -119,11 +127,18 @@ class DbStorage implements TargetingStorageInterface, MaintenanceStorageInterfac
         $this->addExpiryParam($qb, $scope);
 
         $stmt = $qb->execute();
-        $result = (int)$stmt->fetchColumn();
+        $result = 0;
+
+        if ($stmt instanceof Result) {
+            $result = (int)$stmt->fetchOne();
+        }
 
         return 1 === $result;
     }
 
+    /**
+     * {@inheritdoc }
+     */
     public function set(VisitorInfo $visitorInfo, string $scope, string $name, $value)
     {
         if (!$visitorInfo->hasVisitorId()) {
@@ -154,6 +169,9 @@ EOF;
         $this->cleanup($scope);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function get(VisitorInfo $visitorInfo, string $scope, string $name, $default = null)
     {
         if (!$visitorInfo->hasVisitorId()) {
@@ -177,7 +195,11 @@ EOF;
         $this->addExpiryParam($qb, $scope);
 
         $stmt = $qb->execute();
-        $result = $stmt->fetchColumn();
+        $result = false;
+
+        if ($stmt instanceof Result) {
+            $result = $stmt->fetchOne();
+        }
 
         if (!$result) {
             return $default;
@@ -191,6 +213,9 @@ EOF;
         return $decoded;
     }
 
+    /**
+     * {@inheritdoc }
+     */
     public function clear(VisitorInfo $visitorInfo, string $scope = null)
     {
         if (!$visitorInfo->hasVisitorId()) {
@@ -215,6 +240,9 @@ EOF;
         }
     }
 
+    /**
+     * {@inheritdoc }
+     */
     public function migrateFromStorage(TargetingStorageInterface $storage, VisitorInfo $visitorInfo, string $scope)
     {
         // only allow migration if a visitor ID is available as otherwise the fallback
@@ -249,16 +277,25 @@ EOF;
         }
     }
 
+    /**
+     * {@inheritdoc }
+     */
     public function getCreatedAt(VisitorInfo $visitorInfo, string $scope)
     {
         return $this->loadDate($visitorInfo, $scope, 'MIN(creationDate)');
     }
 
+    /**
+     * {@inheritdoc }
+     */
     public function getUpdatedAt(VisitorInfo $visitorInfo, string $scope)
     {
         return $this->loadDate($visitorInfo, $scope, 'MAX(modificationDate)');
     }
 
+    /**
+     * {@inheritdoc }
+     */
     public function maintenance()
     {
         // clean up expired keys scopes with an expiration
@@ -292,9 +329,12 @@ EOF;
         $this->addExpiryParam($qb, $scope);
 
         $stmt = $qb->execute();
-        $date = $this->convertToDateTime($stmt->fetchColumn());
 
-        return $date;
+        if ($stmt instanceof Result) {
+            return $this->convertToDateTime($stmt->fetchOne());
+        }
+
+        return null;
     }
 
     private function convertToDateTime($result = null)
@@ -303,7 +343,7 @@ EOF;
             return null;
         }
 
-        $dateTime = $this->db->convertToPHPValue($result, Type::DATETIME);
+        $dateTime = $this->db->convertToPHPValue($result, Types::DATETIME_MUTABLE);
 
         return \DateTimeImmutable::createFromMutable($dateTime);
     }
@@ -334,9 +374,10 @@ EOF;
                 'value' => 1,
                 'creationDate' => $timestamps['createdAt'],
                 'modificationDate' => $timestamps['updatedAt'],
-            ], [
-                'creationDate' => Type::DATETIME,
-                'modificationDate' => Type::DATETIME,
+            ],
+            [
+                'creationDate' => Types::DATETIME_MUTABLE,
+                'modificationDate' => Types::DATETIME_MUTABLE,
             ]
         );
     }

@@ -16,37 +16,38 @@
 namespace Pimcore\Model\Document\Editable;
 
 use Pimcore\Cache;
-use Pimcore\Document\Editable\EditableHandlerInterface;
+use Pimcore\Document\Editable\EditableHandler;
 use Pimcore\Model;
 use Pimcore\Model\Document;
 use Pimcore\Model\Site;
 use Pimcore\Targeting\Document\DocumentTargetingConfigurator;
 use Pimcore\Tool\DeviceDetector;
-use Pimcore\Tool\Frontend;
 
 /**
  * @method \Pimcore\Model\Document\Editable\Dao getDao()
  */
-class Snippet extends Model\Document\Editable
+class Snippet extends Model\Document\Editable implements IdRewriterInterface, EditmodeDataInterface, LazyLoadingInterface
 {
     /**
      * Contains the ID of the linked snippet
      *
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $id;
+    protected ?int $id = null;
 
     /**
      * Contains the object for the snippet
      *
-     * @var Document\Snippet
+     * @internal
+     *
+     * @var Document\Snippet|null
      */
-    public $snippet;
+    protected $snippet = null;
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -54,9 +55,7 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -80,11 +79,9 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * Converts the data so it's suitable for the editmode
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
-    public function getDataEditmode()
+    public function getDataEditmode() /** : mixed */
     {
         if ($this->snippet instanceof Document\Snippet) {
             return [
@@ -97,21 +94,15 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function frontend()
     {
-        // TODO inject services via DI when tags are built through container
+        // TODO inject services via DI when editables are built through container
         $container = \Pimcore::getContainer();
 
-        $editableHandler = $container->get(EditableHandlerInterface::class);
+        $editableHandler = $container->get(EditableHandler::class);
         $targetingConfigurator = $container->get(DocumentTargetingConfigurator::class);
-
-        if (!$editableHandler->supports($this->view)) {
-            return '';
-        }
 
         if (!$this->snippet instanceof Document\Snippet) {
             return '';
@@ -131,7 +122,6 @@ class Snippet extends Model\Document\Editable
         $cacheKey = null;
         $cacheConfig = \Pimcore\Tool\Frontend::isOutputCacheEnabled();
         if ((isset($params['cache']) && $params['cache'] === true) || $cacheConfig) {
-
             // cleanup params to avoid serializing Element\ElementInterface objects
             $cacheParams = $params;
             array_walk($cacheParams, function (&$value, $key) {
@@ -145,46 +135,36 @@ class Snippet extends Model\Document\Editable
                 $cacheParams['target_group'] = $this->snippet->getUseTargetGroup();
             }
 
-            $cacheParams['webp'] = Frontend::hasWebpSupport();
-
             if (Site::isSiteRequest()) {
                 $cacheParams['siteId'] = Site::getCurrentSite()->getId();
             }
 
-            $cacheKey = 'tag_snippet__' . md5(serialize($cacheParams));
+            $cacheKey = 'editable_snippet__' . md5(serialize($cacheParams));
             if ($content = Cache::load($cacheKey)) {
                 return $content;
             }
         }
 
-        $content = $editableHandler->renderAction(
-            $this->view,
-            $this->snippet->getController(),
-            $this->snippet->getAction(),
-            $this->snippet->getModule(),
-            $params
-        );
+        $content = $editableHandler->renderAction($this->snippet->getController(), $params);
 
         // write contents to the cache, if output-cache is enabled
-        if (isset($params['cache']) && $params['cache'] === true) {
+        if ($cacheConfig && !DeviceDetector::getInstance()->wasUsed()) {
+            $cacheTags = ['output_inline'];
+            $cacheTags[] = $cacheConfig['lifetime'] ? 'output_lifetime' : 'output';
+            Cache::save($content, $cacheKey, $cacheTags, $cacheConfig['lifetime']);
+        } elseif (isset($params['cache']) && $params['cache'] === true) {
             Cache::save($content, $cacheKey, ['output']);
-        } elseif ($cacheConfig && !DeviceDetector::getInstance()->wasUsed()) {
-            Cache::save($content, $cacheKey, ['output', 'output_inline'], $cacheConfig['lifetime']);
         }
 
         return $content;
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
-        if (intval($data) > 0) {
+        if ((int)$data > 0) {
             $this->id = $data;
             $this->snippet = Document\Snippet::getById($this->id);
         }
@@ -193,15 +173,11 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
-        if (intval($data) > 0) {
+        if ((int)$data > 0) {
             $this->id = $data;
             $this->snippet = Document\Snippet::getById($this->id);
         }
@@ -210,7 +186,7 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -224,7 +200,7 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function resolveDependencies()
     {
@@ -243,33 +219,7 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-        if ($data->id !== null) {
-            $this->id = $data->id;
-            if (is_numeric($this->id)) {
-                $this->snippet = Document\Snippet::getById($this->id);
-                if (!$this->snippet instanceof Document\Snippet) {
-                    throw new \Exception('cannot get values from web service import - referenced snippet with id [ ' . $this->id . ' ] is unknown');
-                }
-            } else {
-                throw new \Exception('cannot get values from web service import - id is not valid');
-            }
-        }
-    }
-
-    /**
-     * @return array
+     * {@inheritdoc}
      */
     public function __sleep()
     {
@@ -286,9 +236,9 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * this method is called by Document\Service::loadAllDocumentFields() to load all lazy loading fields
+     * {@inheritdoc}
      */
-    public function load()
+    public function load() /** : void */
     {
         if (!$this->snippet && $this->id) {
             $this->snippet = Document\Snippet::getById($this->id);
@@ -296,19 +246,9 @@ class Snippet extends Model\Document\Editable
     }
 
     /**
-     * Rewrites id from source to target, $idMapping contains
-     * array(
-     *  "document" => array(
-     *      SOURCE_ID => TARGET_ID,
-     *      SOURCE_ID => TARGET_ID
-     *  ),
-     *  "object" => array(...),
-     *  "asset" => array(...)
-     * )
-     *
-     * @param array $idMapping
+     * { @inheritdoc }
      */
-    public function rewriteIds($idMapping)
+    public function rewriteIds($idMapping) /** : void */
     {
         $id = $this->getId();
         if (array_key_exists('document', $idMapping) && array_key_exists($id, $idMapping['document'])) {
@@ -337,5 +277,3 @@ class Snippet extends Model\Document\Editable
         return $this->snippet;
     }
 }
-
-class_alias(Snippet::class, 'Pimcore\Model\Document\Tag\Snippet');

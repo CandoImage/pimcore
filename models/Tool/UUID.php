@@ -16,35 +16,46 @@
 namespace Pimcore\Model\Tool;
 
 use Pimcore\Model;
+use Symfony\Component\Uid\Uuid as Uid;
 
 /**
  * @method \Pimcore\Model\Tool\UUID\Dao getDao()
  * @method void delete()
  * @method void save()
  */
-class UUID extends Model\AbstractModel
+final class UUID extends Model\AbstractModel
 {
     /**
+     * @internal
+     *
      * @var int
      */
-    public $itemId;
+    protected $itemId;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $type;
+    protected $type;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $uuid;
+    protected $uuid;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $instanceIdentifier;
+    protected $instanceIdentifier;
 
     /**
+     * @internal
+     *
      * @var mixed
      */
     protected $item;
@@ -70,6 +81,8 @@ class UUID extends Model\AbstractModel
     }
 
     /**
+     * @internal
+     *
      * @return $this
      *
      * @throws \Exception
@@ -126,7 +139,9 @@ class UUID extends Model\AbstractModel
     }
 
     /**
-     * @return mixed
+     * @internal
+     *
+     * @return string
      *
      * @throws \Exception
      */
@@ -136,8 +151,14 @@ class UUID extends Model\AbstractModel
             throw new \Exception('No instance identifier specified.');
         }
 
-        $this->uuid = \Ramsey\Uuid\Uuid::uuid5(\Ramsey\Uuid\Uuid::NAMESPACE_DNS, $this->getInstanceIdentifier() . '~' . $this->getType() . '~' . $this->getItemId())->toString();
-        $this->getDao()->save();
+        // namespace originally used from \Ramsey\Uuid\Uuid::NAMESPACE_DNS
+        $namespace = Uid::fromString('6ba7b810-9dad-11d1-80b4-00c04fd430c8');
+        $uuid = Uid::v5($namespace, $this->getInstanceIdentifier() . '~' . $this->getType() . '~' . $this->getItemId());
+        $this->uuid = $uuid->toRfc4122();
+
+        if (!$this->getDao()->exists($this->uuid)) {
+            $this->getDao()->create();
+        }
 
         return $this->uuid;
     }
@@ -179,7 +200,7 @@ class UUID extends Model\AbstractModel
     }
 
     /**
-     * @param int $item
+     * @param mixed $item
      *
      * @return UUID
      *
@@ -197,7 +218,7 @@ class UUID extends Model\AbstractModel
     /**
      * @param string $uuid
      *
-     * @return mixed
+     * @return self
      */
     public static function getByUuid($uuid)
     {

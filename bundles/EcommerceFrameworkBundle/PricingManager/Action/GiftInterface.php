@@ -21,7 +21,7 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\ActionInterface;
 /**
  * Adds a gift product to the given cart
  */
-interface GiftInterface extends ActionInterface
+interface GiftInterface extends ActionInterface, CartActionInterface
 {
     /**
      * Set gift product
@@ -33,9 +33,7 @@ interface GiftInterface extends ActionInterface
     public function setProduct(AbstractProduct $product);
 
     /**
-     * @return AbstractProduct
+     * @return AbstractProduct|null
      */
     public function getProduct();
 }
-
-class_alias(GiftInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Action\IGift');

@@ -18,23 +18,18 @@ declare(strict_types=1);
 namespace Pimcore\Bundle\CoreBundle\Command\Bundle;
 
 use Pimcore\Console\AbstractCommand;
-use Pimcore\Extension\Bundle\Installer\OutputWriter;
 use Pimcore\Extension\Bundle\PimcoreBundleInterface;
 use Pimcore\Extension\Bundle\PimcoreBundleManager;
 use Symfony\Component\Console\Input\InputOption;
 
+/**
+ * @internal
+ */
 abstract class AbstractBundleCommand extends AbstractCommand
 {
-    /**
-     * @var PimcoreBundleManager
-     */
-    protected $bundleManager;
-
-    public function __construct(PimcoreBundleManager $bundleManager, ?string $name = null)
+    public function __construct(protected PimcoreBundleManager $bundleManager, ?string $name = null)
     {
         parent::__construct($name);
-
-        $this->bundleManager = $bundleManager;
     }
 
     protected function configureDescriptionAndHelp(string $description, string $help = null): self
@@ -115,11 +110,6 @@ abstract class AbstractBundleCommand extends AbstractCommand
         if (null === $installer) {
             return null;
         }
-
-        $io = $this->io;
-        $installer->setOutputWriter(new OutputWriter(function ($message) use ($io) {
-            $io->writeln($message);
-        }));
 
         return $installer;
     }

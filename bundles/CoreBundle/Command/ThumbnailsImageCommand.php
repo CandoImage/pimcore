@@ -23,6 +23,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class ThumbnailsImageCommand extends AbstractCommand
 {
     use Parallelization;
@@ -40,13 +43,19 @@ class ThumbnailsImageCommand extends AbstractCommand
                 'parent',
                 'p',
                 InputOption::VALUE_OPTIONAL,
-                'only create thumbnails of images in this folder (ID)'
+                'only create thumbnails of images in this folder (comma separated IDs e.g. 543,1077)'
             )
             ->addOption(
                 'id',
                 null,
                 InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
                 'only create thumbnails of images with this (IDs)'
+            )
+            ->addOption(
+                'pathPattern',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Filter images against the given regex pattern (path + filename), example:  ^/Sample.*urban.jpg$'
             )
             ->addOption(
                 'thumbnails',
@@ -64,11 +73,6 @@ class ThumbnailsImageCommand extends AbstractCommand
                 InputOption::VALUE_NONE,
                 'recreate thumbnails, regardless if they exist already'
             )->addOption(
-                'skip-webp',
-                null,
-                InputOption::VALUE_NONE,
-                'if target image format is set to auto in config, do not generate WEBP images for them'
-            )->addOption(
                 'skip-medias',
                 null,
                 InputOption::VALUE_NONE,
@@ -79,60 +83,107 @@ class ThumbnailsImageCommand extends AbstractCommand
                 InputOption::VALUE_NONE,
                 'do not generate high-res (@2x) versions of thumbnails'
             );
+
+        foreach (Image\Thumbnail\Config::getAutoFormats() as $autoFormat => $autoFormatConfig) {
+            if ($autoFormatConfig['enabled']) {
+                $this->addOption(
+                    'skip-' . $autoFormat,
+                    null,
+                    InputOption::VALUE_NONE,
+                    sprintf('if target image format is set to auto in config, do not generate %s images for them', $autoFormat)
+                );
+            }
+        }
     }
 
     protected function fetchItems(InputInterface $input): array
     {
         $list = new Asset\Listing();
 
+        // Recently added or changed items are more likely to need thumbnails, start with those in case process is cut short
+        $list->setOrderKey('modificationDate');
+        $list->setOrder('DESC');
+
+        $parentConditions = [];
+        $conditionVariables = [];
+
         // get only images
         $conditions = ["type = 'image'"];
 
         if ($input->getOption('parent')) {
-            $parent = Asset::getById($input->getOption('parent'));
-            if ($parent instanceof Asset\Folder) {
-                $conditions[] = "path LIKE '" . $list->escapeLike($parent->getRealFullPath()) . "/%'";
-            } else {
-                $this->writeError($input->getOption('parent').' is not a valid asset folder ID!');
-                exit(1);
+            $parentIds = explode(',', $input->getOption('parent'));
+            foreach ($parentIds as $parentId) {
+                $parent = Asset::getById((int) $parentId);
+                if ($parent instanceof Asset\Folder) {
+                    $parentConditions[] = "path LIKE '" . $list->escapeLike($parent->getRealFullPath()) . "/%'";
+                } else {
+                    $this->writeError($input->getOption('parent').' is not a valid asset folder ID!');
+                    exit(1);
+                }
             }
+            $conditions[] = '('. implode(' OR ', $parentConditions) . ')';
+        }
+
+        if ($regex = $input->getOption('pathPattern')) {
+            $conditions[] = 'CONCAT(path, filename) REGEXP ?';
+            $conditionVariables[] = $regex;
         }
 
         if ($ids = $input->getOption('id')) {
             $conditions[] = sprintf('id in (%s)', implode(',', $ids));
         }
 
-        $list->setCondition(implode(' AND ', $conditions));
+        $list->setCondition(implode(' AND ', $conditions), $conditionVariables);
 
-        return $list->loadIdList();
+        $assetIdsList = $list->loadIdList();
+        $thumbnailList = [];
+        $thumbnailList[] = Asset\Image\Thumbnail\Config::getPreviewConfig();
+        if (!$input->getOption('system')) {
+            $thumbnailList = new Asset\Image\Thumbnail\Config\Listing();
+            $thumbnailList = $thumbnailList->getThumbnails();
+        }
+
+        $allowedThumbs = [];
+        if ($input->getOption('thumbnails')) {
+            $allowedThumbs = explode(',', $input->getOption('thumbnails'));
+        }
+
+        $items = [];
+        foreach ($assetIdsList as $assetId) {
+            foreach ($thumbnailList as $thumbnailConfig) {
+                $thumbName = $thumbnailConfig->getName();
+                if (empty($allowedThumbs) || in_array($thumbName, $allowedThumbs)) {
+                    $items[] = $assetId . '~~~' . $thumbName;
+                }
+            }
+        }
+
+        return $items;
     }
 
-    protected function runSingleCommand(string $assetId, InputInterface $input, OutputInterface $output): void
+    protected function runSingleCommand(string $item, InputInterface $input, OutputInterface $output): void
     {
-        $image = Image::getById($assetId);
+        list($assetId, $thumbnailConfigName) = explode('~~~', $item, 2);
+
+        $image = Image::getById((int) $assetId);
         if (!$image) {
-            $this->writeError('No image with ID=' . $assetId . ' found. Has the image been deleted or is the asset of another type?</error>');
+            $this->writeError('No image with ID=' . $assetId . ' found. Has the image been deleted or is the asset of another type?');
 
             return;
         }
 
-        $thumbnailsToGenerate = $this->fetchThumbnailConfigs($input);
+        $thumbnailsToGenerate = $this->fetchThumbnailConfigs($input, $thumbnailConfigName);
 
         if ($input->getOption('force')) {
-            $thumbnailConfigNames = array_unique(
-                array_map(function ($thumbnailConfig) {
-                    return $thumbnailConfig->getName();
-                }, $thumbnailsToGenerate)
-            );
-
-            foreach ($thumbnailConfigNames as $thumbnailConfigName) {
-                $image->clearThumbnail($thumbnailConfigName);
-            }
+            $image->clearThumbnail($thumbnailConfigName);
         }
 
         foreach ($thumbnailsToGenerate as $thumbnailConfig) {
             $thumbnail = $image->getThumbnail($thumbnailConfig);
             $path = $thumbnail->getPath(false);
+
+            // triggers fetching the thumbnail info and updating the asset cache table if width or height are not in the cache
+            $thumbnail->getDimensions();
 
             if ($output->isVerbose()) {
                 $output->writeln(
@@ -148,75 +199,44 @@ class ThumbnailsImageCommand extends AbstractCommand
 
     /**
      * @param InputInterface $input
+     * @param string $thumbnailConfigName
      *
      * @return Asset\Image\Thumbnail\Config[]
      */
-    private function fetchThumbnailConfigs(InputInterface $input): array
+    private function fetchThumbnailConfigs(InputInterface $input, string $thumbnailConfigName): array
     {
-        $list = new Asset\Image\Thumbnail\Config\Listing();
-        $thumbnailConfigList = $list->getThumbnails();
+        /** @var Image\Thumbnail\Config $thumbnailConfig */
+        $thumbnailConfig = Image\Thumbnail\Config::getByName($thumbnailConfigName);
+        $thumbnailsToGenerate = [$thumbnailConfig];
 
-        $allowedThumbs = [];
-        if ($input->getOption('thumbnails')) {
-            $allowedThumbs = explode(',', $input->getOption('thumbnails'));
-        }
+        $medias = array_merge(['default' => 'defaultMedia'], $thumbnailConfig->getMedias() ?: []);
+        foreach ($medias as $mediaName => $media) {
+            $configMedia = clone $thumbnailConfig;
+            if ($mediaName !== 'default') {
+                $configMedia->selectMedia($mediaName);
+            }
 
-        /**
-         * @var Asset\Image\Thumbnail\Config[] $thumbnailsToGenerate
-         */
-        $thumbnailsToGenerate = [];
+            if ($input->getOption('skip-medias') && $mediaName !== 'default') {
+                continue;
+            }
 
-        $config = \Pimcore\Config::getSystemConfiguration('assets');
-        $isWebPAutoSupport = $config['image']['thumbnails']['webp_auto_support'] ?? false;
+            $resolutions = [1, 2];
+            if ($input->getOption('skip-high-res')) {
+                $resolutions = [1];
+            }
 
-        foreach ($thumbnailConfigList as $thumbnailConfig) {
-            if (empty($allowedThumbs) || in_array($thumbnailConfig->getName(), $allowedThumbs)) {
-                $medias = array_merge(['default' => 'defaultMedia'], $thumbnailConfig->getMedias() ?: []);
-                foreach ($medias as $mediaName => $media) {
-                    $configMedia = clone $thumbnailConfig;
-                    if ($mediaName !== 'default') {
-                        $configMedia->selectMedia($mediaName);
-                    }
+            foreach ($resolutions as $resolution) {
+                $resConfig = clone $configMedia;
+                $resConfig->setHighResolution($resolution);
+                $thumbnailsToGenerate[] = $resConfig;
 
-                    if ($input->getOption('skip-medias') && $mediaName !== 'default') {
-                        continue;
-                    }
-
-                    $resolutions = [1, 2];
-                    if ($input->getOption('skip-high-res')) {
-                        $resolutions = [1];
-                    }
-
-                    foreach ($resolutions as $resolution) {
-                        $resConfig = clone $configMedia;
-                        $resConfig->setHighResolution($resolution);
-                        $thumbnailsToGenerate[] = $resConfig;
-
-                        if ($isWebPAutoSupport && !$input->getOption('skip-webp') && $resConfig->getFormat() === 'SOURCE') {
-                            $webpConfig = clone $resConfig;
-                            $webpConfig->setFormat('webp');
-                            $thumbnailsToGenerate[] = $webpConfig;
+                if ($resConfig->getFormat() === 'SOURCE') {
+                    foreach ($resConfig->getAutoFormatThumbnailConfigs() as $autoFormat => $autoFormatThumbnailConfig) {
+                        if (!$input->getOption('skip-' . $autoFormat)) {
+                            $thumbnailsToGenerate[] = $autoFormatThumbnailConfig;
                         }
                     }
                 }
-            }
-        }
-
-        if ($input->getOption('system')) {
-            if (!$input->getOption('thumbnails')) {
-                $thumbnailsToGenerate = [];
-            }
-
-            $thumbnailsToGenerate[] = Asset\Image\Thumbnail\Config::getPreviewConfig(false);
-
-            if (!$input->getOption('skip-high-res')) {
-                $thumbnailsToGenerate[] = Asset\Image\Thumbnail\Config::getPreviewConfig(true);
-            }
-        } elseif (!$input->getOption('thumbnails')) {
-            $thumbnailsToGenerate[] = Asset\Image\Thumbnail\Config::getPreviewConfig(false);
-
-            if (!$input->getOption('skip-high-res')) {
-                $thumbnailsToGenerate[] = Asset\Image\Thumbnail\Config::getPreviewConfig(true);
             }
         }
 
@@ -225,6 +245,6 @@ class ThumbnailsImageCommand extends AbstractCommand
 
     protected function getItemName(int $count): string
     {
-        return $count == 1 ? 'image' : 'images';
+        return $count == 1 ? 'thumbnail' : 'thumbnails';
     }
 }

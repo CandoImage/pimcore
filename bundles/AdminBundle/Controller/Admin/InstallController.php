@@ -15,8 +15,8 @@
 
 namespace Pimcore\Bundle\AdminBundle\Controller\Admin;
 
+use Doctrine\DBAL\Connection;
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
-use Pimcore\Db\ConnectionInterface;
 use Pimcore\Tool\Requirements;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,6 +25,8 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * @Route("/install")
+ *
+ * @internal
  */
 class InstallController extends AdminController
 {
@@ -32,12 +34,12 @@ class InstallController extends AdminController
      * @Route("/check", name="pimcore_admin_install_check", methods={"GET", "POST"})
      *
      * @param Request $request
-     * @param ConnectionInterface $db
-     * @param Profiler $profiler
+     * @param Connection $db
+     * @param Profiler|null $profiler
      *
      * @return Response
      */
-    public function checkAction(Request $request, ConnectionInterface $db, ?Profiler $profiler)
+    public function checkAction(Request $request, Connection $db, ?Profiler $profiler)
     {
         if ($profiler) {
             $profiler->disable();
@@ -46,6 +48,6 @@ class InstallController extends AdminController
         $viewParams = Requirements::checkAll($db);
         $viewParams['headless'] = (bool)$request->get('headless');
 
-        return $this->render('PimcoreAdminBundle:Admin/Install:check.html.twig', $viewParams);
+        return $this->render('@PimcoreAdmin/Admin/Install/check.html.twig', $viewParams);
     }
 }

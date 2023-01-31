@@ -18,14 +18,18 @@ namespace Pimcore\Model\User\Workspace;
 class Document extends AbstractWorkspace
 {
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $save = false;
+    protected $save = false;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $unpublish = false;
+    protected $unpublish = false;
 
     /**
      * @param bool $save

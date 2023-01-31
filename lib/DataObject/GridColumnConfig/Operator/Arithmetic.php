@@ -15,14 +15,24 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class Arithmetic extends AbstractOperator
+/**
+ * @internal
+ */
+final class Arithmetic extends AbstractOperator
 {
-    /** @var bool */
+    /**
+     * @var bool
+     */
     private $skipNull;
 
-    /** @var string */
+    /**
+     * @var string
+     */
     private $operator;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -31,6 +41,9 @@ class Arithmetic extends AbstractOperator
         $this->operator = $config->operator ?? '';
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();

@@ -17,8 +17,8 @@ namespace Pimcore\Event\Workflow;
 
 use Pimcore\Event\Traits\ArgumentsAwareTrait;
 use Pimcore\Workflow\GlobalAction;
-use Symfony\Component\EventDispatcher\Event;
 use Symfony\Component\Workflow\Workflow;
+use Symfony\Contracts\EventDispatcher\Event;
 
 class GlobalActionEvent extends Event
 {
@@ -63,6 +63,9 @@ class GlobalActionEvent extends Event
         return $this->workflow;
     }
 
+    /**
+     * @return mixed
+     */
     public function getSubject()
     {
         return $this->subject;

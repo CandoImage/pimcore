@@ -39,7 +39,7 @@ class Xliff12Exporter implements ExporterInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function export(AttributeSet $attributeSet, string $exportId = null): string
     {
@@ -83,14 +83,14 @@ class Xliff12Exporter implements ExporterInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getExportFilePath(string $exportId): string
     {
         $exportFile = PIMCORE_SYSTEM_TEMP_DIRECTORY . '/' . $exportId . '.xliff';
         if (!is_file($exportFile)) {
             // create initial xml file structure
-            File::put($exportFile, '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL . '<xliff version="1.2"></xliff>');
+            File::put($exportFile, '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL . '<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2"></xliff>');
         }
 
         return $exportFile;
@@ -110,7 +110,7 @@ class Xliff12Exporter implements ExporterInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getContentType(): string
     {

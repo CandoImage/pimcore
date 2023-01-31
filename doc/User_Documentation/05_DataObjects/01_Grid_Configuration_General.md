@@ -7,12 +7,17 @@ The chosen column configuration will also be applied for the CSV Export.
 ![Configurator Button](../img/gridconfig/configurator_button.png)
 
 For experienced users there is an option to assemble custom columns using special operators as described in detail in 
-* [Grid Configuration Operators](./02_Grid_Configuration_Operators.md)
+* [Grid Configuration Operators](./01_Grid_Configuration_Operators/README.md)
 
 ## Saving & Sharing
 
 You can define a favourite config for each object folder and share it with your friends.
 As an admin user you can also share the config globally (i.e. without having to pick certain users).
+Also, you can set the shared config as favourite for all users with whom you share. Setting favourites for shared roles
+is not possible, so setting the favourite will only apply to the users.
+
+**Important Note:** If a config, which is shared globally, is set as favourite
+a config wich is shared specifically with a user will override that previous favourite. In all other cases the favourites will not be overridden.
 
 ![Configurator Button Expanded](../img/gridconfig/configurator_button_expanded.png)
 
@@ -47,6 +52,30 @@ You modify several objects at once by using the grid's batch update feature. The
 * _Batch edit selected_: Same but only for the selected ones
 * _Batch append to all_: Same as batch edit all but the data will be appended. Currently only supported for relational types.
 * _Batch append to selected_: Same as "batch append" but only applied to the selected ones. 
+
+## Filtering
+
+It is possible to filter data on the grid by columns of the following datatypes:
+* Text Datatypes 
+  - ![Text](../img/gridconfig/filter_text_type_img.png)
+* Number Datatypes 
+  - ![img.png](../img/gridconfig/filter_number_type_img.png)
+* Select Datatypes 
+  - ![img.png](../img/gridconfig/filter_select_type_img.png)
+* Date Datatypes 
+  - ![Date](../img/gridconfig/filter_date_type_img.png)
+* Relation Datatypes
+  - one to many
+  - many to many
+  - many to many object
+  - advanced many to many
+  - advanced many to many object
+  - image
+  - advanced image
+  - ![Relation](../img/gridconfig/filter_relation_type_img.png)
+  - Select using search function or drag & drop from the tree
+  - ![Relation](../img/gridconfig/filter_relation_type_img2.png)
+  - when applied with empty value then only objects with empty relation are shown.
 
 
 

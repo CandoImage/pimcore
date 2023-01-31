@@ -43,7 +43,9 @@ class IntlFormatter
      */
     protected $locale;
 
-    /** @var LocaleServiceInterface */
+    /**
+     * @var LocaleServiceInterface
+     */
     private $localeService;
 
     /**
@@ -52,7 +54,7 @@ class IntlFormatter
     protected $dateFormatters = [];
 
     /**
-     * @var \NumberFormatter
+     * @var \NumberFormatter|null
      */
     protected $numberFormatter;
 
@@ -110,6 +112,7 @@ class IntlFormatter
     }
 
     /**
+     * @param string $locale
      * @param string $currencyFormat
      */
     public function setCurrencyFormat($locale, $currencyFormat)
@@ -120,7 +123,9 @@ class IntlFormatter
     /**
      * @param string $format
      *
-     * @return \IntlDateFormatter|\Symfony\Component\Intl\DateFormatter\IntlDateFormatter
+     * @return \IntlDateFormatter|\Symfony\Polyfill\Intl\Icu\IntlDateFormatter
+     *
+     * @throws \RuntimeException
      */
     protected function buildDateTimeFormatters($format)
     {
@@ -187,7 +192,7 @@ class IntlFormatter
     /**
      * formats given datetime in given format
      *
-     * @param \DateTime $dateTime
+     * @param int|string|\DateTimeInterface $dateTime
      * @param string $format
      *
      * @return bool|string
@@ -236,7 +241,7 @@ class IntlFormatter
 
             if ($pattern !== 'default') {
                 $formatter->setPattern($pattern);
-            } elseif ($this->currencyFormats[$this->getLocale()]) {
+            } elseif ($this->currencyFormats[$this->getLocale()] ?? null) {
                 $formatter->setPattern($this->currencyFormats[$this->getLocale()]);
             }
 

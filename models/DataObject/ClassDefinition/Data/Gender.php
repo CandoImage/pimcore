@@ -16,20 +16,20 @@
 namespace Pimcore\Model\DataObject\ClassDefinition\Data;
 
 use Pimcore\Model;
+use Pimcore\Model\DataObject\ClassDefinition\Service;
 
 class Gender extends Model\DataObject\ClassDefinition\Data\Select
 {
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'gender';
 
-    /**
-     * Gender constructor.
-     */
-    public function __construct()
+    public function configureOptions()
     {
         $options = [
             ['key' => 'male', 'value' => 'male'],
@@ -39,5 +39,42 @@ class Gender extends Model\DataObject\ClassDefinition\Data\Select
         ];
 
         $this->setOptions($options);
+    }
+
+    /**
+     * @param array $data
+     *
+     * @return static
+     */
+    public static function __set_state($data)
+    {
+        $obj = parent::__set_state($data);
+        $obj->configureOptions();
+
+        return $obj;
+    }
+
+    /**
+     * @return $this
+     */
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize()// : static
+    {
+        if (Service::doRemoveDynamicOptions()) {
+            $this->options = null;
+        }
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function resolveBlockedVars(): array
+    {
+        $blockedVars = parent::resolveBlockedVars();
+        $blockedVars[] = 'options';
+
+        return $blockedVars;
     }
 }

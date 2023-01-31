@@ -15,7 +15,10 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class Trimmer extends AbstractOperator
+/**
+ * @internal
+ */
+final class Trimmer extends AbstractOperator
 {
     const LEFT = 1;
 
@@ -23,9 +26,14 @@ class Trimmer extends AbstractOperator
 
     const BOTH = 3;
 
-    /** @var int */
+    /**
+     * @var int
+     */
     private $trim;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -33,6 +41,9 @@ class Trimmer extends AbstractOperator
         $this->trim = $config->trim ?? 0;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();

@@ -57,6 +57,11 @@ abstract class Adapter
     /**
      * @var bool
      */
+    protected $preserveAnimation = false;
+
+    /**
+     * @var bool
+     */
     protected $preserveMetaData = false;
 
     /**
@@ -142,7 +147,7 @@ abstract class Adapter
      * @param int $width
      * @param int $height
      *
-     * @return self
+     * @return $this
      */
     public function resize($width, $height)
     {
@@ -153,12 +158,12 @@ abstract class Adapter
      * @param int $width
      * @param bool $forceResize
      *
-     * @return self
+     * @return $this
      */
     public function scaleByWidth($width, $forceResize = false)
     {
         if ($forceResize || $width <= $this->getWidth() || $this->isVectorGraphic()) {
-            $height = round(($width / $this->getWidth()) * $this->getHeight(), 0);
+            $height = floor(($width / $this->getWidth()) * $this->getHeight());
             $this->resize(max(1, $width), max(1, $height));
         }
 
@@ -169,12 +174,12 @@ abstract class Adapter
      * @param int $height
      * @param bool $forceResize
      *
-     * @return self
+     * @return $this
      */
     public function scaleByHeight($height, $forceResize = false)
     {
         if ($forceResize || $height < $this->getHeight() || $this->isVectorGraphic()) {
-            $width = round(($height / $this->getHeight()) * $this->getWidth(), 0);
+            $width = floor(($height / $this->getHeight()) * $this->getWidth());
             $this->resize(max(1, $width), max(1, $height));
         }
 
@@ -186,7 +191,7 @@ abstract class Adapter
      * @param int $height
      * @param bool $forceResize
      *
-     * @return self
+     * @return $this
      */
     public function contain($width, $height, $forceResize = false)
     {
@@ -206,10 +211,10 @@ abstract class Adapter
     /**
      * @param int $width
      * @param int $height
-     * @param string $orientation
+     * @param string|array $orientation
      * @param bool $forceResize
      *
-     * @return self
+     * @return $this
      */
     public function cover($width, $height, $orientation = 'center', $forceResize = false)
     {
@@ -224,31 +229,31 @@ abstract class Adapter
             $this->scaleByHeight($height, $forceResize);
         }
 
-        if ($orientation == 'center') {
+        if ($orientation === 'center') {
             $cropX = ($this->getWidth() - $width) / 2;
             $cropY = ($this->getHeight() - $height) / 2;
-        } elseif ($orientation == 'topleft') {
+        } elseif ($orientation === 'topleft') {
             $cropX = 0;
             $cropY = 0;
-        } elseif ($orientation == 'topright') {
+        } elseif ($orientation === 'topright') {
             $cropX = $this->getWidth() - $width;
             $cropY = 0;
-        } elseif ($orientation == 'bottomleft') {
+        } elseif ($orientation === 'bottomleft') {
             $cropX = 0;
             $cropY = $this->getHeight() - $height;
-        } elseif ($orientation == 'bottomright') {
+        } elseif ($orientation === 'bottomright') {
             $cropX = $this->getWidth() - $width;
             $cropY = $this->getHeight() - $height;
-        } elseif ($orientation == 'centerleft') {
+        } elseif ($orientation === 'centerleft') {
             $cropX = 0;
             $cropY = ($this->getHeight() - $height) / 2;
-        } elseif ($orientation == 'centerright') {
+        } elseif ($orientation === 'centerright') {
             $cropX = $this->getWidth() - $width;
             $cropY = ($this->getHeight() - $height) / 2;
-        } elseif ($orientation == 'topcenter') {
+        } elseif ($orientation === 'topcenter') {
             $cropX = ($this->getWidth() - $width) / 2;
             $cropY = 0;
-        } elseif ($orientation == 'bottomcenter') {
+        } elseif ($orientation === 'bottomcenter') {
             $cropX = ($this->getWidth() - $width) / 2;
             $cropY = $this->getHeight() - $height;
         } elseif (is_array($orientation) && isset($orientation['x'])) {
@@ -292,7 +297,7 @@ abstract class Adapter
     /**
      * @param int $tolerance
      *
-     * @return self
+     * @return $this
      */
     public function trim($tolerance)
     {
@@ -315,7 +320,7 @@ abstract class Adapter
      * @param int $width
      * @param int $height
      *
-     * @return self
+     * @return $this
      */
     public function crop($x, $y, $width, $height)
     {
@@ -325,7 +330,7 @@ abstract class Adapter
     /**
      * @param string $color
      *
-     * @return self
+     * @return $this
      */
     public function setBackgroundColor($color)
     {
@@ -335,7 +340,7 @@ abstract class Adapter
     /**
      * @param string $image
      *
-     * @return self
+     * @return $this
      */
     public function setBackgroundImage($image)
     {
@@ -354,14 +359,14 @@ abstract class Adapter
     }
 
     /**
-     * @param string $image
+     * @param mixed $image
      * @param int $x
      * @param int $y
      * @param int $alpha
      * @param string $composite
      * @param string $origin Origin of the X and Y coordinates (top-left, top-right, bottom-left, bottom-right or center)
      *
-     * @return self
+     * @return $this
      */
     public function addOverlay($image, $x = 0, $y = 0, $alpha = 100, $composite = 'COMPOSITE_DEFAULT', $origin = 'top-left')
     {
@@ -382,7 +387,7 @@ abstract class Adapter
     /**
      * @param string $image
      *
-     * @return self
+     * @return $this
      */
     public function applyMask($image)
     {
@@ -395,7 +400,7 @@ abstract class Adapter
      * @param int $x
      * @param int $y
      *
-     * @return self
+     * @return $this
      */
     public function cropPercent($width, $height, $x, $y)
     {
@@ -408,16 +413,16 @@ abstract class Adapter
         $originalWidth = $this->getWidth();
         $originalHeight = $this->getHeight();
 
-        $widthPixel = ceil($originalWidth * ($width / 100));
-        $heightPixel = ceil($originalHeight * ($height / 100));
-        $xPixel = ceil($originalWidth * ($x / 100));
-        $yPixel = ceil($originalHeight * ($y / 100));
+        $widthPixel = (int) ceil($originalWidth * ($width / 100));
+        $heightPixel = (int) ceil($originalHeight * ($height / 100));
+        $xPixel = (int) ceil($originalWidth * ($x / 100));
+        $yPixel = (int) ceil($originalHeight * ($y / 100));
 
         return $this->crop($xPixel, $yPixel, $widthPixel, $heightPixel);
     }
 
     /**
-     * @return self
+     * @return $this
      */
     public function grayscale()
     {
@@ -425,7 +430,7 @@ abstract class Adapter
     }
 
     /**
-     * @return self
+     * @return $this
      */
     public function sepia()
     {
@@ -433,7 +438,7 @@ abstract class Adapter
     }
 
     /**
-     * @return self
+     * @return $this
      */
     public function sharpen()
     {
@@ -443,7 +448,7 @@ abstract class Adapter
     /**
      * @param string $mode
      *
-     * @return self
+     * @return $this
      */
     public function mirror($mode)
     {
@@ -454,7 +459,7 @@ abstract class Adapter
      * @param int $radius
      * @param float $sigma
      *
-     * @return $this|Adapter
+     * @return $this
      */
     public function gaussianBlur($radius = 0, $sigma = 1.0)
     {
@@ -479,7 +484,7 @@ abstract class Adapter
      * @param string $imagePath
      * @param array $options
      *
-     * @return self
+     * @return $this|false
      */
     abstract public function load($imagePath, $options = []);
 
@@ -530,7 +535,7 @@ abstract class Adapter
         $this->tmpFiles[] = $tmpFile;
 
         $format = 'png32';
-        if ($this->isPreserveColor() || $this->isPreserveMetaData()) {
+        if ($this->isPreserveColor() || $this->isPreserveMetaData() || $this->isPreserveAnimation()) {
             $format = 'original';
         }
 
@@ -560,7 +565,7 @@ abstract class Adapter
     /**
      * @return array
      */
-    public function getVectorRasterDimensions()
+    protected function getVectorRasterDimensions()
     {
         $targetWidth = 5000;
         $factor = $targetWidth / $this->getWidth();
@@ -635,6 +640,22 @@ abstract class Adapter
     public function setPreserveMetaData($preserveMetaData)
     {
         $this->preserveMetaData = $preserveMetaData;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isPreserveAnimation()
+    {
+        return $this->preserveAnimation;
+    }
+
+    /**
+     * @param bool $preserveAnimation
+     */
+    public function setPreserveAnimation(bool $preserveAnimation): void
+    {
+        $this->preserveAnimation = $preserveAnimation;
     }
 
     /**

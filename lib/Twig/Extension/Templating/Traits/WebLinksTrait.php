@@ -19,6 +19,9 @@ namespace Pimcore\Twig\Extension\Templating\Traits;
 
 use Symfony\Bridge\Twig\Extension\WebLinkExtension;
 
+/**
+ * @internal
+ */
 trait WebLinksTrait
 {
     /**
@@ -34,7 +37,12 @@ trait WebLinksTrait
      */
     protected $webLinksEnabled = false;
 
-    public function webLinksEnabled(bool $enabled = null)
+    /**
+     * @param bool|null $enabled
+     *
+     * @return bool
+     */
+    public function webLinksEnabled(?bool $enabled = null)
     {
         if (null !== $enabled) {
             $this->webLinksEnabled = $enabled;
@@ -94,4 +102,3 @@ trait WebLinksTrait
         call_user_func([$this->webLinkExtension, $method], $source, $attributes);
     }
 }
-class_alias(WebLinksTrait::class, 'Pimcore\Templating\Helper\Traits\WebLinksTrait');

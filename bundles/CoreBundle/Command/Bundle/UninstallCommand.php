@@ -23,18 +23,14 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class UninstallCommand extends AbstractBundleCommand
 {
-    /**
-     * @var PostStateChange
-     */
-    private $postStateChangeHelper;
-
-    public function __construct(PimcoreBundleManager $bundleManager, PostStateChange $postStateChangeHelper)
+    public function __construct(PimcoreBundleManager $bundleManager, private PostStateChange $postStateChangeHelper)
     {
         parent::__construct($bundleManager);
-
-        $this->postStateChangeHelper = $postStateChangeHelper;
     }
 
     protected function configure()
@@ -48,7 +44,10 @@ class UninstallCommand extends AbstractBundleCommand
         PostStateChange::configureStateChangeCommandOptions($this);
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    /**
+     * {@inheritdoc}
+     */
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $bundle = $this->getBundle();
 

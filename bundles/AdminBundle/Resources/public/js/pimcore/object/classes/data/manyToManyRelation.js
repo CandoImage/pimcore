@@ -158,17 +158,28 @@ pimcore.object.classes.data.manyToManyRelation = Class.create(pimcore.object.cla
                 labelWidth: 100,
                 items :[
                     {
-                        xtype: "numberfield",
+                        xtype: "textfield",
                         fieldLabel: t("width"),
                         name: "width",
                         value: this.datax.width
                     },
                     {
-                        xtype: "numberfield",
+                        xtype: "displayfield",
+                        hideLabel: true,
+                        value: t('width_explanation')
+                    },
+                    {
+                        xtype: "textfield",
                         fieldLabel: t("height"),
                         name: "height",
                         value: this.datax.height
-                    },{
+                    },
+                    {
+                        xtype: "displayfield",
+                        hideLabel: true,
+                        value: t('height_explanation')
+                    },
+                    {
                         xtype: "numberfield",
                         fieldLabel: t("maximum_items"),
                         name: "maxItems",
@@ -181,6 +192,13 @@ pimcore.object.classes.data.manyToManyRelation = Class.create(pimcore.object.cla
                         fieldLabel: t("path_formatter_service"),
                         name: 'pathFormatterClass',
                         value: this.datax.pathFormatterClass
+                    },
+                    {
+                        xtype: "checkbox",
+                        fieldLabel: t("enable_text_selection"),
+                        width: 600,
+                        name: "enableTextSelection",
+                        value: this.datax.enableTextSelection
                     }
                 ]
             },
@@ -369,6 +387,3 @@ pimcore.object.classes.data.manyToManyRelation = Class.create(pimcore.object.cla
     }
 
 });
-
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.classes.data.multihref = pimcore.object.classes.data.manyToManyRelation;

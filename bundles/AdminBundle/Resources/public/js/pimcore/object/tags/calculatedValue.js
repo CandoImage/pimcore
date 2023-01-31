@@ -22,12 +22,11 @@ pimcore.object.tags.calculatedValue = Class.create(pimcore.object.tags.abstract,
 
     },
 
-
     getLayoutEdit: function () {
 
         var input = {
             fieldLabel: '<img src="/bundles/pimcoreadmin/img/flat-color-icons/calculator.svg" style="height: 1.8em; display: inline-block; vertical-align: middle;"/>' + this.fieldConfig.title,
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             labelWidth: 100,
             readOnly: true,
             width: 100
@@ -37,18 +36,21 @@ pimcore.object.tags.calculatedValue = Class.create(pimcore.object.tags.abstract,
             input.value = this.data.value;
         }
 
-        if (isNaN(this.fieldConfig.width)) {
-            input.width = 100;
-        } else if (this.fieldConfig.width) {
+        if (this.fieldConfig.width) {
             input.width = this.fieldConfig.width;
         }
 
-        if (!isNaN(this.fieldConfig.labelWidth)) {
+        if (!isNaN(this.fieldConfig.labelWidth) && this.fieldConfig.labelWidth) {
             input.labelWidth = this.fieldConfig.labelWidth;
         }
 
-        input.width += input.labelWidth;
+        if (this.fieldConfig.labelAlign) {
+            input.labelAlign = this.fieldConfig.labelAlign;
+        }
 
+        if (!this.fieldConfig.labelAlign || 'left' === this.fieldConfig.labelAlign) {
+            input.width = this.sumWidths(input.width, input.labelWidth);
+        }
 
         if (this.data) {
             input.value = this.data;
@@ -56,6 +58,8 @@ pimcore.object.tags.calculatedValue = Class.create(pimcore.object.tags.abstract,
 
         if(this.fieldConfig.elementType === 'textarea') {
             this.component = new Ext.form.field.TextArea(input);
+        } else if (this.fieldConfig.elementType === 'html') {
+            this.component = new Ext.form.field.Display(input);
         } else {
             this.component = new Ext.form.field.Text(input);
         }
@@ -94,7 +98,7 @@ pimcore.object.tags.calculatedValue = Class.create(pimcore.object.tags.abstract,
                 console.log(e);
             }
 
-            if (value) {
+            if (value && (this.fieldConfig === undefined || this.fieldConfig.elementType !== 'html')) {
                 value = value.replace(/\n/g,"<br>");
                 value = strip_tags(value, '<br>');
             }

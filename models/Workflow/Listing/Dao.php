@@ -19,6 +19,10 @@ use Pimcore\Model;
 use Pimcore\Model\Workflow;
 
 /**
+ * @internal
+ *
+ * @deprecated
+ *
  * @property \Pimcore\Model\Workflow\Listing $model
  */
 class Dao extends Model\Dao\PhpArrayTable

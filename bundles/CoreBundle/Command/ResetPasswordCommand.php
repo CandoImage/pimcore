@@ -18,12 +18,16 @@ namespace Pimcore\Bundle\CoreBundle\Command;
 use Pimcore\Console\AbstractCommand;
 use Pimcore\Model\User;
 use Pimcore\Tool\Authentication;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\Question;
 
+/**
+ * @internal
+ */
 class ResetPasswordCommand extends AbstractCommand
 {
     protected function configure()
@@ -46,15 +50,15 @@ class ResetPasswordCommand extends AbstractCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $userArgument = $input->getArgument('user');
 
         $method = is_numeric($userArgument) ? 'getById' : 'getByName';
 
-        /** @var User $user */
+        /** @var User|null $user */
         $user = User::$method($userArgument);
 
         if (!$user) {
@@ -79,6 +83,7 @@ class ResetPasswordCommand extends AbstractCommand
 
     protected function askForPassword(InputInterface $input, OutputInterface $output)
     {
+        /** @var QuestionHelper $helper */
         $helper = $this->getHelper('question');
 
         $question = new Question('Please enter the new password: ');
@@ -92,8 +97,6 @@ class ResetPasswordCommand extends AbstractCommand
 
         $question->setHidden(true);
 
-        $password = $helper->ask($input, $output, $question);
-
-        return $password;
+        return $helper->ask($input, $output, $question);
     }
 }

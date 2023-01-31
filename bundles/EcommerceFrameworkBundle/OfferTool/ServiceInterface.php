@@ -60,5 +60,3 @@ interface ServiceInterface
      */
     public function getNewOfferItemObject();
 }
-
-class_alias(ServiceInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\OfferTool\IService');

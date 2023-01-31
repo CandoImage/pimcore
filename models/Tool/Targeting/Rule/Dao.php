@@ -20,6 +20,8 @@ use Pimcore\Model\Tool\Targeting\Rule;
 use Pimcore\Tool\Serialize;
 
 /**
+ * @internal
+ *
  * @property Rule|Model\Tool\Targeting\Rule\Dao $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -27,7 +29,7 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int|null $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id = null)
     {
@@ -35,7 +37,7 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow('SELECT * FROM targeting_rules WHERE id = ?', $this->model->getId());
+        $data = $this->db->fetchAssociative('SELECT * FROM targeting_rules WHERE id = ?', [$this->model->getId()]);
 
         if (!empty($data['id'])) {
             $data['conditions'] = (isset($data['conditions']) ? Serialize::unserialize($data['conditions']) : []);
@@ -43,7 +45,7 @@ class Dao extends Model\Dao\AbstractDao
 
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('target with id ' . $this->model->getId() . " doesn't exist");
+            throw new Model\Exception\NotFoundException('target with id ' . $this->model->getId() . " doesn't exist");
         }
     }
 
@@ -58,12 +60,15 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setName($name);
         }
 
-        $data = $this->db->fetchAll('SELECT id FROM targeting_rules WHERE name = ?', [$this->model->getName()]);
+        $data = $this->db->fetchAllAssociative('SELECT id FROM targeting_rules WHERE name = ?', [$this->model->getName()]);
 
         if (count($data) === 1) {
             $this->getById($data[0]['id']);
         } else {
-            throw new \Exception('target with name ' . $this->model->getId() . " doesn't exist or isn't unique");
+            throw new Model\Exception\NotFoundException(sprintf(
+                'Targeting rule with name "%s" does not exist.',
+                $this->model->getName()
+            ));
         }
     }
 
@@ -113,6 +118,6 @@ class Dao extends Model\Dao\AbstractDao
     public function create()
     {
         $this->db->insert('targeting_rules', []);
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 }

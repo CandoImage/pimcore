@@ -20,38 +20,32 @@ use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Pimcore\Http\Request\Resolver\TemplateResolver;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\GetResponseForControllerResultEvent;
+use Symfony\Component\HttpKernel\Event\ViewEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
  * If a contentTemplate attribute was set on the request (done by router when building a document route), extract the
  * value and set it on the Template annotation. This handles custom template files being configured on documents.
+ *
+ * @internal
  */
 class ContentTemplateListener implements EventSubscriberInterface
 {
     use PimcoreContextAwareTrait;
 
     /**
-     * @var TemplateResolver
-     */
-    protected $templateResolver;
-
-    /**
      * @param TemplateResolver $templateResolver
      */
-    public function __construct(TemplateResolver $templateResolver)
+    public function __construct(protected TemplateResolver $templateResolver)
     {
-        $this->templateResolver = $templateResolver;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
-            // this must run after the TemplateControllerListener set a potential template and before the TemplateListener
-            // renders the view
             KernelEvents::VIEW => ['onKernelView', 16],
         ];
     }
@@ -61,9 +55,9 @@ class ContentTemplateListener implements EventSubscriberInterface
      * the router or from the sub-action renderer and takes precedence over the auto-resolved and manually configured
      * template.
      *
-     * @param GetResponseForControllerResultEvent $event
+     * @param ViewEvent $event
      */
-    public function onKernelView(GetResponseForControllerResultEvent $event)
+    public function onKernelView(ViewEvent $event)
     {
         $request = $event->getRequest();
 

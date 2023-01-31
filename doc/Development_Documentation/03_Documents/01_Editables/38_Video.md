@@ -8,19 +8,20 @@ Local asset videos support the automatic generation and transcoding of videos us
 
 ## Configuration
 
-| Name                      | Type      | Description                                                                                                                                                                                                             |
-|---------------------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `attributes`              | array     | Additional attributes for the generated `<video>` tag - only for type asset                                                                                                                                             |
-| `disableProgressReload`   | bool      | Set to true to disable the automatic page refresh while the video thumbnail is generated                                                                                                                                |
-| `editmodeImagePreview`    | bool      | Set to true to display only an image and not the video player in editmode, this can be necessary if you have many videos on one page (performance)                                                                      |
-| `height`                  | integer   | Height of the video in pixel                                                                                                                                                                                            |
-| `imagethumbnail`          | string    | Name of the image-thumbnail, this thumbnail config is used to generate the preview image (poster image), if not specified Pimcore tries to get the information out of the video thumbnail. see also: Video Thumbnails   |
-| `removeAttributes`        | array     | You can remove standard attributes using this configuration, e.g. "removeAttributes" => ["controls","poster"]                                                                                                           |
-| `thumbnail`               | string    | Name of the video-thumbnail (required when using automatic-transcoding of videos) see: [Video Thumbnails](../../04_Assets/03_Working_with_Thumbnails/03_Video_Thumbnails.md)                                            |
-| `width`                   | integer   | Width of the video in pixel                                                                                                                                                                                             |
-| `youtube`                 | array     | Parameters for youtube integration. Possible parameters: [https://developers.google.com/youtube/player_parameters](https://developers.google.com/youtube/player_parameters) - only for type ***youtube***               |
-| `class`                   | string    | A CSS class that is added to the surrounding container of this element in editmode                                                                                                                                      |
-  
+| Name                    | Type           | Description                                                                                                                                                                                                           |
+|-------------------------|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `allowedTypes`          | array          | You can limit the available types for this editable by passing the allowed types explicitly. If this option is not used, all types are available.                                                                     |
+| `attributes`            | array          | Additional attributes for the generated `<video>` tag - only for type asset                                                                                                                                           |
+| `editmodeImagePreview`  | bool           | (default: false) Set to true to display only an image and not the video player in editmode, this can be necessary if you have many videos on one page (performance)                                                   |
+| `height`                | integer/string | (default: 300) Height of the video in pixel or in percent                                                                                                                                                             |
+| `imagethumbnail`        | string         | Name of the image-thumbnail, this thumbnail config is used to generate the preview image (poster image), if not specified Pimcore tries to get the information out of the video thumbnail. see also: Video Thumbnails |
+| `removeAttributes`      | array          | You can remove standard attributes using this configuration, e.g. "removeAttributes" => ["controls","poster"]                                                                                                         |
+| `thumbnail`             | string         | Name of the video-thumbnail (required when using automatic-transcoding of videos) see: [Video Thumbnails](../../04_Assets/03_Working_with_Thumbnails/03_Video_Thumbnails.md)                                          |
+| `width`                 | integer/string | (default: "100%") Width of the video in pixel or in percent                                                                                                                                                           |
+| `youtube`               | array          | Parameters for youtube integration. Possible parameters: [https://developers.google.com/youtube/player_parameters](https://developers.google.com/youtube/player_parameters) - only for type ***youtube***             |
+| `class`                 | string         | A CSS class that is added to the surrounding container of this element in editmode                                                                                                                                    |
+| `required`              | boolean        | (default: false) set to true to make field value required for publish                                                                                                                                                 |
+
 ## Methods
 
 | Name                       | Arguments            | Return                                                  | Description                                                                                   |
@@ -48,18 +49,7 @@ Output returned by `getPosterAsset`:
 
 ### Basic Usage - a Local Asset
 
-To create a container for local video files you can just use the `$this->video` helperwithout any options.
-
-<div class="code-section">
-
-```php
-<section id="campaign_video">
-    <?= $this->video("campaignVideo", [
-        "width" => 700,
-        "height" => 400
-    ]); ?>
-</section>
-```
+To create a container for local video files you can just use the `$this->video` helper without any options.
 
 ```twig
 <section id="campaign_video">
@@ -69,8 +59,6 @@ To create a container for local video files you can just use the `$this->video` 
     }) }}
 </section>
 ```
-
-</div>
 
 In the editmode, there is now a container available where you can assign an asset path and a video poster. 
 
@@ -91,25 +79,6 @@ Have a look at the frontend preview:
 
 In the configuration, you could also specify additional options for external services.
 
-<div class="code-section">
-
-```php
-<section id="campaign_video">
-    <?= $this->video("campaignVideo", [
-        "width" => 700,
-        "height" => 400,
-        "youtube" => [
-            "autoplay" => 1,
-            "modestbranding" => 1
-        ],
-        "vimeo" => [
-            "autoplay" => 1,
-            "loop" => 1
-        ]
-    ]); ?>
-</section>
-```
-
 ```twig
 <section id="campaign_video">
     {{ pimcore_video('campaignVideo', {
@@ -128,31 +97,19 @@ In the configuration, you could also specify additional options for external ser
 </section>
 ```
 
-</div>
+It is possible to limit the available types for this editable. The selection can be restricted via the "allowedTypes" parameter.
+
+```twig
+<section id="campaign_video">
+    {{ pimcore_video('campaignVideo', {
+            allowedTypes: ['asset', 'youtube']
+       })
+    }}
+</section>
+```
+
 
 ### HTML5 with Automatic Video Transcoding (using video.js)
-
-<div class="code-section">
-
-```php
-<!DOCTYPE HTML>
-<html>
-<head>
-    <link href="http://vjs.zencdn.net/5.4.4/video-js.css" rel="stylesheet">
-</head>
-<body>
- 
-    <?= $this->video("myVideo", array(
-        "thumbnail" => "example", // NOTE: don't forget to create a video thumbnail
-        "width" => 400,
-        "height" => 300,
-        "attributes" => ["class" => "video-js custom-class", "preload" => "auto", "controls" => "", "data-custom-attr" => "my-test"]
-    )); ?>
- 
-    <script src="http://vjs.zencdn.net/5.4.4/video.js"></script>
-</body>
-</html>
-```
 
 ```twig
 <!DOCTYPE HTML>
@@ -179,7 +136,6 @@ In the configuration, you could also specify additional options for external ser
 </html>
 ```
 
-</div>
 
 Read more about [Video Thumbnails](../../04_Assets/03_Working_with_Thumbnails/03_Video_Thumbnails.md).
 

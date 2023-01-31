@@ -20,6 +20,9 @@ use Pimcore\Model\Asset;
 use Pimcore\Model\Element;
 use Sabre\DAV;
 
+/**
+ * @internal
+ */
 class Tree extends DAV\Tree
 {
     /**
@@ -76,7 +79,7 @@ class Tree extends DAV\Tree
             $asset->setUserModification($user->getId());
             $asset->save();
         } catch (\Exception $e) {
-            Logger::error($e);
+            Logger::error((string) $e);
         }
     }
 }

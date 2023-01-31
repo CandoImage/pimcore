@@ -22,5 +22,3 @@ interface ComponentInterface
      */
     public function save();
 }
-
-class_alias(ComponentInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\IComponent');

@@ -20,7 +20,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Lock\Factory as LockFactory;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\LockInterface;
 use Webmozarts\Console\Parallelization\Parallelization as WebmozartParallelization;
 
@@ -36,6 +36,9 @@ trait Parallelization
 
     protected static function configureParallelization(Command $command): void
     {
+        // we need to override WebmozartParallelization::configureParallelization here
+        // because some existing commands are already using the `p` option, and would therefore
+        // causes collisions
         $command
             ->addArgument(
                 'item',
@@ -48,19 +51,33 @@ trait Parallelization
                 //'p', avoid collisions with already existing Pimcore command options
                 InputOption::VALUE_OPTIONAL,
                 'The number of parallel processes to run',
-                1
+                '1'
             )
             ->addOption(
                 'child',
                 null,
                 InputOption::VALUE_NONE,
                 'Set on child processes. For internal use only.'
+            )->addOption(
+                'batch-size',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Sets the number of items to process per child process or in a batch',
+                '50'
             )
         ;
     }
 
     /**
-     * Default behavior in commands: only allow one command of a type at the same time.
+     * {@inheritdoc}
+     */
+    protected function getSegmentSize(): int
+    {
+        return (int)$this->input->getOption('batch-size');
+    }
+
+    /**
+     * {@inheritdoc}
      */
     protected function runBeforeFirstCommand(InputInterface $input, OutputInterface $output): void
     {
@@ -71,10 +88,7 @@ trait Parallelization
     }
 
     /**
-     * Default behavior in commands: clean up garbage after each batch run, if there is only
-     * one master process in place.
-     *
-     * @param array $items
+     * {@inheritdoc}
      */
     protected function runAfterBatch(InputInterface $input, OutputInterface $output, array $items): void
     {
@@ -87,7 +101,7 @@ trait Parallelization
     }
 
     /**
-     * Default behavior in commands: release lock on termination.
+     * {@inheritdoc}
      */
     protected function runAfterLastCommand(InputInterface $input, OutputInterface $output): void
     {
@@ -95,7 +109,7 @@ trait Parallelization
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function getItemName(int $count): string
     {
@@ -103,19 +117,11 @@ trait Parallelization
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function getContainer()
     {
         return \Pimcore::getKernel()->getContainer();
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function getConsolePath(): string
-    {
-        return PIMCORE_PROJECT_ROOT . '/bin/console';
     }
 
     /**
@@ -128,7 +134,7 @@ trait Parallelization
      */
     private function lock($name = null, $blocking = false)
     {
-        $this->lock = \Pimcore::getContainer()->get(LockFactory::class)->createLock($name ?: $this->getName());
+        $this->lock = \Pimcore::getContainer()->get(LockFactory::class)->createLock($name ?: $this->getName(), 86400);
 
         if (!$this->lock->acquire($blocking)) {
             $this->lock = null;
@@ -148,5 +154,13 @@ trait Parallelization
             $this->lock->release();
             $this->lock = null;
         }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getConsolePath(): string
+    {
+        return PIMCORE_PROJECT_ROOT . '/bin/console';
     }
 }

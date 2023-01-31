@@ -18,10 +18,10 @@ services:
     # ---------------------------------------------------------
     # Link Generators for DataObjects
     # ---------------------------------------------------------
-    AppBundle\Website\LinkGenerator\CategoryLinkGenerator:
+    App\Website\LinkGenerator\CategoryLinkGenerator:
         public: true
 
-    AppBundle\Website\LinkGenerator\ProductLinkGenerator:
+    App\Website\LinkGenerator\ProductLinkGenerator:
         public: true
 
     ...
@@ -32,15 +32,16 @@ services:
 ```php
 <?php
 
-namespace AppBundle\Website\LinkGenerator;
+namespace App\Website\LinkGenerator;
 
-use AppBundle\Model\Product\AccessoryPart;
-use AppBundle\Model\Product\Car;
-use AppBundle\Website\Tool\ForceInheritance;
-use AppBundle\Website\Tool\Text;
+use App\Model\Product\AccessoryPart;
+use App\Model\Product\Car;
+use App\Website\Tool\ForceInheritance;
+use App\Website\Tool\Text;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\ProductInterface;
 use Pimcore\Model\DataObject\ClassDefinition\LinkGeneratorInterface;
 use Pimcore\Model\DataObject\Concrete;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup;
 
 class ProductLinkGenerator extends AbstractProductLinkGenerator implements LinkGeneratorInterface
 {
@@ -91,6 +92,23 @@ class ProductLinkGenerator extends AbstractProductLinkGenerator implements LinkG
 }
 ```
 
+Note: If you want to support mockups or arbitrary objects you can change the typehint to:
+```php
+    /**
+     * @param object $object
+     * @param array $params
+     *
+     * @return string
+     */
+    public function generate(object $object, array $params = []): string
+    {
+        //...
+    }
+```
+
+
+
+
 The link generator will receive the referenced object and additional data depending on the context.
 This would be the document (if embedded in a document), the object if embedded in an object including the tag or field definition as context.
 
@@ -127,16 +145,6 @@ would produce the following output
 
 #### path() / url()
 
-<div class="code-section">
-
-```php
-<ul class="foo">
-    <?php foreach($this->carList as $car) { ?>
-        <li><a href="<?= $this->path($car); ?>"><?= $car->getName() ?></a></li>
-    <?php } ?>
-</ul>
-```
-
 ```twig
 <ul class="foo">
     {% for car in carList %}
@@ -145,26 +153,12 @@ would produce the following output
 </ul>
 ```
 
-</div>
-
 #### pimcoreUrl
-
-<div class="code-section">
-
-```php
-<ul class="foo">
-    <?php foreach($this->carList as $car) { ?>
-        <li><a href="<?= $this->pimcoreUrl(['object' => $car]); ?>"><?= $car->getName() ?></a></li>
-    <?php } ?>
-</ul>
-```
 
 ```twig
 <ul class="foo">
     {% for car in carList %}
-        <li><a href="{{ pimcore_url({object: car}) }}">{{ car.getName() }}</a></li>
+        <li><a href="{{ path('pimcore_element', {'element': car}) }}">{{ car.getName() }}</a></li>
     {% endfor %}
 </ul>
 ```
-
-</div>

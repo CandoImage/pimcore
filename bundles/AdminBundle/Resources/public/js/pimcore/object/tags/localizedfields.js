@@ -193,6 +193,10 @@ pimcore.object.tags.localizedfields = Class.create(pimcore.object.tags.abstract,
                             item.labelWidth = this.fieldConfig.labelWidth;
                         }
 
+                        if (this.fieldConfig.labelAlign) {
+                            item.labelAlign = this.fieldConfig.labelAlign;
+                        }
+
                         if (side == "left") {
                             item.style = "border-right: 1px dotted #DDD;";
                         }
@@ -258,7 +262,7 @@ pimcore.object.tags.localizedfields = Class.create(pimcore.object.tags.abstract,
                     typeAhead: true,
                     forceSelection: true,
                     store: store,
-                    componentCls: "object_field",
+                    componentCls: this.getWrapperClassNames(),
                     mode: "local",
                     width: 300,
                     padding: 10,
@@ -427,15 +431,18 @@ pimcore.object.tags.localizedfields = Class.create(pimcore.object.tags.abstract,
                 afterrender: function (l, editable, runtimeContext, dataProvider, panel) {
                     if (!panel.__tabpanel_initialized) {
                         panel.__tabpanel_initialized = true;
-                        if (l.childs && typeof l.childs == "object") {
-                            if (l.childs.length > 0) {
+                        if (l.children && typeof l.children == "object") {
+                            if (l.children.length > 0) {
                                 l.items = [];
-                                for (var i = 0; i < l.childs.length; i++) {
-                                    var childConfig = l.childs[i];
+                                for (var i = 0; i < l.children.length; i++) {
+                                    var childConfig = l.children[i];
 
-                                    // inherit label width from localized fields configuration
+                                    // inherit label width/align from localized fields configuration
                                     if (this.fieldConfig.labelWidth) {
                                         childConfig.labelWidth = this.fieldConfig.labelWidth;
+                                    }
+                                    if (this.fieldConfig.labelAlign) {
+                                        childConfig.labelAlign = this.fieldConfig.labelAlign;
                                     }
 
                                     var children = this.getRecursiveLayout(childConfig, !editable, runtimeContext, false, false, dataProvider, true);
@@ -679,10 +686,13 @@ pimcore.object.tags.localizedfields = Class.create(pimcore.object.tags.abstract,
         return dataProvider;
     },
 
-    getLocalStorageKey: function () {
-        return "pimcore_lfSplitView_" + this.object.data.general.o_className;
+    getLocalStorageKey: function (legacyKey = true) {
+        let key = "pimcore_lfSplitView_" + this.object.data.general.o_className;
+        if(legacyKey === false) {
+            key = key + "_" + pimcore.currentuser.id;
+        }
+        return key;
     },
-
 
     isSplitViewEnabled: function () {
         var existingSettings = this.getCurrentSplitViewSettings();
@@ -691,7 +701,10 @@ pimcore.object.tags.localizedfields = Class.create(pimcore.object.tags.abstract,
     },
 
     getCurrentSplitViewSettings: function () {
-        var existingSettings = localStorage.getItem(this.getLocalStorageKey());
+        var existingSettings = localStorage.getItem(this.getLocalStorageKey(false));
+        if(!existingSettings) {
+            existingSettings = localStorage.getItem(this.getLocalStorageKey());
+        }
         if (existingSettings) {
             try {
                 existingSettings = JSON.parse(existingSettings);
@@ -708,7 +721,7 @@ pimcore.object.tags.localizedfields = Class.create(pimcore.object.tags.abstract,
             existingSettings["enabled"] = false;
         }
 
-        var localStorageKey = this.getLocalStorageKey();
+        var localStorageKey = this.getLocalStorageKey(false);
         localStorageData = JSON.stringify(existingSettings);
         localStorage.setItem(localStorageKey, localStorageData);
         var params = {};
@@ -901,7 +914,7 @@ pimcore.object.tags.localizedfields = Class.create(pimcore.object.tags.abstract,
     },
 
     doApplySplitViewSettings: function(store) {
-        var localStorageKey = this.getLocalStorageKey();
+        var localStorageKey = this.getLocalStorageKey(false);
         var localStorageData = {
             "enabled": true,
             "side": {}

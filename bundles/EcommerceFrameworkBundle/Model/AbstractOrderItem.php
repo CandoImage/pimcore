@@ -15,224 +15,139 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\Model;
 
-use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\UnsupportedException;
-use Pimcore\Logger;
+use Pimcore\Model\DataObject\Concrete;
+use Pimcore\Model\DataObject\Fieldcollection;
+use Pimcore\Model\Element\AbstractElement;
 
 /**
  * Abstract base class for order item pimcore objects
  */
-class AbstractOrderItem extends \Pimcore\Model\DataObject\Concrete
+abstract class AbstractOrderItem extends Concrete
 {
     /**
-     * @throws UnsupportedException
+     * @return AbstractElement|null
+     */
+    abstract public function getProduct(): ?AbstractElement;
+
+    /**
+     * @param AbstractElement|null $product
+     */
+    abstract public function setProduct(?AbstractElement $product);
+
+    /**
+     * @return string|null
+     */
+    abstract public function getProductNumber(): ?string;
+
+    /**
+     * @param string|null $productNumber
+     */
+    abstract public function setProductNumber(?string $productNumber);
+
+    /**
+     * @return string|null
+     */
+    abstract public function getProductName(): ?string;
+
+    /**
+     * @param string|null $productName
+     */
+    abstract public function setProductName(?string $productName);
+
+    /**
+     * @return float|null
+     */
+    abstract public function getAmount(): ?float;
+
+    /**
+     * @param float|null $amount
      *
-     * @return \Pimcore\Bundle\EcommerceFrameworkBundle\Model\CheckoutableInterface
+     * @return mixed
      */
-    public function getProduct()
-    {
-        throw new UnsupportedException('getProduct is not implemented for ' . get_class($this));
-    }
+    abstract public function setAmount(?float $amount);
 
     /**
-     * @param \Pimcore\Bundle\EcommerceFrameworkBundle\Model\CheckoutableInterface $product
-     *
-     * @throws UnsupportedException
+     * @return string|null
      */
-    public function setProduct($product)
-    {
-        throw new UnsupportedException('setProduct is not implemented for ' . get_class($this));
-    }
+    abstract public function getTotalPrice(): ?string;
 
     /**
-     * @throws UnsupportedException
-     *
-     * @return string
+     * @param string|null $totalPrice
      */
-    public function getProductNumber()
-    {
-        throw new UnsupportedException('getProductNumber is not implemented for ' . get_class($this));
-    }
+    abstract public function setTotalPrice(?string $totalPrice);
 
     /**
-     * @param string $productNumber
-     *
-     * @throws UnsupportedException
+     * @return string|null
      */
-    public function setProductNumber($productNumber)
-    {
-        throw new UnsupportedException('setProductNumber is not implemented for ' . get_class($this));
-    }
+    abstract public function getTotalNetPrice(): ?string;
 
     /**
-     * @throws UnsupportedException
-     *
-     * @return string
+     * @param string|null $totalNetPrice
      */
-    public function getProductName()
-    {
-        throw new UnsupportedException('getProductName is not implemented for ' . get_class($this));
-    }
+    abstract public function setTotalNetPrice(?string $totalNetPrice);
 
     /**
-     * @param string $productName
-     *
-     * @throws UnsupportedException
+     * @return array
      */
-    public function setProductName($productName)
-    {
-        throw new UnsupportedException('setProductName is not implemented for ' . get_class($this));
-    }
+    abstract public function getTaxInfo(): array;
 
     /**
-     * @throws UnsupportedException
-     *
-     * @return float
+     * @param array|null $taxInfo
      */
-    public function getAmount()
-    {
-        throw new UnsupportedException('getAmount is not implemented for ' . get_class($this));
-    }
-
-    /**
-     * @param float $amount
-     *
-     * @throws UnsupportedException
-     */
-    public function setAmount($amount)
-    {
-        throw new UnsupportedException('setAmount is not implemented for ' . get_class($this));
-    }
-
-    /**
-     * @throws UnsupportedException
-     *
-     * @return float
-     */
-    public function getTotalPrice()
-    {
-        throw new UnsupportedException('getTotalPrice is not implemented for ' . get_class($this));
-    }
-
-    /**
-     * @throws UnsupportedException
-     *
-     * @param float $totalPrice
-     */
-    public function setTotalPrice($totalPrice)
-    {
-        throw new UnsupportedException('setTotalPrice is not implemented for ' . get_class($this));
-    }
-
-    /**
-     * Should return a float
-     *
-     * @return void
-     */
-    public function getTotalNetPrice()
-    {
-        // @TODO Throw UnsupportedException or change to abstract method in Pimcore 10
-        Logger::err('getTotalNetPrice not implemented for ' . get_class($this));
-    }
-
-    /**
-     * @param float $totalNetPrice
-     */
-    public function setTotalNetPrice($totalNetPrice)
-    {
-        // @TODO Throw UnsupportedException or change to abstract method in Pimcore 10
-        Logger::err('setTotalNetPrice not implemented for ' . get_class($this));
-    }
-
-    /**
-     * Should return an array
-     *
-     * @return void
-     */
-    public function getTaxInfo()
-    {
-        // @TODO Throw UnsupportedException or change to abstract method in Pimcore 10
-        Logger::err('getTaxInfo not implemented for ' . get_class($this));
-    }
-
-    /**
-     * @param array $taxInfo
-     */
-    public function setTaxInfo($taxInfo)
-    {
-        // @TODO Throw UnsupportedException or change to abstract method in Pimcore 10
-        Logger::err('setTaxInfo not implemented for ' . get_class($this));
-    }
+    abstract public function setTaxInfo(?array $taxInfo);
 
     /**
      * @return AbstractOrderItem[]
-     *
-     * @throws UnsupportedException
      */
-    public function getSubItems()
-    {
-        throw new UnsupportedException('getSubItems is not implemented for ' . get_class($this));
-    }
+    abstract public function getSubItems(): array;
 
     /**
      * @param AbstractOrderItem[] $subItems
-     *
-     * @throws UnsupportedException
      */
-    public function setSubItems($subItems)
-    {
-        throw new UnsupportedException('setSubItems is not implemented for ' . get_class($this));
-    }
+    abstract public function setSubItems(?array $subItems);
 
     /**
-     * @throws UnsupportedException
-     *
-     * @return \Pimcore\Model\DataObject\Fieldcollection
+     * @return Fieldcollection
      */
-    public function getPricingRules()
-    {
-        throw new UnsupportedException(__FUNCTION__ . ' is not implemented for ' . get_class($this));
-    }
+    abstract public function getPricingRules();
 
     /**
-     * @param \Pimcore\Model\DataObject\Fieldcollection $pricingRules
-     *
-     * @throws UnsupportedException
+     * @param Fieldcollection|null $pricingRules
      *
      * @return $this
      */
-    public function setPricingRules($pricingRules)
-    {
-        throw new UnsupportedException(__FUNCTION__ . ' is not implemented for ' . get_class($this));
-    }
+    abstract public function setPricingRules(?Fieldcollection $pricingRules);
 
     /**
-     * @throws UnsupportedException
-     *
-     * @return string
+     * @return string|null
      */
-    public function getOrderState()
-    {
-        throw new UnsupportedException(__FUNCTION__ . ' is not implemented for ' . get_class($this));
-    }
+    abstract public function getOrderState(): ?string;
 
     /**
-     * @param string $orderState
-     *
-     * @throws UnsupportedException
+     * @param string|null $orderState
      *
      * @return $this
      */
-    public function setOrderState($orderState)
-    {
-        throw new UnsupportedException(__FUNCTION__ . ' is not implemented for ' . get_class($this));
-    }
+    abstract public function setOrderState(?string $orderState);
+
+    /**
+     * @return string|null
+     */
+    abstract public function getComment(): ?string;
+
+    /**
+     * @param string|null $comment
+     *
+     * @return $this
+     */
+    abstract public function setComment(?string $comment);
 
     /**
      * is the order item cancel able
      *
      * @return bool
      */
-    public function isCancelAble()
+    public function isCancelAble(): bool
     {
         return !$this->isCanceled();
     }
@@ -242,7 +157,7 @@ class AbstractOrderItem extends \Pimcore\Model\DataObject\Concrete
      *
      * @return bool
      */
-    public function isEditAble()
+    public function isEditAble(): bool
     {
         return !$this->isCanceled();
     }
@@ -252,7 +167,7 @@ class AbstractOrderItem extends \Pimcore\Model\DataObject\Concrete
      *
      * @return bool
      */
-    public function isComplaintAble()
+    public function isComplaintAble(): bool
     {
         return true;
     }
@@ -260,21 +175,25 @@ class AbstractOrderItem extends \Pimcore\Model\DataObject\Concrete
     /**
      * @return bool
      */
-    public function isCanceled()
+    public function isCanceled(): bool
     {
         return $this->getOrderState() == AbstractOrder::ORDER_STATE_CANCELLED;
     }
 
     /**
-     * @return AbstractOrder
+     * @return AbstractOrder|null
      */
-    public function getOrder()
+    public function getOrder(): ?AbstractOrder
     {
-        $parent = $this;
-        while (!$parent instanceof AbstractOrder) {
-            $parent = $parent->getParent();
+        $possibleOrderObject = $this;
+        while ($possibleOrderObject && !$possibleOrderObject instanceof AbstractOrder) {
+            $possibleOrderObject = $possibleOrderObject->getParent();
         }
 
-        return $parent;
+        if ($possibleOrderObject instanceof AbstractOrder) {
+            return $possibleOrderObject;
+        }
+
+        return null;
     }
 }

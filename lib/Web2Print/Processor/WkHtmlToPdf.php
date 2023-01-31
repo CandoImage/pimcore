@@ -22,6 +22,9 @@ use Pimcore\Model\Document;
 use Pimcore\Tool\Console;
 use Pimcore\Web2Print\Processor;
 
+/**
+ * @deprecated and will be removed in Pimcore 11. Use either PdfReactor or HeadlessChrome instead.
+ */
 class WkHtmlToPdf extends Processor
 {
     /**
@@ -34,7 +37,10 @@ class WkHtmlToPdf extends Processor
      */
     private $options = '';
 
-    protected $config = [];
+    /**
+     * @var \stdClass|null
+     */
+    protected $config;
 
     /**
      * @param string $wkhtmltopdfBin
@@ -42,6 +48,13 @@ class WkHtmlToPdf extends Processor
      */
     public function __construct($wkhtmltopdfBin = null, $options = null)
     {
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.5',
+            sprintf('%s has been deprecated and will be removed in Pimcore 11. Use %s or %s instead.',
+                __CLASS__, PdfReactor::class, HeadlessChrome::class)
+        );
+
         $web2printConfig = Config::getWeb2PrintConfig();
 
         if (!empty($wkhtmltopdfBin)) {
@@ -71,12 +84,7 @@ class WkHtmlToPdf extends Processor
     }
 
     /**
-     * @param Document\PrintAbstract $document
-     * @param object $config
-     *
-     * @return string
-     *
-     * @throws \Exception
+     * @internal
      */
     protected function buildPdf(Document\PrintAbstract $document, $config)
     {
@@ -105,7 +113,7 @@ class WkHtmlToPdf extends Processor
     }
 
     /**
-     * @return array
+     * @internal
      */
     public function getProcessingOptions()
     {
@@ -113,7 +121,7 @@ class WkHtmlToPdf extends Processor
             'options' => [],
         ]);
 
-        \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::PRINT_MODIFY_PROCESSING_OPTIONS, $event);
+        \Pimcore::getEventDispatcher()->dispatch($event, DocumentEvents::PRINT_MODIFY_PROCESSING_OPTIONS);
 
         return (array)$event->getArgument('options');
     }
@@ -135,13 +143,7 @@ class WkHtmlToPdf extends Processor
     }
 
     /**
-     * returns the path to the generated pdf file
-     *
-     * @param string $html
-     * @param array $params
-     * @param bool $returnFilePath return the path to the pdf file or the content
-     *
-     * @return string
+     * @internal
      */
     public function getPdfFromString($html, $params = [], $returnFilePath = false)
     {
@@ -191,7 +193,7 @@ class WkHtmlToPdf extends Processor
 
     /**
      * @param string $srcUrl
-     * @param string $dstFile
+     * @param string|null $dstFile
      *
      * @return string
      *
@@ -203,8 +205,8 @@ class WkHtmlToPdf extends Processor
             $dstFile = PIMCORE_SYSTEM_TEMP_DIRECTORY . DIRECTORY_SEPARATOR . uniqid('web2print_') . '.pdf';
         }
 
-        if (empty($srcUrl) || empty($dstFile) || empty($this->wkhtmltopdfBin)) {
-            throw new \Exception('srcUrl || dstFile || wkhtmltopdfBin is empty!');
+        if (empty($srcUrl) || empty($this->wkhtmltopdfBin)) {
+            throw new \Exception('srcUrl || wkhtmltopdfBin is empty!');
         }
 
         $retVal = 0;
@@ -216,7 +218,7 @@ class WkHtmlToPdf extends Processor
             'dstFile' => $dstFile,
             'config' => $this->config,
         ]);
-        \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::PRINT_MODIFY_PROCESSING_CONFIG, $event);
+        \Pimcore::getEventDispatcher()->dispatch($event, DocumentEvents::PRINT_MODIFY_PROCESSING_CONFIG);
 
         $params = $event->getArguments();
         $cmd = $params['cmd'] ?? null;
@@ -228,7 +230,7 @@ class WkHtmlToPdf extends Processor
         exec($cmd, $output, $retVal);
 
         if ($retVal != 0 && $retVal != 1) {
-            throw new \Exception('wkhtmltopdf reported error (' . $retVal . "): \n" . implode("\n", $output) . "\ncommand was: " . $cmd);
+            throw new \Exception('wkhtmltopdf reported error (' . $retVal . "):\n" . implode("\n", $output) . "\ncommand was: " . $cmd);
         }
 
         return $dstFile;

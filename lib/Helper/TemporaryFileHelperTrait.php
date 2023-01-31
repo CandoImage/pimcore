@@ -15,6 +15,7 @@
 
 namespace Pimcore\Helper;
 
+use Pimcore;
 use Pimcore\File;
 
 /**
@@ -31,9 +32,9 @@ trait TemporaryFileHelperTrait
      *
      * @throws \Exception
      */
-    private function getLocalFile($stream): string
+    protected static function getLocalFileFromStream($stream): string
     {
-        if (!stream_is_local($stream)) {
+        if (!stream_is_local($stream) || stream_get_meta_data($stream)['uri'] === 'php://temp') {
             $stream = self::getTemporaryFileFromStream($stream);
         }
 
@@ -75,34 +76,14 @@ trait TemporaryFileHelperTrait
         fclose($dest);
 
         if (!$keep) {
+            /** @var LongRunningHelper $longRunningHelper */
+            $longRunningHelper = Pimcore::getContainer()->get(LongRunningHelper::class);
+            $longRunningHelper->addTmpFilePath($tmpFilePath);
             register_shutdown_function(static function () use ($tmpFilePath) {
                 @unlink($tmpFilePath);
             });
         }
 
         return $tmpFilePath;
-    }
-
-    /**
-     * Get local file path of the given file or URL
-     *
-     * @param string|resource $stream local path, wrapper or file handle
-     *
-     * @return string path to local file
-     *
-     * @throws \Exception
-     */
-    protected static function getLocalFileFromStream($stream): string
-    {
-        if (!stream_is_local($stream)) {
-            $stream = self::getTemporaryFileFromStream($stream);
-        }
-
-        if (is_resource($stream)) {
-            $streamMeta = stream_get_meta_data($stream);
-            $stream = $streamMeta['uri'];
-        }
-
-        return $stream;
     }
 }

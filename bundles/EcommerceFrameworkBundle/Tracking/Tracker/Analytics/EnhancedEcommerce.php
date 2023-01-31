@@ -25,8 +25,6 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\CartProductActionRemoveInte
 use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\CheckoutCompleteInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\CheckoutInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\CheckoutStepInterface;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\IProductActionAdd;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\IProductActionRemove;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\ProductAction;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\ProductImpression;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\ProductImpressionInterface;
@@ -40,8 +38,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 class EnhancedEcommerce extends AbstractAnalyticsTracker implements
     ProductViewInterface,
     ProductImpressionInterface,
-    IProductActionAdd,
-    IProductActionRemove,
     CartProductActionAddInterface,
     CartProductActionRemoveInterface,
     CheckoutInterface,
@@ -72,7 +68,7 @@ class EnhancedEcommerce extends AbstractAnalyticsTracker implements
         parent::configureOptions($resolver);
 
         $resolver->setDefaults([
-            'template_prefix' => 'PimcoreEcommerceFrameworkBundle:Tracking/analytics/enhanced',
+            'template_prefix' => '@PimcoreEcommerceFramework/Tracking/analytics/enhanced',
         ]);
     }
 
@@ -118,7 +114,7 @@ class EnhancedEcommerce extends AbstractAnalyticsTracker implements
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function trackCartProductActionAdd(CartInterface $cart, ProductInterface $product, $quantity = 1)
     {
@@ -138,7 +134,7 @@ class EnhancedEcommerce extends AbstractAnalyticsTracker implements
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function trackCartProductActionRemove(CartInterface $cart, ProductInterface $product, $quantity = 1)
     {
@@ -280,7 +276,7 @@ class EnhancedEcommerce extends AbstractAnalyticsTracker implements
      * @param Transaction $transaction
      * @param ProductAction[] $items
      *
-     * @return mixed
+     * @return array
      */
     protected function buildCheckoutCompleteCalls(Transaction $transaction, array $items)
     {

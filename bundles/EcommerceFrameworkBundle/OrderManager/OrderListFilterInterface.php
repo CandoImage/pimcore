@@ -24,5 +24,3 @@ interface OrderListFilterInterface
      */
     public function apply(OrderListInterface $orderList);
 }
-
-class_alias(OrderListFilterInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\IOrderListFilter');

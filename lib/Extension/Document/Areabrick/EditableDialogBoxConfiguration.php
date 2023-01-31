@@ -154,7 +154,11 @@ class EditableDialogBoxConfiguration implements \JsonSerializable
         return $this;
     }
 
-    public function jsonSerialize()
+    /**
+     * @return array
+     */
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize()// : array
     {
         return get_object_vars($this);
     }

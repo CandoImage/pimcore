@@ -16,15 +16,24 @@
 namespace Pimcore\Model\Document\DocType;
 
 use Pimcore\Model;
+use Pimcore\Model\Listing\CallableFilterListingInterface;
+use Pimcore\Model\Listing\CallableOrderListingInterface;
+use Pimcore\Model\Listing\JsonListing;
+use Pimcore\Model\Listing\Traits\FilterListingTrait;
+use Pimcore\Model\Listing\Traits\OrderListingTrait;
 
 /**
  * @method \Pimcore\Model\Document\DocType\Listing\Dao getDao()
- * @method array load()
  * @method int getTotalCount()
  */
-class Listing extends Model\Listing\JsonListing
+class Listing extends JsonListing implements CallableFilterListingInterface, CallableOrderListingInterface
 {
+    use FilterListingTrait;
+    use OrderListingTrait;
+
     /**
+     * @internal
+     *
      * @var array|null
      */
     protected $docTypes = null;
@@ -35,7 +44,7 @@ class Listing extends Model\Listing\JsonListing
     public function getDocTypes()
     {
         if ($this->docTypes === null) {
-            $this->getDao()->load();
+            $this->getDao()->loadList();
         }
 
         return $this->docTypes;
@@ -51,5 +60,13 @@ class Listing extends Model\Listing\JsonListing
         $this->docTypes = $docTypes;
 
         return $this;
+    }
+
+    /**
+     * @return Model\Document\DocType[]
+     */
+    public function load()
+    {
+        return $this->getDocTypes();
     }
 }

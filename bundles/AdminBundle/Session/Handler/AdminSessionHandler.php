@@ -15,6 +15,9 @@
 
 namespace Pimcore\Bundle\AdminBundle\Session\Handler;
 
+use Pimcore\Bundle\CoreBundle\EventListener\Traits\PimcoreContextAwareTrait;
+use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
+use Pimcore\Http\RequestHelper;
 use Pimcore\Session\Attribute\LockableAttributeBagInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
@@ -23,9 +26,13 @@ use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpFoundation\Session\SessionBagInterface;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
+/**
+ * @internal
+ */
 class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerInterface
 {
     use LoggerAwareTrait;
+    use PimcoreContextAwareTrait;
 
     /**
      * Contains how many sessions are currently open, this is important, because writeClose() must not be called if
@@ -35,42 +42,71 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
     private $openedSessions = 0;
 
     /**
+     * @deprecated
+     *
      * @var SessionInterface
      */
     protected $session;
 
     protected $readOnlySessionBagsCache = [];
 
-    public function __construct(SessionInterface $session)
+    /**
+     * @var bool|null
+     */
+    private $canWriteAndClose;
+
+    /**
+     * @var RequestHelper
+     */
+    protected $requestHelper;
+
+    public function __construct(RequestHelper $requestHelper)
     {
-        $this->session = $session;
+        $this->requestHelper = $requestHelper;
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getSessionId()
     {
-        if (!$this->session->isStarted()) {
+        if (!$this->getSession()->isStarted()) {
             // this is just to initialize the session :)
             $this->useSession(static function (SessionInterface $session) {
                 return $session->getId();
             });
         }
 
-        return $this->session->getId();
+        return $this->getSession()->getId();
     }
 
     /**
-     * @inheritdoc
+     * @return SessionInterface
+     */
+    private function getSession()
+    {
+        try {
+            return $this->requestHelper->getSession();
+        } catch (\LogicException $e) {
+            $this->logger->debug('Error while getting the admin session: {exception}', ['exception' => $e->getMessage()]);
+        }
+
+        trigger_deprecation('pimcore/pimcore', '10.5',
+            sprintf('Session used with non existing request stack in %s, that will not be possible in Pimcore 11.', __CLASS__));
+
+        return \Pimcore::getContainer()->get('session');
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function getSessionName()
     {
-        return $this->session->getName();
+        return $this->getSession()->getName();
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function useSession(callable $callable)
     {
@@ -86,7 +122,7 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function useSessionAttributeBag(callable $callable, string $name = 'pimcore_admin')
     {
@@ -94,14 +130,13 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
         $attributeBag = $this->loadAttributeBag($name, $session);
 
         $result = call_user_func_array($callable, [$attributeBag, $session]);
-
         $this->writeClose();
 
         return $result;
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getReadOnlyAttributeBag(string $name = 'pimcore_admin'): AttributeBagInterface
     {
@@ -121,15 +156,15 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function invalidate(int $lifetime = null): bool
     {
-        return $this->session->invalidate($lifetime);
+        return $this->getSession()->invalidate($lifetime);
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function regenerateId(): bool
     {
@@ -139,7 +174,7 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function loadAttributeBag(string $name, SessionInterface $session = null): SessionBagInterface
     {
@@ -158,7 +193,7 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function requestHasSessionId(Request $request, bool $checkRequestParams = false): bool
     {
@@ -184,7 +219,7 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getSessionIdFromRequest(Request $request, bool $checkRequestParams = false): string
     {
@@ -210,7 +245,7 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function loadSession(): SessionInterface
     {
@@ -218,8 +253,8 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
 
         $this->logger->debug('Opening admin session {name}', ['name' => $sessionName]);
 
-        if (!$this->session->isStarted()) {
-            $this->session->start();
+        if (!$this->getSession()->isStarted()) {
+            $this->getSession()->start();
         }
 
         $this->openedSessions++;
@@ -229,18 +264,22 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
             'count' => $this->openedSessions,
         ]);
 
-        return $this->session;
+        return $this->getSession();
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function writeClose()
     {
+        if (!$this->shouldWriteAndClose()) {
+            return;
+        }
+
         $this->openedSessions--;
 
         if (0 === $this->openedSessions) {
-            $this->session->save();
+            $this->getSession()->save();
 
             $this->logger->debug('Admin session {name} was written and closed', [
                 'name' => $this->getSessionName(),
@@ -251,5 +290,25 @@ class AdminSessionHandler implements LoggerAwareInterface, AdminSessionHandlerIn
                 'count' => $this->openedSessions,
             ]);
         }
+    }
+
+    /**
+     * @return bool
+     */
+    private function shouldWriteAndClose(): bool
+    {
+        // main request is not available in CLI, so session should be written
+        // otherwise session should be written & closed in Admin context only.
+        return $this->canWriteAndClose ??= !$this->requestHelper->hasMainRequest()
+            || $this->isAdminRequest($this->requestHelper->getMainRequest());
+    }
+
+    /**
+     * @return bool
+     */
+    private function isAdminRequest(Request $request): bool
+    {
+        return $this->matchesPimcoreContext($request, PimcoreContextResolver::CONTEXT_ADMIN)
+            || $this->requestHelper->isFrontendRequestByAdmin($request);
     }
 }

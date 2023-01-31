@@ -20,63 +20,89 @@ namespace Pimcore\Model;
 use Pimcore\Cache;
 use Pimcore\Event\Model\NotificationEvent;
 use Pimcore\Event\NotificationEvents;
+use Pimcore\Event\Traits\RecursionBlockingEventDispatchHelperTrait;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
  * @method Notification\Dao getDao()
  */
 class Notification extends AbstractModel
 {
+    use RecursionBlockingEventDispatchHelperTrait;
+
     /**
+     * @internal
+     *
      * @var int
      */
     protected $id;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
     protected $creationDate;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
     protected $modificationDate;
 
     /**
-     * @var User
+     * @internal
+     *
+     * @var User|null
      */
     protected $sender;
 
     /**
-     * @var User
+     * @internal
+     *
+     * @var User|null
      */
     protected $recipient;
 
     /**
+     * @internal
+     *
      * @var string
      */
     protected $title;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
     protected $type;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
     protected $message;
 
     /**
+     * @internal
+     *
      * @var Element\ElementInterface|null
      */
     protected $linkedElement;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
     protected $linkedElementType;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     protected $read = false;
@@ -91,13 +117,13 @@ class Notification extends AbstractModel
         $cacheKey = sprintf('notification_%d', $id);
 
         try {
-            $notification = Cache\Runtime::get($cacheKey);
+            $notification = Cache\RuntimeCache::get($cacheKey);
         } catch (\Exception $ex) {
             try {
                 $notification = new self();
                 $notification->getDao()->getById($id);
-                Cache\Runtime::set($cacheKey, $notification);
-            } catch (\Exception $e) {
+                Cache\RuntimeCache::set($cacheKey, $notification);
+            } catch (NotFoundException $e) {
                 $notification = null;
             }
         }
@@ -166,7 +192,7 @@ class Notification extends AbstractModel
     }
 
     /**
-     * @return null|User
+     * @return User|null
      */
     public function getSender(): ?User
     {
@@ -287,7 +313,9 @@ class Notification extends AbstractModel
     }
 
     /**
-     * @return null|string
+     * enum('document','asset', 'object) nullable
+     *
+     * @return string|null
      */
     public function getLinkedElementType(): ?string
     {
@@ -319,9 +347,9 @@ class Notification extends AbstractModel
      */
     public function save(): void
     {
-        \Pimcore::getEventDispatcher()->dispatch(NotificationEvents::PRE_SAVE, new NotificationEvent($this));
+        $this->dispatchEvent(new NotificationEvent($this), NotificationEvents::PRE_SAVE);
         $this->getDao()->save();
-        \Pimcore::getEventDispatcher()->dispatch(NotificationEvents::POST_SAVE, new NotificationEvent($this));
+        $this->dispatchEvent(new NotificationEvent($this), NotificationEvents::POST_SAVE);
     }
 
     /**
@@ -329,8 +357,8 @@ class Notification extends AbstractModel
      */
     public function delete(): void
     {
-        \Pimcore::getEventDispatcher()->dispatch(NotificationEvents::PRE_DELETE, new NotificationEvent($this));
+        $this->dispatchEvent(new NotificationEvent($this), NotificationEvents::PRE_DELETE);
         $this->getDao()->delete();
-        \Pimcore::getEventDispatcher()->dispatch(NotificationEvents::POST_DELETE, new NotificationEvent($this));
+        $this->dispatchEvent(new NotificationEvent($this), NotificationEvents::POST_DELETE);
     }
 }

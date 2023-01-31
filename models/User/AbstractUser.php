@@ -16,33 +16,37 @@
 namespace Pimcore\Model\User;
 
 use Pimcore\Event\Model\UserRoleEvent;
+use Pimcore\Event\Traits\RecursionBlockingEventDispatchHelperTrait;
 use Pimcore\Event\UserRoleEvents;
 use Pimcore\Model;
 
 /**
  * @method \Pimcore\Model\User\AbstractUser\Dao getDao()
+ * @method void setLastLoginDate()
  */
 class AbstractUser extends Model\AbstractModel
 {
-    /**
-     * @var int
-     */
-    public $id;
+    use RecursionBlockingEventDispatchHelperTrait;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $parentId;
+    protected $id;
+
+    /**
+     * @var int|null
+     */
+    protected $parentId;
+
+    /**
+     * @var string|null
+     */
+    protected $name;
 
     /**
      * @var string
      */
-    public $name;
-
-    /**
-     * @var string
-     */
-    public $type;
+    protected $type;
 
     /**
      * @param int $id
@@ -54,24 +58,29 @@ class AbstractUser extends Model\AbstractModel
         $cacheKey = 'user_' . $id;
 
         try {
-            if (\Pimcore\Cache\Runtime::isRegistered($cacheKey)) {
-                $user = \Pimcore\Cache\Runtime::get($cacheKey);
+            if (\Pimcore\Cache\RuntimeCache::isRegistered($cacheKey)) {
+                $user = \Pimcore\Cache\RuntimeCache::get($cacheKey);
             } else {
                 $user = new static();
                 $user->getDao()->getById($id);
+                $className = Service::getClassNameForType($user->getType());
 
-                if (get_class($user) == 'Pimcore\\Model\\User\\AbstractUser') {
-                    $className = Service::getClassNameForType($user->getType());
+                if (get_class($user) !== $className) {
+                    /** @var AbstractUser $user */
                     $user = $className::getById($user->getId());
                 }
 
-                \Pimcore\Cache\Runtime::set($cacheKey, $user);
+                \Pimcore\Cache\RuntimeCache::set($cacheKey, $user);
             }
-
-            return $user;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
+
+        if (!$user || !static::typeMatch($user)) {
+            return null;
+        }
+
+        return $user;
     }
 
     /**
@@ -101,13 +110,13 @@ class AbstractUser extends Model\AbstractModel
             $user->getDao()->getByName($name);
 
             return $user;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {
@@ -127,7 +136,7 @@ class AbstractUser extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getParentId()
     {
@@ -147,7 +156,7 @@ class AbstractUser extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getName()
     {
@@ -184,9 +193,9 @@ class AbstractUser extends Model\AbstractModel
         $isUpdate = false;
         if ($this->getId()) {
             $isUpdate = true;
-            \Pimcore::getEventDispatcher()->dispatch(UserRoleEvents::PRE_UPDATE, new UserRoleEvent($this));
+            $this->dispatchEvent(new UserRoleEvent($this), UserRoleEvents::PRE_UPDATE);
         } else {
-            \Pimcore::getEventDispatcher()->dispatch(UserRoleEvents::PRE_ADD, new UserRoleEvent($this));
+            $this->dispatchEvent(new UserRoleEvent($this), UserRoleEvents::PRE_ADD);
         }
 
         if (!preg_match('/^[a-zA-Z0-9\-\.~_@]+$/', $this->getName())) {
@@ -210,9 +219,9 @@ class AbstractUser extends Model\AbstractModel
         }
 
         if ($isUpdate) {
-            \Pimcore::getEventDispatcher()->dispatch(UserRoleEvents::POST_UPDATE, new UserRoleEvent($this));
+            $this->dispatchEvent(new UserRoleEvent($this), UserRoleEvents::POST_UPDATE);
         } else {
-            \Pimcore::getEventDispatcher()->dispatch(UserRoleEvents::POST_ADD, new UserRoleEvent($this));
+            $this->dispatchEvent(new UserRoleEvent($this), UserRoleEvents::POST_ADD);
         }
 
         return $this;
@@ -227,7 +236,7 @@ class AbstractUser extends Model\AbstractModel
             throw new \Exception('Deleting the system user is not allowed!');
         }
 
-        \Pimcore::getEventDispatcher()->dispatch(UserRoleEvents::PRE_DELETE, new UserRoleEvent($this));
+        $this->dispatchEvent(new UserRoleEvent($this), UserRoleEvents::PRE_DELETE);
 
         $type = $this->getType();
 
@@ -247,7 +256,7 @@ class AbstractUser extends Model\AbstractModel
         $this->getDao()->delete();
         \Pimcore\Cache::clearAll();
 
-        \Pimcore::getEventDispatcher()->dispatch(UserRoleEvents::POST_DELETE, new UserRoleEvent($this));
+        $this->dispatchEvent(new UserRoleEvent($this), UserRoleEvents::POST_DELETE);
     }
 
     /**
@@ -261,7 +270,6 @@ class AbstractUser extends Model\AbstractModel
         $userRoleListing->setCondition('FIND_IN_SET(' . $this->getId() . ',roles)');
         $userRoleListing = $userRoleListing->load();
         if (count($userRoleListing)) {
-            /** @var Model\User $relatedUser */
             foreach ($userRoleListing as $relatedUser) {
                 $userRoles = $relatedUser->getRoles();
                 if (is_array($userRoles)) {
@@ -288,8 +296,28 @@ class AbstractUser extends Model\AbstractModel
         return $this;
     }
 
-    public function update()
+    /**
+     * @throws \Exception
+     */
+    protected function update()
     {
         $this->getDao()->update();
+    }
+
+    /**
+     * @internal
+     *
+     * @param AbstractUser $user
+     *
+     * @return bool
+     */
+    protected static function typeMatch(AbstractUser $user): bool
+    {
+        $staticType = static::class;
+        if ($staticType !== AbstractUser::class && !$user instanceof $staticType) {
+            return false;
+        }
+
+        return true;
     }
 }

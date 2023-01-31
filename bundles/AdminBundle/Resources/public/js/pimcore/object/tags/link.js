@@ -90,6 +90,10 @@ pimcore.object.tags.link = Class.create(pimcore.object.tags.abstract, {
             text = this.data.path;
         }
 
+        if (text.length > 100) {
+            text = text.slice(0, 99)
+            text += '…'
+        }
 
         this.displayField = new Ext.form.DisplayField({
             value: text
@@ -101,11 +105,15 @@ pimcore.object.tags.link = Class.create(pimcore.object.tags.abstract, {
             border: false,
             combineErrors: false,
             items: [this.displayField, this.openButton, this.editButton],
-            componentCls: "object_field object_field_type_" + this.type
+            componentCls: this.getWrapperClassNames(),
         };
 
         if (this.fieldConfig.labelWidth) {
             componentCfg.labelWidth = this.fieldConfig.labelWidth;
+        }
+
+        if (this.fieldConfig.labelAlign) {
+            componentCfg.labelAlign = this.fieldConfig.labelAlign;
         }
 
         this.component = Ext.create('Ext.form.FieldContainer', componentCfg);
@@ -159,6 +167,11 @@ pimcore.object.tags.link = Class.create(pimcore.object.tags.abstract, {
             text = this.data.text;
         } else if (this.data.path) {
             text = this.data.path;
+        }
+
+        if (text.length > 100) {
+            text = text.slice(0, 99)
+            text += '…'
         }
 
         this.displayField.setValue(text);

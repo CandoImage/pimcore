@@ -15,9 +15,13 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\CartManager;
 
-use Pimcore\Cache\Runtime;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Logger;
+use Pimcore\Model\Exception\NotFoundException;
 
+/**
+ * @method Cart\Dao getDao()
+ */
 class Cart extends AbstractCart implements CartInterface
 {
     /**
@@ -58,10 +62,8 @@ class Cart extends AbstractCart implements CartInterface
      */
     public function delete()
     {
-        $this->setIgnoreReadonly();
-
         $cacheKey = Cart\Dao::TABLE_NAME . '_' . $this->getId();
-        Runtime::set($cacheKey, null);
+        RuntimeCache::set($cacheKey, null);
 
         CartItem::removeAllFromCart($this->getId());
         CartCheckoutData::removeAllFromCart($this->getId());
@@ -84,6 +86,7 @@ class Cart extends AbstractCart implements CartInterface
 
         $arrayKeys = array_keys($this->items);
         foreach ($arrayKeys as $index => $key) {
+            /** @var CartItem $ite */
             $ite = $this->items[$key];
             $ite->setSortIndex($index);
         }
@@ -101,13 +104,12 @@ class Cart extends AbstractCart implements CartInterface
         $cacheKey = Cart\Dao::TABLE_NAME . '_' . $id;
 
         try {
-            $cart = Runtime::get($cacheKey);
+            $cart = RuntimeCache::get($cacheKey);
         } catch (\Exception $e) {
             try {
                 $cartClass = get_called_class();
-                // @var Cart $cart
+                /** @var Cart $cart */
                 $cart = new $cartClass;
-                $cart->setIgnoreReadonly();
                 $cart->getDao()->getById($id);
 
                 //call getter to make sure modification date is set too (not only timestamp)
@@ -120,10 +122,8 @@ class Cart extends AbstractCart implements CartInterface
                     $cart->setCheckoutData($data->getKey(), $data->getData());
                 }
 
-                $cart->unsetIgnoreReadonly();
-
-                Runtime::set($cacheKey, $cart);
-            } catch (\Exception $ex) {
+                RuntimeCache::set($cacheKey, $cart);
+            } catch (NotFoundException $ex) {
                 Logger::debug($ex->getMessage());
 
                 return null;
@@ -148,39 +148,22 @@ class Cart extends AbstractCart implements CartInterface
                 }
             }
             $this->items = $items;
-            $this->setIgnoreReadonly();
 
             $dateBackup = $this->getModificationDate();
             $this->modified();
             $this->setModificationDate($dateBackup);
-
-            $this->unsetIgnoreReadonly();
         }
 
         return $this->items;
     }
 
     /**
-     * @param mixed $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
+     * @param string $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
      *
      * @return int
      */
-    public function getItemCount(/*?string*/ $countSubItems = false)
+    public function getItemCount(string $countSubItems = self::COUNT_MAIN_ITEMS_ONLY)
     {
-        if (is_bool($countSubItems) || $countSubItems === null) {
-            @trigger_error(
-                'Use of true/false for $countSubItems is deprecated and will be removed in version 10.0.0. Use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS instead.',
-                E_USER_DEPRECATED
-            );
-        }
-
-        //TODO remove this in Pimcore 10.0.0
-        if ($countSubItems === false) {
-            $countSubItems = self::COUNT_MAIN_ITEMS_ONLY;
-        } elseif ($countSubItems !== self::COUNT_MAIN_ITEMS_ONLY && $countSubItems !== self::COUNT_MAIN_OR_SUB_ITEMS && $countSubItems !== self::COUNT_MAIN_AND_SUB_ITEMS) {
-            $countSubItems = self::COUNT_MAIN_AND_SUB_ITEMS;
-        }
-
         if ($countSubItems === self::COUNT_MAIN_ITEMS_ONLY) {
             if ($this->itemCount == null) {
                 $itemList = new CartItem\Listing();
@@ -195,21 +178,8 @@ class Cart extends AbstractCart implements CartInterface
         }
     }
 
-    public function getItemAmount(/*?string*/ $countSubItems = false)
+    public function getItemAmount(string $countSubItems = self::COUNT_MAIN_ITEMS_ONLY)
     {
-        if (is_bool($countSubItems)) {
-            @trigger_error(
-                'Use of true/false for $countSubItems is deprecated and will be removed in version 10.0.0. Use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS instead.',
-                E_USER_DEPRECATED
-            );
-        }
-
-        if ($countSubItems === false) {
-            $countSubItems = self::COUNT_MAIN_ITEMS_ONLY;
-        } elseif ($countSubItems !== self::COUNT_MAIN_ITEMS_ONLY && $countSubItems !== self::COUNT_MAIN_OR_SUB_ITEMS && $countSubItems !== self::COUNT_MAIN_AND_SUB_ITEMS) {
-            $countSubItems = self::COUNT_MAIN_OR_SUB_ITEMS;
-        }
-
         if ($countSubItems === self::COUNT_MAIN_ITEMS_ONLY) {
             if ($this->itemAmount == null) {
                 $itemList = new CartItem\Listing();

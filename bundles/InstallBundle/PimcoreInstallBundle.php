@@ -19,6 +19,9 @@ namespace Pimcore\Bundle\InstallBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
+/**
+ * @internal
+ */
 class PimcoreInstallBundle extends Bundle
 {
 }

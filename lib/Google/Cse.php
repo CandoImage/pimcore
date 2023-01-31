@@ -15,10 +15,18 @@
 
 namespace Pimcore\Google;
 
+use Exception;
+use Google\Service\CustomSearchAPI;
+use Google\Service\CustomSearchAPI\Result;
+use Google\Service\CustomSearchAPI\Search;
+use Pimcore;
 use Pimcore\Cache;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Google\Cse\Item;
+use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Model;
 use Pimcore\Model\Paginator\PaginateListingInterface;
+use ReturnTypeWillChange;
 
 class Cse implements PaginateListingInterface
 {
@@ -29,7 +37,7 @@ class Cse implements PaginateListingInterface
      * @param array $config
      * @param string|null $facet
      *
-     * @return Cse
+     * @return self
      */
     public static function search($query, $offset = 0, $perPage = 10, array $config = [], $facet = null)
     {
@@ -46,6 +54,11 @@ class Cse implements PaginateListingInterface
         return $list;
     }
 
+    /**
+     * @return Item[]
+     *
+     * @throws Exception
+     */
     public function load()
     {
         $client = Api::getSimpleClient();
@@ -55,10 +68,10 @@ class Cse implements PaginateListingInterface
         $query = $this->getQuery();
 
         if ($client) {
-            $search = new \Google_Service_Customsearch($client);
+            $search = new CustomSearchAPI($client);
 
             // determine language
-            $language = \Pimcore::getContainer()->get('pimcore.locale')->findLocale();
+            $language = Pimcore::getContainer()->get(LocaleServiceInterface::class)->findLocale();
 
             if ($position = strpos($language, '_')) {
                 $language = substr($language, 0, $position);
@@ -86,13 +99,13 @@ class Cse implements PaginateListingInterface
                 $cacheKey = 'google_cse_' . md5($query . serialize($config));
 
                 // this is just a protection so that no query get's sent twice in a request (loops, ...)
-                if (\Pimcore\Cache\Runtime::isRegistered($cacheKey)) {
-                    $result = \Pimcore\Cache\Runtime::get($cacheKey);
+                if (RuntimeCache::isRegistered($cacheKey)) {
+                    $result = RuntimeCache::get($cacheKey);
                 } else {
                     if (!$result = Cache::load($cacheKey)) {
                         $result = $search->cse->listCse($config);
                         Cache::save($result, $cacheKey, ['google_cse'], 3600, 999);
-                        \Pimcore\Cache\Runtime::set($cacheKey, $result);
+                        RuntimeCache::set($cacheKey, $result);
                     }
                 }
 
@@ -103,7 +116,7 @@ class Cse implements PaginateListingInterface
 
             return [];
         } else {
-            throw new \Exception('Google Simple API Key is not configured in System-Settings.');
+            throw new Exception('Google Simple API Key is not configured in System-Settings.');
         }
     }
 
@@ -148,7 +161,7 @@ class Cse implements PaginateListingInterface
     public $facets = [];
 
     /**
-     * @param null|mixed $googleResponse
+     * @param Search|null $googleResponse
      */
     public function __construct($googleResponse = null)
     {
@@ -158,21 +171,22 @@ class Cse implements PaginateListingInterface
     }
 
     /**
-     * @param \Google_Service_Customsearch_Search $googleResponse
+     * @param Search $googleResponse
      */
-    public function readGoogleResponse(\Google_Service_Customsearch_Search $googleResponse)
+    public function readGoogleResponse(Search $googleResponse)
     {
         $items = [];
 
-        $this->setRaw($googleResponse);
+        $this->setRaw($googleResponse->getItems());
 
         // set search results
-        $total = intval($googleResponse->getSearchInformation()->getTotalResults());
+        $total = (int)$googleResponse->getSearchInformation()->getTotalResults();
         if ($total > 100) {
             $total = 100;
         }
         $this->setTotal($total);
 
+        /** @var Result[] $results */
         $results = $googleResponse->getItems();
         if (is_array($results)) {
             foreach ($results as $item) {
@@ -194,7 +208,7 @@ class Cse implements PaginateListingInterface
 
                             foreach ($regexes as $regex) {
                                 if (preg_match($regex, $item['pagemap']['cse_image'][0]['src'], $matches)) {
-                                    if ($id = $matches[1]) {
+                                    if ($id = (int) $matches[1]) {
                                         break;
                                     }
                                 }
@@ -208,9 +222,7 @@ class Cse implements PaginateListingInterface
                                 }
                             }
 
-                            if (!array_key_exists('image', $item)) {
-                                $pimcoreResultItem->setImage($item['pagemap']['cse_image'][0]['src']);
-                            }
+                            $pimcoreResultItem->setImage($item['pagemap']['cse_image'][0]['src']);
                         }
                     }
                 }
@@ -365,6 +377,8 @@ class Cse implements PaginateListingInterface
      * @param bool $retry
      *
      * @return Item[]
+     *
+     * @throws Exception
      */
     public function getResults($retry = true)
     {
@@ -402,7 +416,8 @@ class Cse implements PaginateListingInterface
     /**
      * @return int
      */
-    public function count()
+    #[ReturnTypeWillChange]
+    public function count()// : int
     {
         $this->getResults();
 
@@ -413,77 +428,71 @@ class Cse implements PaginateListingInterface
      * @param int $offset
      * @param int $itemCountPerPage
      *
-     * @return array
+     * @return Item[]
+     *
+     * @throws Exception
      */
     public function getItems($offset, $itemCountPerPage)
     {
         $this->setOffset($offset);
         $this->setPerPage($itemCountPerPage);
 
-        $items = $this->load();
-
-        return $items;
-    }
-
-    /**
-     * @deprecated will be removed in Pimcore 10
-     *
-     * @return self
-     */
-    public function getPaginatorAdapter()
-    {
-        return $this;
+        return $this->load();
     }
 
     /**
      * Methods for Iterator
      */
-    public function rewind()
+
+    /**
+     * @return void
+     */
+    #[ReturnTypeWillChange]
+    public function rewind()// : void
     {
         reset($this->results);
     }
 
     /**
-     * @return mixed
+     * @return Item|false
      */
-    public function current()
+    #[ReturnTypeWillChange]
+    public function current()// : Item|false
     {
         $this->getResults();
-        $var = current($this->results);
 
-        return $var;
+        return current($this->results);
     }
 
     /**
-     * @return mixed
+     * @return int|null
      */
-    public function key()
+    #[ReturnTypeWillChange]
+    public function key()// : int|null
     {
         $this->getResults();
-        $var = key($this->results);
 
-        return $var;
+        return key($this->results);
     }
 
     /**
-     * @return mixed
+     * @return void
      */
-    public function next()
+    #[ReturnTypeWillChange]
+    public function next()// : void
     {
         $this->getResults();
-        $var = next($this->results);
-
-        return $var;
+        next($this->results);
     }
 
     /**
      * @return bool
      */
-    public function valid()
+    #[ReturnTypeWillChange]
+    public function valid()// : bool
     {
         $this->getResults();
-        $var = $this->current() !== false;
 
-        return $var;
+        return $this->current() !== false;
     }
 }

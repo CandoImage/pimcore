@@ -21,7 +21,14 @@ pimcore.asset.folder = Class.create(pimcore.asset.asset, {
         this.setType("folder");
         this.addLoadingPanel();
 
-        pimcore.plugin.broker.fireEvent("preOpenAsset", this, "folder");
+        const preOpenAssetFolder = new CustomEvent(pimcore.events.preOpenAsset, {
+            detail: {
+                object: this,
+                type: "folder"
+            }
+        });
+
+        document.dispatchEvent(preOpenAssetFolder);
 
         var user = pimcore.globalmanager.get("user");
 
@@ -62,6 +69,11 @@ pimcore.asset.folder = Class.create(pimcore.asset.asset, {
             fields: ['url', "filename", "filenameDisplay", "type", "id", "idPath"],
             listeners: {
                 "load": function () {
+                    if(this.store.getCount() === 0) {
+                        this.tabbar.setActiveItem(this.listfolder.getLayout());
+                        this.tabbar.remove(this.dataview);
+                    }
+
                     try {
                         this.dataview.reload();
                     }
@@ -81,11 +93,8 @@ pimcore.asset.folder = Class.create(pimcore.asset.asset, {
 
         var tpl = new Ext.XTemplate(
             '<tpl for=".">',
-            '<div class="thumb-wrap">',
-            '<div class="thumb"><table cellspacing="0" cellpadding="0" border="0"><tr><td class="thumb-item" align="center" '
-                + 'valign="middle" style="background: url({url}) center center no-repeat; ' +
-                'background-size: contain;" id="{type}_{id}" data-idpath="{idPath}">'
-                + '</td></tr></table></div>',
+            '<div class="thumb-wrap" id="{type}_{id}" data-idpath="{idPath}">',
+            '<img class="thumb" src="{url}" loading="lazy" draggable="false">',
             '<span class="filename" title="{filename}">{filenameDisplay}</span></div>',
             '</tpl>',
             '<div class="x-clear"></div>'
@@ -102,7 +111,7 @@ pimcore.asset.folder = Class.create(pimcore.asset.asset, {
                 store: this.store,
                 autoScroll: true,
                 tpl: tpl,
-                itemSelector: 'td.thumb-item',
+                itemSelector: '.thumb-wrap',
                 emptyText: ' ',
                 listeners: {
                     "itemclick": function (view, record, item, index, e, eOpts ) {
@@ -282,17 +291,14 @@ pimcore.asset.folder = Class.create(pimcore.asset.asset, {
                 });
             }
 
-            var user = pimcore.globalmanager.get("user");
-            if (user.admin) {
-                buttons.push({
-                    xtype: "splitbutton",
-                    tooltip: t("show_metainfo"),
-                    iconCls: "pimcore_material_icon_info pimcore_material_icon",
-                    scale: "medium",
-                    handler: this.showMetaInfo.bind(this),
-                    menu: this.getMetaInfoMenuItems()
-                });
-            }
+            buttons.push({
+                xtype: "splitbutton",
+                tooltip: t("show_metainfo"),
+                iconCls: "pimcore_material_icon_info pimcore_material_icon",
+                scale: "medium",
+                handler: this.showMetaInfo.bind(this),
+                menu: this.getMetaInfoMenuItems()
+            });
 
             buttons.push("-");
             buttons.push({

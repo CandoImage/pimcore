@@ -18,26 +18,28 @@ namespace Pimcore\Model\Tool\Email;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Tool\Email\Blacklist\Dao getDao()
- * @method \Pimcore\Model\Tool\Email\Blacklist\Dao delete()
- * @method \Pimcore\Model\Tool\Email\Blacklist\Dao save()
+ * @method void delete()
+ * @method void save()
  */
 class Blacklist extends Model\AbstractModel
 {
     /**
-     * @var string
+     * @var string|null
      */
-    public $address;
+    protected $address;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
      * @param string $addr
@@ -51,7 +53,7 @@ class Blacklist extends Model\AbstractModel
             $address->getDao()->getByAddress($addr);
 
             return $address;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -65,7 +67,7 @@ class Blacklist extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getAddress()
     {

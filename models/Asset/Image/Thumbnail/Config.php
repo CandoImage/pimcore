@@ -15,19 +15,24 @@
 
 namespace Pimcore\Model\Asset\Image\Thumbnail;
 
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Tool\Serialize;
 
 /**
- * @method \Pimcore\Model\Asset\Image\Thumbnail\Config\Dao getDao()
- * @method void save()
- * @method void delete()
+ * @method bool isWriteable()
+ * @method string getWriteTarget()
+ * @method void delete(bool $forceClearTempFiles = false)
+ * @method void save(bool $forceClearTempFiles = false)
  */
-class Config extends Model\AbstractModel
+final class Config extends Model\AbstractModel
 {
     use Model\Asset\Thumbnail\ClearTempFilesTrait;
 
+    /**
+     * @internal
+     */
     protected const PREVIEW_THUMBNAIL_NAME = 'pimcore-system-treepreview';
 
     /**
@@ -43,86 +48,120 @@ class Config extends Model\AbstractModel
      )
      * )
      *
+     * @internal
+     *
      * @var array
      */
-    public $items = [];
+    protected $items = [];
 
     /**
+     * @internal
+     *
      * @var array
      */
-    public $medias = [];
+    protected $medias = [];
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $name = '';
+    protected $name = '';
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $description = '';
+    protected $description = '';
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $group = '';
+    protected $group = '';
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $format = 'SOURCE';
+    protected $format = 'SOURCE';
 
     /**
+     * @internal
+     *
      * @var int
      */
-    public $quality = 85;
+    protected $quality = 85;
 
     /**
-     * @var float
+     * @internal
+     *
+     * @var float|null
      */
-    public $highResolution;
+    protected $highResolution;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $preserveColor = false;
+    protected $preserveColor = false;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $preserveMetaData = false;
+    protected $preserveMetaData = false;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $rasterizeSVG = false;
+    protected $rasterizeSVG = false;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $downloadable = false;
+    protected $downloadable = false;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
-    public $filenameSuffix;
+    protected $filenameSuffix;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $forcePictureTag = false;
+    protected $preserveAnimation = false;
 
     /**
+     * @internal
+     *
      * @param string|array|self $config
      *
      * @return self|null
@@ -157,6 +196,8 @@ class Config extends Model\AbstractModel
      * @param string $name
      *
      * @return null|Config
+     *
+     * @throws \Exception
      */
     public static function getByName($name)
     {
@@ -167,17 +208,20 @@ class Config extends Model\AbstractModel
         }
 
         try {
-            $thumbnail = \Pimcore\Cache\Runtime::get($cacheKey);
-            $thumbnail->setName($name);
+            $thumbnail = RuntimeCache::get($cacheKey);
             if (!$thumbnail) {
                 throw new \Exception('Thumbnail in registry is null');
             }
+
+            $thumbnail->setName($name);
         } catch (\Exception $e) {
             try {
                 $thumbnail = new self();
-                $thumbnail->getDao()->getByName($name);
-                \Pimcore\Cache\Runtime::set($cacheKey, $thumbnail);
-            } catch (\Exception $e) {
+                /** @var Model\Asset\Image\Thumbnail\Config\Dao $dao */
+                $dao = $thumbnail->getDao();
+                $dao->getByName($name);
+                RuntimeCache::set($cacheKey, $thumbnail);
+            } catch (Model\Exception\NotFoundException $e) {
                 return null;
             }
         }
@@ -209,7 +253,7 @@ class Config extends Model\AbstractModel
     public static function exists(string $name): bool
     {
         $cacheKey = self::getCacheKey($name);
-        if (\Pimcore\Cache\Runtime::isRegistered($cacheKey)) {
+        if (RuntimeCache::isRegistered($cacheKey)) {
             return true;
         }
 
@@ -217,17 +261,15 @@ class Config extends Model\AbstractModel
             return true;
         }
 
-        $thumbnail = new self();
-
-        return $thumbnail->getDao()->exists($name);
+        return (bool) self::getByName($name);
     }
 
     /**
-     * @param bool $hdpi
+     * @internal
      *
      * @return Config
      */
-    public static function getPreviewConfig($hdpi = false)
+    public static function getPreviewConfig()
     {
         $customPreviewImageThumbnail = \Pimcore::getContainer()->getParameter('pimcore.config')['assets']['preview_image_thumbnail'];
         $thumbnail = null;
@@ -250,25 +292,9 @@ class Config extends Model\AbstractModel
             $thumbnail->setFormat('PJPEG');
         }
 
-        if ($hdpi) {
-            $thumbnail->setHighResolution(2);
-        }
+        $thumbnail->setHighResolution(2);
 
         return $thumbnail;
-    }
-
-    /**
-     * Returns thumbnail config for webservice export.
-     *
-     * @deprecated
-     */
-    public function getForWebserviceExport()
-    {
-        $arrayConfig = object2array($this);
-        $items = $arrayConfig['items'];
-        $arrayConfig['items'] = $items;
-
-        return $arrayConfig;
     }
 
     /**
@@ -282,6 +308,8 @@ class Config extends Model\AbstractModel
     }
 
     /**
+     * @internal
+     *
      * @param string $name
      * @param array $parameters
      * @param string $media
@@ -307,6 +335,8 @@ class Config extends Model\AbstractModel
     }
 
     /**
+     * @internal
+     *
      * @param int $position
      * @param string $name
      * @param array $parameters
@@ -331,6 +361,9 @@ class Config extends Model\AbstractModel
         return true;
     }
 
+    /**
+     * @internal
+     */
     public function resetItems()
     {
         $this->items = [];
@@ -366,7 +399,7 @@ class Config extends Model\AbstractModel
     /**
      * @param string $description
      *
-     * @return self
+     * @return $this
      */
     public function setDescription($description)
     {
@@ -386,7 +419,7 @@ class Config extends Model\AbstractModel
     /**
      * @param array $items
      *
-     * @return self
+     * @return $this
      */
     public function setItems($items)
     {
@@ -406,7 +439,7 @@ class Config extends Model\AbstractModel
     /**
      * @param string $name
      *
-     * @return self
+     * @return $this
      */
     public function setName($name)
     {
@@ -426,7 +459,7 @@ class Config extends Model\AbstractModel
     /**
      * @param string $format
      *
-     * @return self
+     * @return $this
      */
     public function setFormat($format)
     {
@@ -446,7 +479,7 @@ class Config extends Model\AbstractModel
     /**
      * @param int $quality
      *
-     * @return self
+     * @return $this
      */
     public function setQuality($quality)
     {
@@ -474,7 +507,7 @@ class Config extends Model\AbstractModel
     }
 
     /**
-     * @return float
+     * @return float|null
      */
     public function getHighResolution()
     {
@@ -514,7 +547,7 @@ class Config extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getFilenameSuffix()
     {
@@ -522,7 +555,7 @@ class Config extends Model\AbstractModel
     }
 
     /**
-     * @static
+     * @internal
      *
      * @param array $config
      *
@@ -554,10 +587,9 @@ class Config extends Model\AbstractModel
     }
 
     /**
-     * This is just for compatibility, this method will be removed with the next major release
+     * This is mainly here for backward compatibility
      *
-     * @deprecated
-     * @static
+     * @internal
      *
      * @param array $config
      *
@@ -642,6 +674,8 @@ class Config extends Model\AbstractModel
     }
 
     /**
+     * @internal
+     *
      * @param Model\Asset\Image $asset
      *
      * @return array
@@ -729,32 +763,14 @@ class Config extends Model\AbstractModel
         }
 
         // ensure we return int's, sometimes $arg[...] contain strings
-        $dimensions['width'] = (int) $dimensions['width'];
-        $dimensions['height'] = (int) $dimensions['height'];
+        $dimensions['width'] = (int) $dimensions['width'] * ($this->getHighResolution() ?: 1);
+        $dimensions['height'] = (int) $dimensions['height'] * ($this->getHighResolution() ?: 1);
 
         return $dimensions;
     }
 
     /**
-     * @deprecated
-     *
-     * @param string $colorspace
-     */
-    public function setColorspace($colorspace)
-    {
-        // no functionality, just for compatibility reasons
-    }
-
-    /**
-     * @deprecated
-     */
-    public function getColorspace()
-    {
-        // no functionality, just for compatibility reasons
-    }
-
-    /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
@@ -770,7 +786,7 @@ class Config extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -867,17 +883,17 @@ class Config extends Model\AbstractModel
     /**
      * @return bool
      */
-    public function getForcePictureTag(): bool
+    public function getPreserveAnimation(): bool
     {
-        return $this->forcePictureTag;
+        return $this->preserveAnimation;
     }
 
     /**
-     * @param bool $forcePictureTag
+     * @param bool $preserveAnimation
      */
-    public function setForcePictureTag(bool $forcePictureTag): void
+    public function setPreserveAnimation(bool $preserveAnimation): void
     {
-        $this->forcePictureTag = $forcePictureTag;
+        $this->preserveAnimation = $preserveAnimation;
     }
 
     /**
@@ -896,8 +912,57 @@ class Config extends Model\AbstractModel
         $this->downloadable = $downloadable;
     }
 
-    public function clearTempFiles()
+    public function __clone()
     {
-        $this->doClearTempFiles(PIMCORE_TEMPORARY_DIRECTORY . '/image-thumbnails', $this->getName());
+        if ($this->dao) {
+            $this->dao = clone $this->dao;
+            $this->dao->setModel($this);
+        }
+
+        //rebuild asset path for overlays
+        foreach ($this->items as &$item) {
+            if (in_array($item['method'], ['addOverlay', 'addOverlayFit'])) {
+                if (isset($item['arguments']['id'])) {
+                    $img = Model\Asset\Image::getById($item['arguments']['id']);
+                    if ($img) {
+                        $item['arguments']['path'] = $img->getFullPath();
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @internal
+     *
+     * @return array
+     */
+    public static function getAutoFormats(): array
+    {
+        return \Pimcore::getContainer()->getParameter('pimcore.config')['assets']['image']['thumbnails']['auto_formats'];
+    }
+
+    /**
+     * @internal
+     *
+     * @return Config[]
+     */
+    public function getAutoFormatThumbnailConfigs(): array
+    {
+        $autoFormatThumbnails = [];
+
+        foreach ($this->getAutoFormats() as $autoFormat => $autoFormatConfig) {
+            if (Model\Asset\Image\Thumbnail::supportsFormat($autoFormat) && $autoFormatConfig['enabled']) {
+                $autoFormatThumbnail = clone $this;
+                $autoFormatThumbnail->setFormat($autoFormat);
+                if (!empty($autoFormatConfig['quality'])) {
+                    $autoFormatThumbnail->setQuality($autoFormatConfig['quality']);
+                }
+
+                $autoFormatThumbnails[$autoFormat] = $autoFormatThumbnail;
+            }
+        }
+
+        return $autoFormatThumbnails;
     }
 }

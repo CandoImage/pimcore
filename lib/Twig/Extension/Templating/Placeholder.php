@@ -65,7 +65,7 @@ class Placeholder extends AbstractExtension
     /**
      * Retrieve object instance; optionally add meta tag
      *
-     * @param string $containerName
+     * @param null|string $containerName
      *
      * @return Container
      */
@@ -79,5 +79,3 @@ class Placeholder extends AbstractExtension
         return $this->containers[$containerName];
     }
 }
-
-class_alias(Placeholder::class, 'Pimcore\Templating\Helper\Placeholder');

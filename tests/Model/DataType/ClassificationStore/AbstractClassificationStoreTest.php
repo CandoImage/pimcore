@@ -59,7 +59,7 @@ abstract class AbstractClassificationStoreTest extends ModelTestCase
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function setUpTestClasses()
     {

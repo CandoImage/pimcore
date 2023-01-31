@@ -19,6 +19,8 @@ use Pimcore\Logger;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Element\Recyclebin\Item $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -30,10 +32,10 @@ class Dao extends Model\Dao\AbstractDao
      */
     public function getById($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM recyclebin WHERE id = ?', $id);
+        $data = $this->db->fetchAssociative('SELECT * FROM recyclebin WHERE id = ?', [$id]);
 
-        if (!$data['id']) {
-            throw new \Exception('Recyclebin item with id ' . $id . ' not found');
+        if (!$data) {
+            throw new Model\Exception\NotFoundException('Recyclebin item with id ' . $id . ' not found');
         }
 
         $this->assignVariablesToModel($data);
@@ -59,9 +61,9 @@ class Dao extends Model\Dao\AbstractDao
 
         try {
             $this->db->insert('recyclebin', $data);
-            $this->model->setId($this->db->lastInsertId());
+            $this->model->setId((int) $this->db->lastInsertId());
         } catch (\Exception $e) {
-            Logger::error($e);
+            Logger::error((string) $e);
         }
 
         return true;

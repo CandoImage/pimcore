@@ -18,5 +18,3 @@ namespace Pimcore\Document\Editable\Exception;
 class NotFoundException extends \RuntimeException
 {
 }
-
-class_alias(NotFoundException::class, 'Pimcore\Document\Tag\Exception\NotFoundException');

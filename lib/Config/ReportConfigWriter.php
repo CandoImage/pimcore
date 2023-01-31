@@ -19,14 +19,20 @@ namespace Pimcore\Config;
 
 use Pimcore\Event\Admin\Report\SettingsEvent;
 use Pimcore\Event\Admin\ReportEvents;
-use Pimcore\File;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Pimcore\Model\Tool\SettingsStore;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Handles writing/merging report config and emitting an event on config save.
+ *
+ * @internal
  */
-class ReportConfigWriter
+final class ReportConfigWriter
 {
+    const REPORT_SETTING_ID = 'reports';
+
+    const REPORT_SETTING_SCOPE = 'pimcore';
+
     /**
      * @var EventDispatcherInterface
      */
@@ -37,19 +43,24 @@ class ReportConfigWriter
         $this->eventDispatcher = $eventDispatcher;
     }
 
+    /**
+     * @throws \Exception
+     */
     public function write(array $settings)
     {
         $settingsEvent = new SettingsEvent($settings);
         $this->eventDispatcher->dispatch(
-            ReportEvents::SAVE_SETTINGS,
-            $settingsEvent
+            $settingsEvent,
+            ReportEvents::SAVE_SETTINGS
         );
 
         $settings = $settingsEvent->getSettings();
 
-        File::putPhpFile(
-            $this->getConfigFile(),
-            to_php_data_file_format($settings)
+        SettingsStore::set(
+            self::REPORT_SETTING_ID,
+            json_encode($settings),
+            'string',
+            self::REPORT_SETTING_SCOPE
         );
     }
 
@@ -70,10 +81,5 @@ class ReportConfigWriter
     public function mergeArray(array $values)
     {
         $this->mergeConfig(new Config($values));
-    }
-
-    private function getConfigFile(): string
-    {
-        return \Pimcore\Config::locateConfigFile('reports.php');
     }
 }

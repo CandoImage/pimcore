@@ -21,6 +21,9 @@ use Pimcore\Workflow\Transition;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Workflow\Event\Event;
 
+/**
+ * @internal
+ */
 class ChangePublishedStateSubscriber implements EventSubscriberInterface
 {
     const NO_CHANGE = 'no_change';
@@ -65,7 +68,7 @@ class ChangePublishedStateSubscriber implements EventSubscriberInterface
             && ($event->getSubject() instanceof Concrete || $event->getSubject() instanceof Document);
     }
 
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             'workflow.completed' => 'onWorkflowCompleted',

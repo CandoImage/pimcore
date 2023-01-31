@@ -30,7 +30,7 @@ pimcore.object.tags.password = Class.create(pimcore.object.tags.abstract, {
         var input = {
             fieldLabel: this.fieldConfig.title,
             name: this.fieldConfig.name,
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             inputType: "password",
             listeners: {
                 afterrender: function (cmp) {
@@ -43,7 +43,7 @@ pimcore.object.tags.password = Class.create(pimcore.object.tags.abstract, {
 
         input.value = "********";
 
-        if (intval(this.fieldConfig.width) > 1) {
+        if (this.fieldConfig.width) {
             input.width = this.fieldConfig.width;
         } else {
             input.width = 350;

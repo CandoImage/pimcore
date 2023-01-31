@@ -19,18 +19,17 @@ use GuzzleHttp\ClientInterface;
 use Knp\Component\Pager\PaginatorInterface;
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
 use Pimcore\Bundle\AdminBundle\Security\CsrfProtectionHandler;
-use Pimcore\Bundle\AdminBundle\Security\User\TokenStorageUserResolver;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractOrder;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractOrderItem;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\CheckoutableInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\Order\Listing;
 use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\Order\Listing\Filter\OrderDateTime;
 use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\Order\Listing\Filter\OrderSearch;
 use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\Order\Listing\Filter\ProductType;
-use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderManagerInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\V7\OrderManagerInterface;
 use Pimcore\Cache;
-use Pimcore\Controller\EventedControllerInterface;
-use Pimcore\Controller\TemplateControllerInterface;
-use Pimcore\Controller\Traits\TemplateControllerTrait;
+use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Localization\IntlFormatter;
 use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Model\DataObject;
@@ -42,34 +41,39 @@ use Pimcore\Model\DataObject\OnlineShopOrderItem;
 use Pimcore\Model\User;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\Translation\LocaleAwareInterface;
 
 /**
  * Class AdminOrderController
  *
+ * @internal
+ *
  * @Route("/admin-order")
+ *
  */
-class AdminOrderController extends AdminController implements EventedControllerInterface, TemplateControllerInterface
+class AdminOrderController extends AdminController implements KernelControllerEventInterface
 {
-    use TemplateControllerTrait;
-
     /**
      * @var OrderManagerInterface
      */
     protected $orderManager;
 
+    protected $paymentManager;
+
     /**
-     * @param FilterControllerEvent $event
+     * {@inheritdoc}
      */
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelControllerEvent(ControllerEvent $event)
     {
         // set language
-        $user = $this->get(TokenStorageUserResolver::class)->getUser();
+        $user = $this->getTokenResolver()->getUser();
 
         if ($user) {
-            $this->get('translator')->setLocale($user->getLanguage());
+            if ($this->getTranslator() instanceof LocaleAwareInterface) {
+                $this->getTranslator()->setLocale($user->getLanguage());
+            }
             $event->getRequest()->setLocale($user->getLanguage());
         }
 
@@ -78,16 +82,7 @@ class AdminOrderController extends AdminController implements EventedControllerI
         Localizedfield::setGetFallbackValues(true);
 
         $this->orderManager = Factory::getInstance()->getOrderManager();
-
-        // enable view auto-rendering
-        $this->setViewAutoRender($event->getRequest(), true, 'twig');
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function onKernelResponse(FilterResponseEvent $event)
-    {
+        $this->paymentManager = Factory::getInstance()->getPaymentManager();
     }
 
     /**
@@ -97,11 +92,12 @@ class AdminOrderController extends AdminController implements EventedControllerI
      * @param IntlFormatter $formatter
      * @param PaginatorInterface $paginator
      *
-     * @return array
+     * @return Response
      */
     public function listAction(Request $request, IntlFormatter $formatter, PaginatorInterface $paginator)
     {
         // create new order list
+        /** @var Listing $list */
         $list = $this->orderManager->createOrderList();
 
         // set list type
@@ -187,13 +183,13 @@ class AdminOrderController extends AdminController implements EventedControllerI
             10
         );
 
-        return [
+        return $this->render('@PimcoreEcommerceFramework/admin_order/list.html.twig', [
             'paginator' => $paginator,
             'pimcoreUser' => \Pimcore\Tool\Admin::getCurrentUser(),
             'listPricingRule' => new \Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Rule\Listing(),
             'defaultCurrency' => Factory::getInstance()->getEnvironment()->getDefaultCurrency(),
             'formatter' => $formatter,
-        ];
+        ]);
     }
 
     /**
@@ -204,7 +200,7 @@ class AdminOrderController extends AdminController implements EventedControllerI
      * @param IntlFormatter $formatter
      * @param LocaleServiceInterface $localeService
      *
-     * @return array
+     * @return Response
      */
     public function detailAction(
         Request $request,
@@ -215,8 +211,10 @@ class AdminOrderController extends AdminController implements EventedControllerI
         $pimcoreSymfonyConfig = $this->getParameter('pimcore.config');
 
         // init
-        $order = OnlineShopOrder::getById($request->get('id'));
-        // @var AbstractOrder $order
+        $order = OnlineShopOrder::getById((int) $request->get('id'));
+        if (!$order) {
+            throw $this->createNotFoundException();
+        }
         $orderAgent = $this->orderManager->createOrderAgent($order);
 
         /**
@@ -285,7 +283,7 @@ class AdminOrderController extends AdminController implements EventedControllerI
             $customer = $order->getCustomer();
 
             // register
-            $register = \DateTime::createFromFormat('U', $order->getCreationDate());
+            $register = \DateTime::createFromFormat('U', (string) $order->getCreationDate());
             $arrCustomerAccount['created'] = $formatter->formatDateTime($register, IntlFormatter::DATE_MEDIUM);
 
             // mail
@@ -300,8 +298,8 @@ class AdminOrderController extends AdminController implements EventedControllerI
                 if ($field instanceof ManyToOneRelation) {
                     $classes = $field->getClasses();
                     if (count($classes) === 1) {
+                        /** @var \Pimcore\Model\DataObject\Concrete $class */
                         $class = 'Pimcore\Model\DataObject\\' . reset($classes)['classes'];
-                        // @var \Pimcore\Model\DataObject\Concrete $class
 
                         $orderList = $this->orderManager->createOrderList();
                         $orderList->joinCustomer($class::classId());
@@ -327,13 +325,10 @@ class AdminOrderController extends AdminController implements EventedControllerI
         $arrTimeline = [];
         $date = new \DateTime();
         foreach ($orderAgent->getFullChangeLog() as $note) {
-            // @var \Pimcore\Model\Element\Note $note
-
             $quantity = null;
 
             // get avatar
             $user = User::getById($note->getUser());
-            // @var \Pimcore\Model\User $user
             $avatar = $user ? sprintf('/admin/user/get-image?id=%d', $user->getId()) : null;
 
             // group events
@@ -342,7 +337,7 @@ class AdminOrderController extends AdminController implements EventedControllerI
 
             // load reference
             $reference = Concrete::getById($note->getCid());
-            $title = $reference instanceof AbstractOrderItem
+            $title = $reference instanceof AbstractOrderItem && $reference->getProduct() instanceof CheckoutableInterface
                 ? $reference->getProduct()->getOSName()
                 : null
             ;
@@ -355,19 +350,21 @@ class AdminOrderController extends AdminController implements EventedControllerI
 
             // add
             $arrTimeline[$group][] = [
-                'icon' => $arrIcons[$note->getTitle()],
-                'context' => $arrContext[$note->getTitle()] ?: 'default',
+                'icon' => $arrIcons[$note->getTitle()] ?? '',
+                'context' => $arrContext[$note->getTitle()] ?? 'default',
                 'type' => $note->getTitle(),
                 'date' => $formatter->formatDateTime($date->setTimestamp($note->getDate()), IntlFormatter::DATETIME_MEDIUM),
                 'avatar' => $avatar,
                 'user' => $user ? $user->getName() : null,
-                'message' => $note->getData()['message']['data'],
+                'message' => $note->getData()['message']['data'] ?? '',
                 'title' => $title ?: $note->getTitle(),
                 'quantity' => $quantity,
             ];
         }
 
-        return [
+        $paymentProviders = $this->paymentManager->getProviderTypes();
+
+        return $this->render('@PimcoreEcommerceFramework/admin_order/detail.html.twig', [
             'pimcoreUser' => \Pimcore\Tool\Admin::getCurrentUser(),
             'orderAgent' => $orderAgent,
             'timeLine' => $arrTimeline,
@@ -377,7 +374,8 @@ class AdminOrderController extends AdminController implements EventedControllerI
             'pimcoreSymfonyConfig' => $pimcoreSymfonyConfig,
             'formatter' => $formatter,
             'locale' => $localeService,
-        ];
+            'paymentProviders' => $paymentProviders,
+        ]);
     }
 
     /**
@@ -386,13 +384,15 @@ class AdminOrderController extends AdminController implements EventedControllerI
      * @param Request $request
      * @param CsrfProtectionHandler $csrfProtection
      *
-     * @return array|Response
+     * @return Response
      */
     public function itemCancelAction(Request $request, CsrfProtectionHandler $csrfProtection)
     {
         // init
-        $orderItem = OnlineShopOrderItem::getById($request->get('id'));
-        // @var \Pimcore\Model\DataObject\OnlineShopOrderItem $orderItem
+        $orderItem = OnlineShopOrderItem::getById((int) $request->get('id'));
+        if (!$orderItem) {
+            throw $this->createNotFoundException();
+        }
         $order = $orderItem->getOrder();
 
         if ($request->get('confirmed') && $orderItem->isCancelAble()) {
@@ -413,19 +413,23 @@ class AdminOrderController extends AdminController implements EventedControllerI
             return $this->redirect($url);
         }
 
-        return ['orderItem' => $orderItem];
+        return $this->render('@PimcoreEcommerceFramework/admin_order/item_cancel.html.twig', [
+            'orderItem' => $orderItem,
+        ]);
     }
 
     /**
      * @Route("/item-edit", name="pimcore_ecommerce_backend_admin-order_item-edit", methods={"GET", "POST"})
      *
-     * @return array|Response
+     * @return Response
      */
     public function itemEditAction(Request $request, CsrfProtectionHandler $csrfProtectionHandler)
     {
         // init
-        $orderItem = $orderItem = OnlineShopOrderItem::getById($request->get('id'));
-        // @var \Pimcore\Model\DataObject\OnlineShopOrderItem $orderItem
+        $orderItem = OnlineShopOrderItem::getById((int) $request->get('id'));
+        if (!$orderItem) {
+            throw $this->createNotFoundException();
+        }
         $order = $orderItem->getOrder();
 
         if ($request->get('confirmed')) {
@@ -445,19 +449,23 @@ class AdminOrderController extends AdminController implements EventedControllerI
             return $this->redirect($url);
         }
 
-        return ['orderItem' => $orderItem];
+        return $this->render('@PimcoreEcommerceFramework/admin_order/item_edit.html.twig', [
+            'orderItem' => $orderItem,
+        ]);
     }
 
     /**
      * @Route("/item-complaint", name="pimcore_ecommerce_backend_admin-order_item-complaint", methods={"GET", "POST"})
      *
-     * @return array|Response
+     * @return Response
      */
     public function itemComplaintAction(Request $request, CsrfProtectionHandler $csrfProtectionHandler)
     {
         // init
-        $orderItem = $orderItem = OnlineShopOrderItem::getById($request->get('id'));
-        // @var \Pimcore\Model\DataObject\OnlineShopOrderItem $orderItem
+        $orderItem = OnlineShopOrderItem::getById((int) $request->get('id'));
+        if (!$orderItem) {
+            throw $this->createNotFoundException();
+        }
         $order = $orderItem->getOrder();
 
         if ($request->get('confirmed')) {
@@ -477,6 +485,8 @@ class AdminOrderController extends AdminController implements EventedControllerI
             return $this->redirect($url);
         }
 
-        return ['orderItem' => $orderItem];
+        return $this->render('@PimcoreEcommerceFramework/admin_order/item_complaint.html.twig', [
+            'orderItem' => $orderItem,
+        ]);
     }
 }

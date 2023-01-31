@@ -15,9 +15,13 @@
 
 namespace Pimcore\Model\GridConfig;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\GridConfig $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -25,14 +29,14 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int $id
      *
-     * @throws \Exception
+     * @throws NotFoundException
      */
     public function getById($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM gridconfigs WHERE id = ?', $id);
+        $data = $this->db->fetchAssociative('SELECT * FROM gridconfigs WHERE id = ?', [$id]);
 
-        if (!$data['id']) {
-            throw new \Exception('gridconfig with id ' . $id . ' not found');
+        if (!$data) {
+            throw new NotFoundException('gridconfig with id ' . $id . ' not found');
         }
 
         $this->assignVariablesToModel($data);
@@ -58,11 +62,11 @@ class Dao extends Model\Dao\AbstractDao
             }
         }
 
-        $this->db->insertOrUpdate('gridconfigs', $data);
+        Helper::insertOrUpdate($this->db, 'gridconfigs', $data);
 
         $lastInsertId = $this->db->lastInsertId();
         if (!$this->model->getId() && $lastInsertId) {
-            $this->model->setId($lastInsertId);
+            $this->model->setId((int) $lastInsertId);
         }
 
         return $this->model->getId();

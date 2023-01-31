@@ -22,16 +22,20 @@ use Pimcore\Event\BundleManagerEvents;
 use Pimcore\Extension\Bundle\Config\StateConfig;
 use Pimcore\Extension\Bundle\Exception\BundleNotFoundException;
 use Pimcore\Extension\Bundle\Installer\Exception\InstallationException;
-use Pimcore\Extension\Bundle\Installer\Exception\UpdateException;
 use Pimcore\HttpKernel\BundleCollection\ItemInterface;
 use Pimcore\Kernel;
 use Pimcore\Routing\RouteReferenceInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
+/**
+ * @internal
+ */
 class PimcoreBundleManager
 {
     /**
+     * @deprecated
+     *
      * @var StateConfig
      */
     protected $stateConfig;
@@ -62,6 +66,8 @@ class PimcoreBundleManager
     protected $availableBundles;
 
     /**
+     * @deprecated
+     *
      * @var array
      */
     protected $enabledBundles;
@@ -157,6 +163,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Lists enabled bundle names
      *
      * @return array
@@ -234,7 +242,7 @@ class PimcoreBundleManager
     }
 
     /**
-     * Determines if a bundle exists (is enabled or can be enabled)
+     * Determines if a bundle exists
      *
      * @param string|PimcoreBundleInterface $bundle
      *
@@ -306,6 +314,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Checks if a state change (enable/disable, priority, environments) is possible
      *
      * @param string $identifier
@@ -321,6 +331,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Determines if bundle is allowed to change state (can be enabled/disabled)
      *
      * @param string|PimcoreBundleInterface $bundle
@@ -337,6 +349,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Reads bundle state from config
      *
      * @param string|PimcoreBundleInterface $bundle
@@ -357,6 +371,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Updates state for a bundle and writes it to config
      *
      * @param string|PimcoreBundleInterface $bundle
@@ -373,6 +389,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Batch updates bundle states
      *
      * @param array $states
@@ -394,6 +412,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Enables a bundle
      *
      * @param string|PimcoreBundleInterface $bundle
@@ -409,6 +429,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Disables a bundle
      *
      * @param string|PimcoreBundleInterface $bundle
@@ -419,6 +441,8 @@ class PimcoreBundleManager
     }
 
     /**
+     * @deprecated
+     *
      * Determines if a bundle is enabled
      *
      * @param string|PimcoreBundleInterface $bundle
@@ -577,48 +601,6 @@ class PimcoreBundleManager
     }
 
     /**
-     * Determines if a bundle can be updated
-     *
-     * @deprecated will be removed in Pimcore 10
-     *
-     * @param PimcoreBundleInterface $bundle
-     *
-     * @return bool
-     */
-    public function canBeUpdated(PimcoreBundleInterface $bundle): bool
-    {
-        if (!$this->isEnabled($bundle)) {
-            return false;
-        }
-
-        if (null === $installer = $this->loadBundleInstaller($bundle)) {
-            return false;
-        }
-
-        return $installer->canBeUpdated();
-    }
-
-    /**
-     * Runs update routine for a bundle
-     *
-     * @deprecated will be removed in Pimcore 10
-     *
-     * @param PimcoreBundleInterface $bundle
-     *
-     * @throws UpdateException If the bundle can not be updated or doesn't define an installer
-     */
-    public function update(PimcoreBundleInterface $bundle)
-    {
-        $installer = $this->loadBundleInstaller($bundle, true);
-
-        if (!$installer->canBeUpdated()) {
-            throw new UpdateException(sprintf('Bundle %s can not be updated', $bundle->getName()));
-        }
-
-        $installer->update();
-    }
-
-    /**
      * Resolves all admin javascripts to load
      *
      * @return array
@@ -718,8 +700,7 @@ class PimcoreBundleManager
     protected function resolveEventPaths(array $paths, string $eventName): array
     {
         $event = new PathsEvent($paths);
-
-        $this->dispatcher->dispatch($eventName, $event);
+        $this->dispatcher->dispatch($event, $eventName);
 
         return $event->getPaths();
     }

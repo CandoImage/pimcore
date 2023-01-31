@@ -16,9 +16,12 @@
 namespace Pimcore;
 
 use GuzzleHttp\RequestOptions;
+use Pimcore\Http\RequestHelper;
+use Pimcore\Localization\LocaleServiceInterface;
+use Pimcore\Model\Element;
 use Symfony\Component\HttpFoundation\Request;
 
-class Tool
+final class Tool
 {
     /**
      * Sets the current request to use when resolving request at early
@@ -39,42 +42,15 @@ class Tool
     protected static $validLanguages = [];
 
     /**
-     * @var null
-     */
-    protected static $isFrontend = null;
-
-    /**
      * Sets the current request to operate on
      *
      * @param Request|null $request
+     *
+     * @internal
      */
     public static function setCurrentRequest(Request $request = null)
     {
         self::$currentRequest = $request;
-    }
-
-    /**
-     * returns a valid cache key/tag string
-     *
-     * @param string $key
-     *
-     * @return string
-     */
-    public static function getValidCacheKey($key)
-    {
-        return preg_replace('/[^a-zA-Z0-9]/', '_', $key);
-    }
-
-    /**
-     * @static
-     *
-     * @param string $path
-     *
-     * @return bool
-     */
-    public static function isValidPath($path)
-    {
-        return (bool) preg_match("/^[a-zA-Z0-9_~\.\-\/ ]+$/", $path, $matches);
     }
 
     /**
@@ -124,7 +100,7 @@ class Tool
                 return [];
             }
 
-            $validLanguages = str_replace(' ', '', strval($config['valid_languages']));
+            $validLanguages = str_replace(' ', '', (string)$config['valid_languages']);
             $languages = explode(',', $validLanguages);
 
             if (!is_array($languages)) {
@@ -138,6 +114,8 @@ class Tool
     }
 
     /**
+     * @internal
+     *
      * @param string $language
      *
      * @return array
@@ -182,13 +160,13 @@ class Tool
     }
 
     /**
-     * @return array|mixed
+     * @return array<string, string>
      *
      * @throws \Exception
      */
     public static function getSupportedLocales()
     {
-        $localeService = \Pimcore::getContainer()->get('pimcore.locale');
+        $localeService = \Pimcore::getContainer()->get(LocaleServiceInterface::class);
         $locale = $localeService->findLocale();
 
         $cacheKey = 'system_supported_locales_' . strtolower((string) $locale);
@@ -220,6 +198,8 @@ class Tool
     }
 
     /**
+     * @internal
+     *
      * @param string $language
      * @param bool $absolutePath
      *
@@ -284,31 +264,16 @@ class Tool
     }
 
     /**
-     * @deprecated will be removed in Pimcore 10
-     * @static
-     *
-     * @return array
-     */
-    public static function getRoutingDefaults()
-    {
-        $container = \Pimcore::getContainer();
-        $routingDefaults = $container->getParameter('pimcore.routing.defaults');
-        $routingDefaults['module'] = $routingDefaults['bundle'];
-
-        return $routingDefaults;
-    }
-
-    /**
      * @param Request|null $request
      *
      * @return null|Request
      */
-    public static function resolveRequest(Request $request = null)
+    private static function resolveRequest(Request $request = null)
     {
         if (null === $request) {
             // do an extra check for the container as we might be in a state where no container is set yet
             if (\Pimcore::hasContainer()) {
-                $request = \Pimcore::getContainer()->get('request_stack')->getMasterRequest();
+                $request = \Pimcore::getContainer()->get('request_stack')->getMainRequest();
             } else {
                 if (null !== self::$currentRequest) {
                     return self::$currentRequest;
@@ -320,8 +285,6 @@ class Tool
     }
 
     /**
-     * @static
-     *
      * @param Request|null $request
      *
      * @return bool
@@ -329,7 +292,7 @@ class Tool
     public static function isFrontend(Request $request = null): bool
     {
         if (null === $request) {
-            $request = \Pimcore::getContainer()->get('request_stack')->getMasterRequest();
+            $request = \Pimcore::getContainer()->get('request_stack')->getMainRequest();
         }
 
         if (null === $request) {
@@ -337,7 +300,7 @@ class Tool
         }
 
         return \Pimcore::getContainer()
-            ->get('pimcore.http.request_helper')
+            ->get(RequestHelper::class)
             ->isFrontendRequest($request);
     }
 
@@ -357,12 +320,31 @@ class Tool
         }
 
         return \Pimcore::getContainer()
-            ->get('pimcore.http.request_helper')
+            ->get(RequestHelper::class)
             ->isFrontendRequestByAdmin($request);
     }
 
     /**
-     * @static
+     * Verify element request (eg. editmode, preview, version preview) called within admin, with permissions.
+     *
+     * @param Request $request
+     * @param Element\ElementInterface $element
+     *
+     * @return bool
+     */
+    public static function isElementRequestByAdmin(Request $request, Element\ElementInterface $element)
+    {
+        if (!self::isFrontendRequestByAdmin($request)) {
+            return false;
+        }
+
+        $user = Tool\Authentication::authenticateSession($request);
+
+        return $user && $element->isAllowed('view', $user);
+    }
+
+    /**
+     * @internal
      *
      * @param Request|null $request
      *
@@ -398,7 +380,7 @@ class Tool
     }
 
     /**
-     * @static
+     * @internal
      *
      * @param Request|null $request
      *
@@ -408,14 +390,18 @@ class Tool
     {
         $request = self::resolveRequest($request);
 
-        if (null === $request) {
-            return null;
+        if (null === $request || !$request->getHost()) {
+            $domain = \Pimcore\Config::getSystemConfiguration('general')['domain'];
+
+            return $domain ?: null;
         }
 
         return $request->getHost();
     }
 
     /**
+     * @internal
+     *
      * @return string
      */
     public static function getRequestScheme(Request $request = null)
@@ -432,7 +418,7 @@ class Tool
     /**
      * Returns the host URL
      *
-     * @param string $useProtocol use a specific protocol
+     * @param string|null $useProtocol use a specific protocol
      * @param Request|null $request
      *
      * @return string
@@ -455,7 +441,7 @@ class Tool
         }
 
         // get it from System settings
-        if (!$hostname || $hostname == 'localhost') {
+        if (!$hostname || $hostname === 'localhost') {
             $systemConfig = Config::getSystemConfiguration('general');
             $hostname = $systemConfig['domain'] ?? null;
 
@@ -474,7 +460,7 @@ class Tool
     }
 
     /**
-     * @static
+     * @internal
      *
      * @param Request|null $request
      *
@@ -505,6 +491,8 @@ class Tool
     }
 
     /**
+     * @internal
+     *
      * @param Request|null $request
      *
      * @return null|string
@@ -518,54 +506,21 @@ class Tool
         }
 
         return \Pimcore::getContainer()
-            ->get('pimcore.http.request_helper')
+            ->get(RequestHelper::class)
             ->getAnonymizedClientIp($request);
-    }
-
-    /**
-     * @static
-     *
-     * @return array|bool
-     */
-    public static function getCustomViewConfig()
-    {
-        $configFile = \Pimcore\Config::locateConfigFile('customviews.php');
-
-        if (!is_file($configFile)) {
-            $cvData = false;
-        } else {
-            $confArray = include($configFile);
-            $cvData = [];
-
-            foreach ($confArray['views'] as $tmp) {
-                if (isset($tmp['name'])) {
-                    $tmp['showroot'] = !empty($tmp['showroot']);
-
-                    if (!empty($tmp['hidden'])) {
-                        continue;
-                    }
-
-                    $cvData[] = $tmp;
-                }
-            }
-        }
-
-        return $cvData;
     }
 
     /**
      * @param array|string|null $recipients
      * @param string|null $subject
-     * @param string|null $charset
      *
      * @return Mail
      *
      * @throws \Exception
      */
-    public static function getMail($recipients = null, $subject = null, $charset = null)
+    public static function getMail($recipients = null, $subject = null)
     {
         $mail = new Mail();
-        $mail->setCharset($charset);
 
         if ($recipients) {
             if (is_string($recipients)) {
@@ -578,15 +533,13 @@ class Tool
         }
 
         if ($subject) {
-            $mail->setSubject($subject);
+            $mail->subject($subject);
         }
 
         return $mail;
     }
 
     /**
-     * @static
-     *
      * @param string $url
      * @param array $paramsGet
      * @param array $paramsPost
@@ -604,14 +557,17 @@ class Tool
         }
 
         if (is_array($paramsGet) && count($paramsGet) > 0) {
-
-            //need to insert get params from url to $paramsGet because otherwise the would be ignored
+            //need to insert get params from url to $paramsGet because otherwise they would be ignored
             $urlParts = parse_url($url);
-            $urlParams = [];
-            parse_str($urlParts['query'], $urlParams);
 
-            if ($urlParams) {
-                $paramsGet = array_merge($urlParams, $paramsGet);
+            if (isset($urlParts['query'])) {
+                $urlParams = [];
+
+                parse_str($urlParts['query'], $urlParams);
+
+                if ($urlParams) {
+                    $paramsGet = array_merge($urlParams, $paramsGet);
+                }
             }
 
             $options[RequestOptions::QUERY] = $paramsGet;
@@ -635,6 +591,8 @@ class Tool
     }
 
     /**
+     * @internal
+     *
      * @param string $class
      *
      * @return bool
@@ -645,6 +603,8 @@ class Tool
     }
 
     /**
+     * @internal
+     *
      * @param string $class
      *
      * @return bool
@@ -655,6 +615,8 @@ class Tool
     }
 
     /**
+     * @internal
+     *
      * @param string $class
      *
      * @return bool
@@ -670,7 +632,7 @@ class Tool
      *
      * @return bool
      */
-    protected static function classInterfaceExists($class, $type)
+    private static function classInterfaceExists($class, $type)
     {
         $functionName = $type . '_exists';
 
@@ -691,8 +653,9 @@ class Tool
         // Pimcore\Tool::ClassMapAutoloader(), but don't know what actual conditions causes this problem.
         // but to be save we log the errors into the debug.log, so if anything else happens we can see it there
         // the normal warning is e.g. Warning: include_once(Path/To/Class.php): failed to open stream: No such file or directory in ...
-        set_error_handler(function ($errno, $errstr, $errfile, $errline) {
+        set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline): bool {
             //Logger::debug(implode(" ", [$errno, $errstr, $errfile, $errline]));
+            return true;
         });
 
         $exists = $functionName($class);
@@ -707,6 +670,8 @@ class Tool
     }
 
     /**
+     * @internal
+     *
      * @return array
      */
     public static function getCachedSymfonyEnvironments(): array
@@ -716,11 +681,17 @@ class Tool
             unset($dirs[$key]);
         }
         $dirs = array_map('basename', $dirs);
+        $dirs = array_filter($dirs, function ($value) {
+            // this filters out "old" build directories, which end with a ~
+            return !(bool) \preg_match('/~$/', $value);
+        });
 
         return array_values($dirs);
     }
 
     /**
+     * @internal
+     *
      * @param string $message
      */
     public static function exitWithError($message)

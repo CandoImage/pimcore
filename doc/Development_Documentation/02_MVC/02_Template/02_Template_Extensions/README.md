@@ -11,7 +11,6 @@ Following an overview of some [Twig Extensions](https://twig.symfony.com/doc/2.x
 - `asset` 
 - `csrf_token`  
 - `path` 
-- `url` 
 - `absolute_url` 
 - `translator` 
 - `trans`
@@ -25,12 +24,12 @@ In addition to the standard Twig extensions, Pimcore adds some additional powerf
 
 All Twig extension functions are described below in detail, the following tables give just a short overview of all available extensions.
 
-| Extension                                | Description                                                     |
-|------------------------------------------|-----------------------------------------------------------------|
-| `pimcore_action()`        | (Deprecated) Calls an arbitrary action and renders the respective template  |
+| Extension                                | Description                                                       |
+|------------------------------------------|-------------------------------------------------------------------|
 | `pimcore_cache()`         | Simple in-template caching functionality                                         |
 | `pimcore_device()`        | Helps implementing adaptive designs                                              |
-| `pimcoreglossary()`       | Extension to control the glossary engine                                         |
+| `pimcoreglossary()`       | Deprecated: Extension to control the glossary engine                             |
+| `pimcore_glossary`        | Twig Filter: Apply filter on content to pass it to Glossary engine               |
 | `pimcore_placeholder()`   | Adding and embedding custom placeholders, e.g. for special header tags, etc.     |
 | `pimcore_head_link()`     | Embeding / managing referenced stylesheets (alternative to `assets()`)           |
 | `pimcore_head_meta()`     | Managing your \<meta\> elements in your HTML document                            |
@@ -40,18 +39,16 @@ All Twig extension functions are described below in detail, the following tables
 | `pimcore_inc()`           | Use this function to directly include a Pimcore document                         |
 | `pimcore_inline_script`   | Managing inline scripts (pendant to `headScript()` for inline scripts)           |
 | `pimcore_build_nav()`, `pimcore_render_nav()`, `pimcore_nav_renderer()`   | Embed and build navigations based on the document structure                             |
-| `pimcore_url()`           | An alternative to `url()` and `path()` with the building behavior of Pimcore 4   |
+| `pimcore_url()`           | An alternative to `url()` and `path()`                                           |
 | `pimcore_website_config()`| Fetch website settings or specific setting (first param: key) for the current site |
 | `pimcore_image_thumbnail()` | Returns a path to a given thumbnail on image                                   |
 | `pimcore_image_thumbnail_html()` | Returns html for displaying the thumbnail image                           |
 | `pimcore_supported_locales()` | Use this function to get a list of supported locales                         |
-| `pimcore_image_thumbnail()` | Returns a path to a given thumbnail or thumbnail configuration                 |
-| `pimcore_image_thumbnail()` | Returns a path to a given thumbnail or thumbnail configuration                 |
 
 Pimcore also adds some Twig tests for evaluating boolean conditions e.g.
 ```twig
 {# using 'instaceof' checks if object is instanceof provided classname #}
-{% if (product is instanceof('AppBundle\\Model\\Product\\Car')) %}
+{% if (product is instanceof('App\\Model\\Product\\Car')) %}
     ...
 {% endif %}
 
@@ -94,34 +91,8 @@ The following table gives an overview of all available tests:
 | `pimcore_document_snippet`             | Checks if object is instanceof Document\Snippet                     |
 
 You can also create your own custom Twig Extension to make certain functionalities available to your views.  
-Here you can find an example how to [create](https://symfony.com/doc/current/templating/twig_extension.html)
+Here you can find an example how to [create](https://symfony.com/doc/5.2/templating/twig_extension.html)
 your own Twig Extension.
-
-### `pimcore_action`
-
-Use `pimcore_action()` to render an action within views. 
-
-```twig
-{{ pimcore_action(action, controller, bundle, attributes, query) }}
-```
-   
-| Name         | Type         | Description  |
-|--------------|--------------|--------------|
-| `action`     |  string      | Name of the action (eg. `foo`) |
-| `controller` |  string      | Name of the controller (eg. `Bar`) |
-| `module`     |  string      | Optional name of the bundle where the controller/action lives |
-| `attributes` |  array       | Optional params added to the request object for the action |
-| `query`      |  array       | Optional params added to the request query string |
-
-   
-##### Example
-
-```twig
-<section id="foo-bar">
-    {{ pimcore_action('foo', 'Bar', null, { awesome: 'value' }) }}
-</section>
-```
-   
     
 ### `pimcore_cache`
 This is an implementation of an in-template cache. You can use this to cache some parts directly in the template, 
@@ -174,11 +145,37 @@ For details also see [Adaptive Design](../../../19_Development_Tools_and_Details
 
 The `pimcoreglossary` block replaces glossary terms. See [Glossary](../../../18_Tools_and_Features/21_Glossary.md) for details.
 
+Old way (Deprecated):
 ```twig
 {% pimcoreglossary %}
 My content
 {% endpimcoreglossary %}
 ``` 
+
+New way:
+```twig
+{% apply pimcore_glossary %}
+My content
+{% endapply %}
+``` 
+
+### `pimcore_placeholder` 
+See [Placeholder Template Extension](00_Placeholder.md)
+
+### `pimcore_head_link` 
+See [HeadLink Template Extension](01_HeadLink.md)
+
+### `pimcore_head_meta` 
+See [HeadMeta Template Extension](02_HeadMeta.md)
+
+### `pimcore_head_script` 
+See [HeadScript Template Extension](03_HeadScript.md)
+
+### `pimcore_head_style` 
+See [HeadStyle Template Extension](04_HeadStyle.md)
+
+### `pimcore_head_title` 
+See [HeadTitle Template Extension](05_HeadTitle.md)
 
 
 ### `pimcore_inc` 
@@ -190,10 +187,10 @@ This is especially useful for footers, headers, navigations, sidebars, teasers, 
 | Name           | Type         | Description  |
 |----------------|--------------|--------------|
 | `document`     | PageSnippet &#124; int &#124; string  | Document to include, can be either an ID, a path or even the Document object itself |
-| `params`       |  array       | Is optional and should be an array with key value pairs like in `$this->action()` from ZF. |
+| `params`       |  array       | Is optional and should be an array with key value pairs. |
 | `enabledCache` |  bool        | Is true by default, set it to false to disable the cache. Hashing is done across source and parameters to ensure a consistent result. |
  
-##### Example
+ ##### Example
 ```twig
 {#include path#}
 {{ pimcore_inc("/shared/boxes/buttons") }}
@@ -241,6 +238,10 @@ someOtherDocument.html.twig (whatever Twig template is actually for /some/other/
 ...
 ```
 
+
+### `pimcore_inline_script` 
+See [InlineScript Template Extension](06_InlineScript.md)
+
 ### Navigation
 
 * `pimcore_build_nav`
@@ -279,7 +280,7 @@ All parameters are optional here:
 | `encode`     | bool   | Is true by default, set it to false to disable encoding |
 | `relative`   | bool   | Is false by default, set it to true to generate a relative path based on the current request path |
 
-##### Example
+ ##### Example
 ```twig
 {% set object = pimcore_object(769) %}
 {{  pimcore_url({'object': object}) }}

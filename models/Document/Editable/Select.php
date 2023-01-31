@@ -25,14 +25,14 @@ class Select extends Model\Document\Editable
     /**
      * Contains the current selected value
      *
+     * @internal
+     *
      * @var string
      */
-    public $text;
+    protected $text;
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -40,9 +40,7 @@ class Select extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -50,9 +48,15 @@ class Select extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
      * @return string
+     */
+    public function getText()
+    {
+        return $this->getData();
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -60,11 +64,7 @@ class Select extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -74,11 +74,7 @@ class Select extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -88,32 +84,10 @@ class Select extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
         return empty($this->text);
     }
-
-    /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-        if ($data->text === null or is_string($data->text)) {
-            $this->text = $data->text;
-        } else {
-            throw new \Exception('cannot get values from web service import - invalid data');
-        }
-    }
 }
-
-class_alias(Select::class, 'Pimcore\Model\Document\Tag\Select');

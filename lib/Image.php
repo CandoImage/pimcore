@@ -15,9 +15,10 @@
 
 namespace Pimcore;
 
+use Pimcore;
 use Pimcore\Image\Adapter;
 
-class Image
+final class Image
 {
     /**
      * @return null|Adapter\GD|Adapter\Imagick
@@ -36,14 +37,16 @@ class Image
      * @return null|Adapter\GD|Adapter\Imagick
      *
      * @throws \Exception
+     *
+     * @internal
      */
     public static function create()
     {
         try {
             if (extension_loaded('imagick')) {
-                return new Adapter\Imagick();
+                return Pimcore::getContainer()->get(Adapter\Imagick::class);
             } else {
-                return new Adapter\GD();
+                return Pimcore::getContainer()->get(Adapter\GD::class);
             }
         } catch (\Exception $e) {
             Logger::crit('Unable to load image extensions: ' . $e->getMessage());

@@ -15,7 +15,10 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class PHPCode extends AbstractOperator
+/**
+ * @internal
+ */
+final class PHPCode extends AbstractOperator
 {
     /**
      * @var \stdClass
@@ -28,10 +31,13 @@ class PHPCode extends AbstractOperator
     private $phpClass;
 
     /**
-     * @var OperatorInterface
+     * @var OperatorInterface|null
      */
     private $instance;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -40,22 +46,34 @@ class PHPCode extends AbstractOperator
         $this->phpClass = $config->phpClass ?? '';
     }
 
+    /**
+     * @return string
+     */
     public function getPhpClass(): string
     {
         return $this->phpClass;
     }
 
+    /**
+     * @param string $phpClass
+     */
     public function setPhpClass(string $phpClass)
     {
         $this->phpClass = $phpClass;
         $this->instance = null;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabel()
     {
         return $this->getInstance()->getLabel();
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         try {
@@ -65,6 +83,11 @@ class PHPCode extends AbstractOperator
         }
     }
 
+    /**
+     * @return OperatorInterface
+     *
+     * @throws \Exception
+     */
     private function getInstance(): OperatorInterface
     {
         if (null === $this->instance) {
@@ -74,6 +97,11 @@ class PHPCode extends AbstractOperator
         return $this->instance;
     }
 
+    /**
+     * @return OperatorInterface
+     *
+     * @throws \Exception
+     */
     private function buildInstance(): OperatorInterface
     {
         $phpClass = $this->getPhpClass();

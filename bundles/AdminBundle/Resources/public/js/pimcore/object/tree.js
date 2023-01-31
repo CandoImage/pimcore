@@ -15,6 +15,12 @@ pimcore.registerNS("pimcore.object.tree");
 pimcore.object.tree = Class.create({
 
     treeDataUrl: null,
+    treeNodeMoveParameter: {
+        nodes: [],
+        oldParent: {},
+        newParent: {},
+        indices: []
+    },
 
     initialize: function (config, perspectiveCfg) {
         this.treeDataUrl = Routing.generate('pimcore_admin_dataobject_dataobject_treegetchildsbyid');
@@ -138,8 +144,9 @@ pimcore.object.tree = Class.create({
                 type: "left",
                 handler: pimcore.layout.treepanelmanager.toLeft.bind(this),
                 hidden: this.position == "left"
-            }],
-            root: rootNodeConfig
+            }]
+            // ,
+            // root: rootNodeConfig
         });
 
         store.on("nodebeforeexpand", function (node) {
@@ -181,7 +188,13 @@ pimcore.object.tree = Class.create({
             },
             "itemmouseleave": function () {
                 pimcore.helpers.treeToolTipHide();
-            }
+            },
+            "beforeload": function (store, operation, options) {
+                // add the parent path as an additional diagnostic parameter
+                // can be used by bundles that work with dynamic children nodes
+                store.proxy.setExtraParam('parentPath', operation.node.data.path)
+            },
+            "drop": this.onTreeNodesDrop.bind(this)
         };
 
         return treeNodeListeners;
@@ -190,6 +203,21 @@ pimcore.object.tree = Class.create({
     onTreeNodeClick: function (tree, record, item, index, event, eOpts ) {
         if (event.ctrlKey === false && event.shiftKey === false && event.altKey === false) {
             try {
+
+                var eventData =  {record: record, preventDefault: false};
+
+                const prepareOnObjectTreeNodeClick = new CustomEvent(pimcore.events.prepareOnObjectTreeNodeClick, {
+                    detail: {
+                        eventData: eventData
+                    }
+                });
+
+                document.dispatchEvent(prepareOnObjectTreeNodeClick);
+
+                if (eventData.preventDefault) {
+                    return;
+                }
+
                 if (record.data.permissions.view) {
                     pimcore.helpers.openObject(record.data.id, record.data.type);
                 }
@@ -221,32 +249,69 @@ pimcore.object.tree = Class.create({
     },
 
     onTreeNodeMove: function (node, oldParent, newParent, index, eOpts ) {
-        var tree = oldParent.getOwnerTree();
+        this.treeNodeMoveParameter.nodes.push(node);
+        this.treeNodeMoveParameter.oldParent = oldParent;
+        this.treeNodeMoveParameter.newParent = newParent;
+        this.treeNodeMoveParameter.indices.push(index);
+    },
 
-        var pageOffset = 0;
-        if (node.parentNode.pagingData) {
-            pageOffset = node.parentNode.pagingData.offset;
+    onTreeNodesDrop: function (node, data, overModel, dropPosition, eOpts) {
+        if (typeof this.treeNodeMoveParameter.oldParent.getOwnerTree !== "function") {
+            Ext.Array.each(data.records, function (record) {
+                if (this.onTreeNodeBeforeMove(record, record.parentNode, overModel)) {
+                    this.onTreeNodeMove(record, record.parentNode, overModel, 0);
+                }
+            }.bind(this));
         }
 
-        pimcore.elementservice.updateObject(node.data.id, {
-            parentId: newParent.data.id,
-            index: index + pageOffset,
-        }, function (newParent, oldParent, tree, response) {
-            try{
-                var rdata = Ext.decode(response.responseText);
+        if (typeof this.treeNodeMoveParameter.oldParent.getOwnerTree !== "function") {
+            return;
+        }
+
+        let tree = this.treeNodeMoveParameter.oldParent.getOwnerTree();
+
+        let pageOffset = 0;
+        let ids = [];
+        let indices = {};
+
+        for (let i = 0; i < this.treeNodeMoveParameter.nodes.length; i++) {
+            pageOffset = 0
+
+            if (this.treeNodeMoveParameter.nodes[i].parentNode.pagingData) {
+                pageOffset = this.treeNodeMoveParameter.nodes[i].parentNode.pagingData.offset;
+            }
+
+            ids.push(this.treeNodeMoveParameter.nodes[i].data.id);
+
+            indices[ids[i]] = this.treeNodeMoveParameter.indices[i] + pageOffset;
+        }
+
+        if(ids.length === 1) {
+            ids = ids[0];
+            indices = indices[ids];
+        }
+
+        pimcore.elementservice.updateObject(ids, {
+            parentId: this.treeNodeMoveParameter.newParent.data.id,
+            indices: indices,
+        }, function (nodes, newParent, oldParent, tree, response) {
+            try {
+                const rdata = Ext.decode(response.responseText);
                 if (rdata && rdata.success) {
                     // set new pathes
-                    var newBasePath = newParent.data.path;
+                    let newBasePath = newParent.data.path;
                     if (newBasePath == "/") {
                         newBasePath = "";
                     }
-                    node.data.basePath = newBasePath;
-                    node.data.path = node.data.basePath + "/" + node.data.text;
+                    nodes.map(node => {
+                        node.data.basePath = newBasePath;
+                        node.data.path = node.data.basePath + "/" + node.data.text;
+                    });
                     pimcore.elementservice.nodeMoved("object", oldParent, newParent);
-                }  else {
+                } else {
                     tree.loadMask.hide();
                     pimcore.helpers.showNotification(t("error"), t("cant_move_node_to_target"),
-                        "error",t(rdata.message));
+                        "error", t(rdata.message));
                     // we have to delay refresh between two nodes,
                     // as there could be parent child relationship leading to race condition
                     window.setTimeout(function () {
@@ -254,7 +319,7 @@ pimcore.object.tree = Class.create({
                     }, 500);
                     pimcore.elementservice.refreshNode(newParent);
                 }
-            } catch(e){
+            } catch (e) {
                 tree.loadMask.hide();
                 pimcore.helpers.showNotification(t("error"), t("cant_move_node_to_target"), "error");
                 // we have to delay refresh between two nodes,
@@ -266,7 +331,14 @@ pimcore.object.tree = Class.create({
             }
             tree.loadMask.hide();
 
-        }.bind(this, newParent, oldParent, tree));
+            this.treeNodeMoveParameter =  {
+                nodes: [],
+                oldParent: {},
+                newParent: {},
+                indices: []
+            };
+
+        }.bind(this, this.treeNodeMoveParameter.nodes, this.treeNodeMoveParameter.newParent, this.treeNodeMoveParameter.oldParent, tree));
     },
 
     onTreeNodeBeforeMove: function (node, oldParent, newParent, index, eOpts ) {
@@ -275,6 +347,12 @@ pimcore.object.tree = Class.create({
         //dropping variants only allowed in the same parent
         if(node.data.type == 'variant' && oldParent.data.id != newParent.data.id){
             pimcore.helpers.showNotification(t("error"), t("element_cannot_be_moved"), "error");
+            return false;
+        }
+
+        // dropping objects not allowed if the tree/folder is paginated and sort by index (manual indexes) is enabled
+        if(((newParent.needsPaging) || (newParent.childNodes.length > pimcore.settings['object_tree_paging_limit'])) && (newParent.data.sortBy == "index")){
+            pimcore.helpers.showNotification(t("error"), t("element_cannot_be_moved_because_target_is_paginated"), "error");
             return false;
         }
 
@@ -358,9 +436,16 @@ pimcore.object.tree = Class.create({
             ]);
 
             object_types.each(function (classRecord) {
+                if($this.config.allowedClasses && Object.keys($this.config.allowedClasses).length > 0) {
+                    if (!in_array(classRecord.get("id"), Object.keys($this.config.allowedClasses))) {
+                        return;
+                    }
 
-                if ($this.config.allowedClasses && !in_array(classRecord.get("id"), $this.config.allowedClasses)) {
-                    return;
+                    if ($this.config.allowedClasses[classRecord.get("id")] !== null) {
+                        if (record.data.depth >= $this.config.allowedClasses[classRecord.get("id")]) {
+                            return;
+                        }
+                    }
                 }
 
                 tmpMenuEntry = {
@@ -449,15 +534,6 @@ pimcore.object.tree = Class.create({
                             iconCls: "pimcore_icon_folder pimcore_icon_overlay_add",
                             handler: this.addFolder.bind(this, tree, record)
                         }));
-                    }
-
-                    if (perspectiveCfg.inTreeContextMenu("object.importCsv")) {
-                        menu.add({
-                            text: t('import_csv'),
-                            hideOnClick: false,
-                            iconCls: "pimcore_icon_object pimcore_icon_overlay_upload",
-                            menu: objectMenu.importer
-                        });
                     }
 
                     menu.add("-");
@@ -646,12 +722,33 @@ pimcore.object.tree = Class.create({
                     }
                 }
 
-                if (lockMenu.length > 0) {
+                if (lockMenu.length > 0 && perspectiveCfg.inTreeContextMenu("object.unlock")) {
                     advancedMenuItems.push({
                         text: t('lock'),
                         iconCls: "pimcore_icon_lock",
                         hideOnClick: false,
                         menu: lockMenu
+                    });
+                }
+            }
+
+            // expand and collapse complete tree
+            if (record.data.expandable) {
+                if (record.data.expanded) {
+                    advancedMenuItems.push({
+                        text: t('collapse_children'),
+                        iconCls: "pimcore_icon_collapse_children",
+                        handler: function () {
+                            record.collapse(true);
+                        }.bind(this, record)
+                    });
+                } else {
+                    advancedMenuItems.push({
+                        text: t('expand_children'),
+                        iconCls: "pimcore_icon_expand_children",
+                        handler: function () {
+                            record.expand(true);
+                        }.bind(this, record)
                     });
                 }
             }
@@ -678,7 +775,7 @@ pimcore.object.tree = Class.create({
 
                     let currentSortMethod = record.data.sortBy;
 
-                    if (currentSortMethod == "key" || user.admin) {
+                    if (currentSortMethod !== "key" || user.admin || user.isAllowed("objects_sort_method")) {
                         sortByItems.push({
                             text: t('by_key'),
                             iconCls: "pimcore_icon_alphabetical_sorting_az",
@@ -691,7 +788,7 @@ pimcore.object.tree = Class.create({
                         });
                     }
 
-                    if (currentSortMethod == "index" || user.admin) {
+                    if (currentSortMethod !== "index" || user.admin || user.isAllowed("objects_sort_method")) {
                         sortByItems.push({
                             text: t('by_index'),
                             iconCls: "pimcore_icon_index_sorting",
@@ -722,7 +819,16 @@ pimcore.object.tree = Class.create({
 
         pimcore.helpers.hideRedundantSeparators(menu);
 
-        pimcore.plugin.broker.fireEvent("prepareObjectTreeContextMenu", menu, this, record);
+        const prepareObjectTreeContextMenu = new CustomEvent(pimcore.events.prepareObjectTreeContextMenu, {
+            detail: {
+                menu: menu,
+                tree: this,
+                object: record
+            }
+        });
+
+        document.dispatchEvent(prepareObjectTreeContextMenu);
+
 
         menu.showAt(e.pageX+1, e.pageY+1);
     },
@@ -1097,12 +1203,21 @@ pimcore.object.tree = Class.create({
         let currentSortMethod = record.data.sortBy;
 
         if (currentSortMethod != sortBy && sortBy == "index") {
-            Ext.MessageBox.confirm(t("warning"), t("reindex_warning"),
-                function (tree, record, sortBy, childrenSortOrder, buttonValue) {
-                    if (buttonValue == "yes") {
-                        this.doChangeObjectChildrenSortBy(tree, record, sortBy, childrenSortOrder);
-                    }
-                }.bind(this, tree, record, sortBy, childrenSortOrder));
+
+            // Do not allow sort by index(Manual Indexes) for a paginated tree/folder
+            if(record.needsPaging) {
+                Ext.MessageBox.alert(
+                    t("error"),
+                    t("error_object_change_children_sort_to_index"));
+            }
+            else {
+                Ext.MessageBox.confirm(t("warning"), t("reindex_warning"),
+                    function (tree, record, sortBy, childrenSortOrder, buttonValue) {
+                        if (buttonValue == "yes") {
+                            this.doChangeObjectChildrenSortBy(tree, record, sortBy, childrenSortOrder);
+                        }
+                    }.bind(this, tree, record, sortBy, childrenSortOrder));
+            }
         } else {
             this.doChangeObjectChildrenSortBy(tree, record, sortBy, childrenSortOrder);
         }

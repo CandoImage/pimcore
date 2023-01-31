@@ -20,7 +20,10 @@ use Pimcore\Document\Newsletter\SendingParamContainer;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\Listing;
 
-class DefaultAdapter implements AddressSourceAdapterInterface
+/**
+ * @internal
+ */
+final class DefaultAdapter implements AddressSourceAdapterInterface
 {
     /**
      * @var string
@@ -43,13 +46,11 @@ class DefaultAdapter implements AddressSourceAdapterInterface
     protected $elementsTotal;
 
     /**
-     * @var Listing
+     * @var Listing|null
      */
     protected $list;
 
     /**
-     * IAddressSourceAdapter constructor.
-     *
      * @param array $params
      */
     public function __construct($params)
@@ -128,9 +129,7 @@ class DefaultAdapter implements AddressSourceAdapterInterface
     }
 
     /**
-     * returns array of email addresses for batch sending
-     *
-     * @return SendingParamContainer[]
+     * {@inheritdoc}
      */
     public function getMailAddressesForBatchSending()
     {
@@ -144,7 +143,7 @@ class DefaultAdapter implements AddressSourceAdapterInterface
 
         if (count($ids) > 0) {
             $db = \Pimcore\Db::get();
-            $emails = $db->fetchCol("SELECT email FROM $tableName WHERE o_id IN (" . implode(',', $ids) . ')');
+            $emails = $db->fetchFirstColumn("SELECT email FROM $tableName WHERE o_id IN (" . implode(',', $ids) . ')');
         }
 
         $containers = [];
@@ -156,11 +155,7 @@ class DefaultAdapter implements AddressSourceAdapterInterface
     }
 
     /**
-     * returns params to be set on mail for test sending
-     *
-     * @param string $emailAddress
-     *
-     * @return SendingParamContainer
+     * {@inheritdoc}
      */
     public function getParamsForTestSending($emailAddress)
     {
@@ -177,9 +172,7 @@ class DefaultAdapter implements AddressSourceAdapterInterface
     }
 
     /**
-     * returns total number of newsletter recipients
-     *
-     * @return int
+     * {@inheritdoc}
      */
     public function getTotalRecordCount()
     {
@@ -189,12 +182,7 @@ class DefaultAdapter implements AddressSourceAdapterInterface
     }
 
     /**
-     * returns array of params to be set on mail for single sending
-     *
-     * @param int $limit
-     * @param int $offset
-     *
-     * @return SendingParamContainer[]
+     * {@inheritdoc}
      */
     public function getParamsForSingleSending($limit, $offset)
     {

@@ -45,6 +45,7 @@ pimcore.document.area_abstract = Class.create(pimcore.document.editable, {
                                 } else {
                                     editablesInBox[editableName].render();
                                 }
+                                editablesInBox[editableName].setInherited(editablesInBox[editableName].inherited);
                             });
                         }, 200);
                     }
@@ -69,7 +70,7 @@ pimcore.document.area_abstract = Class.create(pimcore.document.editable, {
 
     getEditablesInDialogBox: function (id) {
         let editablesInDialogBox = {};
-        window.editables.forEach(function (editable) {
+        Object.values(editableManager.getEditables()).forEach(editable => {
             if(editable.getInDialogBox() === id) {
                 editablesInDialogBox[editable.getRealName()] = editable;
             }
@@ -141,5 +142,19 @@ pimcore.document.area_abstract = Class.create(pimcore.document.editable, {
             return container;
         }
     },
+
+    removeEditableDialogbox: function (id) {
+        //remove dialog-box editables
+        Object.values(editableManager.getEditables()).forEach(editable => {
+            if(editable.getInDialogBox() === id) {
+                editableManager.remove(editable.getName());
+            }
+        });
+
+        if (this.dialogBoxes[id]) {
+            this.dialogBoxes[id].destroy();
+            delete this.dialogBoxes[id];
+        }
+    }
 
 });

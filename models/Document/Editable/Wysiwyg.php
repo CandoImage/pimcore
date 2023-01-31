@@ -16,24 +16,25 @@
 namespace Pimcore\Model\Document\Editable;
 
 use Pimcore\Model;
+use Pimcore\Tool\DomCrawler;
 use Pimcore\Tool\Text;
 
 /**
  * @method \Pimcore\Model\Document\Editable\Dao getDao()
  */
-class Wysiwyg extends Model\Document\Editable
+class Wysiwyg extends Model\Document\Editable implements IdRewriterInterface, EditmodeDataInterface
 {
     /**
      * Contains the text
      *
+     * @internal
+     *
      * @var string
      */
-    public $text;
+    protected $text;
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -41,9 +42,7 @@ class Wysiwyg extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -51,11 +50,17 @@ class Wysiwyg extends Model\Document\Editable
     }
 
     /**
-     * Converts the data so it's suitable for the editmode
-     *
-     * @return mixed
+     * @return string
      */
-    public function getDataEditmode()
+    public function getText()
+    {
+        return $this->getData();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDataEditmode() /** : mixed */
     {
         $document = $this->getDocument();
 
@@ -66,9 +71,7 @@ class Wysiwyg extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -81,11 +84,7 @@ class Wysiwyg extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param string $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -95,11 +94,7 @@ class Wysiwyg extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param string $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -109,7 +104,7 @@ class Wysiwyg extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -117,28 +112,7 @@ class Wysiwyg extends Model\Document\Editable
     }
 
     /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-
-        if ($data->text === null or is_string($data->text)) {
-            $this->text = $data->text;
-        } else {
-            throw new \Exception('cannot get values from web service import - invalid data');
-        }
-    }
-
-    /**
-     * @return array
+     * {@inheritdoc}
      */
     public function resolveDependencies()
     {
@@ -146,64 +120,37 @@ class Wysiwyg extends Model\Document\Editable
     }
 
     /**
-     * @param Model\Document\PageSnippet $ownerDocument
-     * @param array $blockedTags
-     *
-     * @return array
+     * {@inheritdoc}
      */
-    public function getCacheTags($ownerDocument, $blockedTags = [])
+    public function getCacheTags(Model\Document\PageSnippet $ownerDocument, array $tags = []): array
     {
-        return Text::getCacheTagsOfWysiwygText($this->text, $blockedTags);
+        return Text::getCacheTagsOfWysiwygText($this->text, $tags);
     }
 
     /**
-     * Rewrites id from source to target, $idMapping contains
-     * array(
-     *  "document" => array(
-     *      SOURCE_ID => TARGET_ID,
-     *      SOURCE_ID => TARGET_ID
-     *  ),
-     *  "object" => array(...),
-     *  "asset" => array(...)
-     * )
-     *
-     * @param array $idMapping
-     *
-     * @return string|void
-     *
-     * @todo: no rewriteIds method ever returns anything, why this one?
+     * { @inheritdoc }
      */
-    public function rewriteIds($idMapping)
+    public function rewriteIds($idMapping) /** : void */
     {
-        $html = str_get_html($this->text);
-        if (!$html) {
-            return $this->text;
-        }
+        $html = new DomCrawler($this->text);
 
-        $s = $html->find('a[pimcore_id],img[pimcore_id]');
+        $elements = $html->filter('a[pimcore_id], img[pimcore_id]');
 
-        if ($s) {
-            foreach ($s as $el) {
-                if ($el->href || $el->src) {
-                    $type = $el->pimcore_type;
-                    $id = (int) $el->pimcore_id;
+        /** @var \DOMElement $el */
+        foreach ($elements as $el) {
+            if ($el->hasAttribute('href') || $el->hasAttribute('src')) {
+                $type = $el->getAttribute('pimcore_type');
+                $id = (int)$el->getAttribute('pimcore_id');
 
-                    if (array_key_exists($type, $idMapping)) {
-                        if (array_key_exists($id, $idMapping[$type])) {
-                            $el->outertext = str_replace('="' . $el->pimcore_id . '"', '="' . $idMapping[$type][$id] . '"', $el->outertext);
-                        }
-                    }
+                if ($idMapping[$type][$id] ?? false) {
+                    $el->setAttribute('pimcore_id', strtr($el->getAttribute('pimcore_id'), $idMapping[$type]));
                 }
             }
         }
 
-        $this->text = $html->save();
+        $this->text = $html->html();
 
         $html->clear();
         unset($html);
-
-        return;
     }
 }
-
-class_alias(Wysiwyg::class, 'Pimcore\Model\Document\Tag\Wysiwyg');

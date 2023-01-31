@@ -15,12 +15,15 @@
 
 namespace Pimcore\Model\Element\Note;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\Document;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Element\Note $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -28,19 +31,20 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM notes WHERE id = ?', $id);
+        $data = $this->db->fetchAssociative('SELECT * FROM notes WHERE id = ?', [$id]);
 
-        if (!$data['id']) {
-            throw new \Exception('Note item with id ' . $id . ' not found');
+        if (!$data) {
+            throw new Model\Exception\NotFoundException('Note item with id ' . $id . ' not found');
         }
+
         $this->assignVariablesToModel($data);
 
         // get key-value data
-        $keyValues = $this->db->fetchAll('SELECT * FROM notes_data WHERE id = ?', [$id]);
+        $keyValues = $this->db->fetchAllAssociative('SELECT * FROM notes_data WHERE id = ?', [$id]);
         $preparedData = [];
 
         foreach ($keyValues as $keyValue) {
@@ -97,11 +101,11 @@ class Dao extends Model\Dao\AbstractDao
             }
         }
 
-        $this->db->insertOrUpdate('notes', $data);
+        Helper::insertOrUpdate($this->db, 'notes', $data);
 
         $lastInsertId = $this->db->lastInsertId();
         if (!$this->model->getId() && $lastInsertId) {
-            $this->model->setId($lastInsertId);
+            $this->model->setId((int) $lastInsertId);
         }
 
         // save data table

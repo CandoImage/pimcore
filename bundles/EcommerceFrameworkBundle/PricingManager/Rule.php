@@ -16,12 +16,14 @@
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager;
 
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
-use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Action\ProductDiscountInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Action\CartActionInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Action\ProductActionInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Condition\BracketInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Rule\Dao;
-use Pimcore\Cache\Runtime;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Logger;
 use Pimcore\Model\AbstractModel;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
  * @method Dao getDao()
@@ -31,22 +33,23 @@ class Rule extends AbstractModel implements RuleInterface
     /**
      * @param int $id
      *
-     * @return RuleInterface
+     * @return RuleInterface|null
      */
     public static function getById($id)
     {
         $cacheKey = Dao::TABLE_NAME . '_' . $id;
 
         try {
-            $rule = Runtime::get($cacheKey);
+            $rule = RuntimeCache::get($cacheKey);
         } catch (\Exception $e) {
             try {
                 $ruleClass = get_called_class();
-                $rule = new $ruleClass;
+                /** @var Rule $rule */
+                $rule = new $ruleClass();
                 $rule->getDao()->getById($id);
 
-                Runtime::set($cacheKey, $rule);
-            } catch (\Exception $ex) {
+                RuntimeCache::set($cacheKey, $rule);
+            } catch (NotFoundException $ex) {
                 Logger::debug($ex->getMessage());
 
                 return null;
@@ -57,7 +60,7 @@ class Rule extends AbstractModel implements RuleInterface
     }
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $id;
 
@@ -77,12 +80,12 @@ class Rule extends AbstractModel implements RuleInterface
     protected $description = [];
 
     /**
-     * @var BracketInterface
+     * @var ConditionInterface|null
      */
-    protected $condition;
+    protected ?ConditionInterface $condition = null;
 
     /**
-     * @var array|ActionInterface
+     * @var ActionInterface[]
      */
     protected $action = [];
 
@@ -108,6 +111,8 @@ class Rule extends AbstractModel implements RuleInterface
      * @param mixed $value
      *
      * @return AbstractModel
+     *
+     * @internal
      */
     public function setValue($key, $value)
     {
@@ -126,7 +131,7 @@ class Rule extends AbstractModel implements RuleInterface
 
                     return $this;
 
-                // objects
+                    // objects
                 case 'setactions':
                 case 'setcondition':
                     $value = unserialize($value);
@@ -141,9 +146,9 @@ class Rule extends AbstractModel implements RuleInterface
     }
 
     /**
-     * @param int $id
+     * @param int|null $id
      *
-     * @return $this|RuleInterface
+     * @return $this
      */
     public function setId($id)
     {
@@ -153,7 +158,7 @@ class Rule extends AbstractModel implements RuleInterface
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {
@@ -164,7 +169,7 @@ class Rule extends AbstractModel implements RuleInterface
      * @param string $label
      * @param string $locale
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setLabel($label, $locale = null)
     {
@@ -195,7 +200,7 @@ class Rule extends AbstractModel implements RuleInterface
      * @param string $name
      * @param string|null $locale
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setName($name, $locale = null)
     {
@@ -208,7 +213,7 @@ class Rule extends AbstractModel implements RuleInterface
      * @param string $description
      * @param string $locale
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setDescription($description, $locale = null)
     {
@@ -230,7 +235,7 @@ class Rule extends AbstractModel implements RuleInterface
     /**
      * @param string $behavior
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setBehavior($behavior)
     {
@@ -250,7 +255,7 @@ class Rule extends AbstractModel implements RuleInterface
     /**
      * @param bool $active
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setActive($active)
     {
@@ -270,7 +275,7 @@ class Rule extends AbstractModel implements RuleInterface
     /**
      * @param ConditionInterface $condition
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setCondition(ConditionInterface $condition)
     {
@@ -280,17 +285,17 @@ class Rule extends AbstractModel implements RuleInterface
     }
 
     /**
-     * @return ConditionInterface
+     * @return ConditionInterface|null
      */
-    public function getCondition()
+    public function getCondition(): ?ConditionInterface
     {
         return $this->condition;
     }
 
     /**
-     * @param array $action
+     * @param ActionInterface[] $action
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setActions(array $action)
     {
@@ -300,7 +305,7 @@ class Rule extends AbstractModel implements RuleInterface
     }
 
     /**
-     * @return array|ActionInterface
+     * @return ActionInterface[]
      */
     public function getActions()
     {
@@ -310,7 +315,7 @@ class Rule extends AbstractModel implements RuleInterface
     /**
      * @param int $prio
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setPrio($prio)
     {
@@ -328,7 +333,7 @@ class Rule extends AbstractModel implements RuleInterface
     }
 
     /**
-     * @return RuleInterface
+     * @return $this
      */
     public function save()
     {
@@ -370,7 +375,23 @@ class Rule extends AbstractModel implements RuleInterface
     public function hasProductActions()
     {
         foreach ($this->getActions() as $action) {
-            if ($action instanceof ProductDiscountInterface) {
+            if ($action instanceof ProductActionInterface) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * checks if rule has at least one action that changes cart price
+     *
+     * @return bool
+     */
+    public function hasCartActions()
+    {
+        foreach ($this->getActions() as $action) {
+            if ($action instanceof CartActionInterface) {
                 return true;
             }
         }
@@ -381,13 +402,14 @@ class Rule extends AbstractModel implements RuleInterface
     /**
      * @param EnvironmentInterface $environment
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function executeOnProduct(EnvironmentInterface $environment)
     {
         foreach ($this->getActions() as $action) {
-            // @var ActionInterface $action
-            $action->executeOnProduct($environment);
+            if ($action instanceof ProductActionInterface) {
+                $action->executeOnProduct($environment);
+            }
         }
 
         return $this;
@@ -396,13 +418,14 @@ class Rule extends AbstractModel implements RuleInterface
     /**
      * @param EnvironmentInterface $environment
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function executeOnCart(EnvironmentInterface $environment)
     {
         foreach ($this->getActions() as $action) {
-            // @var ActionInterface $action
-            $action->executeOnCart($environment);
+            if ($action instanceof CartActionInterface) {
+                $action->executeOnCart($environment);
+            }
         }
 
         return $this;

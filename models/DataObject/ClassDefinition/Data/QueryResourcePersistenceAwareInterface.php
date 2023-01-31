@@ -33,7 +33,7 @@ interface QueryResourcePersistenceAwareInterface
     public function getDataForQueryResource($data, $object = null, $params = []);
 
     /**
-     * @return string|array
+     * @return string|array|null
      */
     public function getQueryColumnType();
 }

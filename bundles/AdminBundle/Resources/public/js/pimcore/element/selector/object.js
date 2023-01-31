@@ -61,9 +61,9 @@ pimcore.element.selector.object = Class.create(pimcore.element.selector.abstract
         };
 
         // check for restrictions
-        var possibleRestrictions = ["folder", "object", "variant"];
-        var filterStore = [];
-        var selectedStore = [];
+        let possibleRestrictions = pimcore.globalmanager.get('object_search_types');
+        let filterStore = [];
+        let selectedStore = [];
         for (i=0; i<possibleRestrictions.length; i++) {
             if(this.parent.restrictions.subtype.object && in_array(possibleRestrictions[i], this.parent.restrictions.subtype.object )) {
                 filterStore.push([possibleRestrictions[i], t(possibleRestrictions[i])]);
@@ -73,13 +73,13 @@ pimcore.element.selector.object = Class.create(pimcore.element.selector.abstract
 
         // add all to store if empty
         if(filterStore.length < 1) {
-            for (var i=0; i<possibleRestrictions.length; i++) {
+            for (let i=0; i<possibleRestrictions.length; i++) {
                 filterStore.push([possibleRestrictions[i], t(possibleRestrictions[i])]);
                 selectedStore.push(possibleRestrictions[i]);
             }
         }
 
-        var selectedValue = selectedStore.join(",");
+        let selectedValue = selectedStore.join(",");
         if(filterStore.length > 1) {
             filterStore.splice(0,0,[selectedValue, t("all_types")]);
         }
@@ -236,7 +236,7 @@ pimcore.element.selector.object = Class.create(pimcore.element.selector.abstract
                 store: this.selectionStore,
                 columns: [
                     {text: t("type"), width: 40, sortable: true, dataIndex: 'subtype'},
-                    {text: t("filename"), flex: 1, sortable: false, dataIndex: 'filename'}
+                    {text: t("key"), flex: 1, sortable: true, dataIndex: 'filename'}
                 ],
                 viewConfig: {
                     forceFit: true
@@ -368,6 +368,9 @@ pimcore.element.selector.object = Class.create(pimcore.element.selector.abstract
                 reader: {
                     type: 'json',
                     rootProperty: 'data'
+                },
+                extraParams: {
+                    type: 'object'
                 }
             },
             fields: ["id","fullpath","type","subtype","filename",{name:"classname",convert: function(v, rec){
@@ -385,7 +388,7 @@ pimcore.element.selector.object = Class.create(pimcore.element.selector.abstract
             {text: 'ID', width: 40, sortable: true, dataIndex: 'id', hidden: true},
             {text: t("published"), width: 40, sortable: true, dataIndex: 'published', hidden: true},
             {text: t("path"), flex: 200, sortable: true, dataIndex: 'fullpath', renderer: Ext.util.Format.htmlEncode},
-            {text: t("filename"), width: 200, sortable: false, dataIndex: 'filename', hidden: true, renderer: Ext.util.Format.htmlEncode},
+            {text: t("key"), width: 200, sortable: true, dataIndex: 'filename', hidden: true, renderer: Ext.util.Format.htmlEncode},
             {text: t("class"), width: 200, sortable: true, dataIndex: 'classname'}
         ];
 
@@ -406,7 +409,16 @@ pimcore.element.selector.object = Class.create(pimcore.element.selector.abstract
             plugins: ['pimcore.gridfilters'],
             viewConfig: {
                 forceFit: false,
-                xtype: 'patchedgridview'
+                xtype: 'patchedgridview',
+                listeners: {
+                    refresh: function (dataview) {
+                        Ext.each(dataview.panel.columns, function (column) {
+                            if (column.autoSizeColumn === true) {
+                                column.autoSize();
+                            }
+                        })
+                    }
+                }
             },
             cls: 'pimcore_object_grid_panel',
             selModel: this.getGridSelModel(),
@@ -574,12 +586,12 @@ pimcore.element.selector.object = Class.create(pimcore.element.selector.abstract
     },
 
     applyExtraParamsToStore: function () {
-        var formValues = this.formPanel.getForm().getFieldValues();
+        let formValues = this.formPanel.getForm().getFieldValues();
 
-        var proxy = this.store.getProxy();
-
-        proxy.setExtraParam("type", "object");
-        proxy.setExtraParam("query", formValues.query);
+        let proxy = this.store.getProxy();
+        let query = Ext.util.Format.htmlEncode(formValues.query);
+        proxy.setExtraParam("query", query);
+        proxy.setExtraParam("type", 'object');
         proxy.setExtraParam("subtype", formValues.subtype);
         proxy.setExtraParam("class", formValues.class);
 
@@ -591,7 +603,7 @@ pimcore.element.selector.object = Class.create(pimcore.element.selector.abstract
             proxy.setExtraParam("context", Ext.encode(this.parent.config.context));
         }
 
-        this.updateTabTitle(formValues.query);
+        this.updateTabTitle(query);
     },
 
     search: function () {

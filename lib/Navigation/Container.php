@@ -110,7 +110,7 @@ class Container implements \RecursiveIterator, \Countable
      *
      * @param  Page|array $page  page to add
      *
-     * @return Container fluent interface, returns self
+     * @return $this fluent interface, returns self
      *
      * @throws \Exception if page is invalid
      */
@@ -147,20 +147,17 @@ class Container implements \RecursiveIterator, \Countable
     /**
      * Adds several pages at once
      *
-     * @param  Page[]|Container  $pages  pages to add
+     * @param  iterable<Page>  $pages  pages to add
      *
-     * @return Container fluent interface, returns self
+     * @return $this fluent interface, returns self
      *
      * @throws \Exception if $pages is not array or Container
      */
     public function addPages($pages)
     {
-        if ($pages instanceof self) {
-            $pages = iterator_to_array($pages);
-        }
-
-        if (!is_array($pages)) {
-            throw new \Exception('Invalid argument: $pages must be an array  or an instance of Container');
+        // This should be checked via parameter type in Pimcore 11
+        if (!$pages instanceof self && !is_array($pages)) {
+            throw new \Exception('Invalid argument: $pages must be an array or an instance of ' . self::class);
         }
 
         foreach ($pages as $page) {
@@ -175,7 +172,7 @@ class Container implements \RecursiveIterator, \Countable
      *
      * @param  Page[] $pages pages to set
      *
-     * @return Container  fluent interface, returns self
+     * @return $this  fluent interface, returns self
      */
     public function setPages(array $pages)
     {
@@ -224,7 +221,6 @@ class Container implements \RecursiveIterator, \Countable
         }
 
         if ($recursive) {
-            /** @var Page $childPage */
             foreach ($this->_pages as $childPage) {
                 if ($childPage->hasPage($page, true)) {
                     $childPage->removePage($page, true);
@@ -240,7 +236,7 @@ class Container implements \RecursiveIterator, \Countable
     /**
      * Removes all pages in container
      *
-     * @return Container  fluent interface, returns self
+     * @return $this  fluent interface, returns self
      */
     public function removePages()
     {
@@ -326,7 +322,7 @@ class Container implements \RecursiveIterator, \Countable
                         // Use regex?
                         if (true === $useRegex) {
                             foreach ($item as $item2) {
-                                if (0 !== preg_match($value, $item2)) {
+                                if (preg_match($value, $item2)) {
                                     return $page;
                                 }
                             }
@@ -338,7 +334,7 @@ class Container implements \RecursiveIterator, \Countable
                     } else {
                         // Use regex?
                         if (true === $useRegex) {
-                            if (0 !== preg_match($value, $item)) {
+                            if (preg_match($value, $item)) {
                                 return $page;
                             }
                         } else {
@@ -394,24 +390,32 @@ class Container implements \RecursiveIterator, \Countable
                         // Use regex?
                         if (true === $useRegex) {
                             foreach ($item as $item2) {
-                                if (0 !== preg_match($value, $item2)) {
+                                if (preg_match($value, $item2)) {
                                     $found[] = $page;
+
+                                    break 2;
                                 }
                             }
                         } else {
                             if (in_array($value, $item)) {
                                 $found[] = $page;
+
+                                break;
                             }
                         }
                     } else {
                         // Use regex?
                         if (true === $useRegex) {
-                            if (0 !== preg_match($value, $item)) {
+                            if (preg_match($value, $item)) {
                                 $found[] = $page;
+
+                                break;
                             }
                         } else {
                             if ($item == $value) {
                                 $found[] = $page;
+
+                                break;
                             }
                         }
                     }
@@ -422,7 +426,7 @@ class Container implements \RecursiveIterator, \Countable
 
             // Use regex?
             if (true === $useRegex) {
-                if (0 !== preg_match($value, $pageProperty)) {
+                if (preg_match($value, $pageProperty)) {
                     $found[] = $page;
                 }
             } else {
@@ -450,7 +454,7 @@ class Container implements \RecursiveIterator, \Countable
      * @param  bool   $useRegex  [optional] if true PHP's preg_match is used.
      *                           Default is false.
      *
-     * @return Page|Page[]|null  matching page or null
+     * @return Page|array<Page>|null  matching page or null
      */
     public function findBy($property, $value, $all = false, $useRegex = false)
     {
@@ -495,7 +499,7 @@ class Container implements \RecursiveIterator, \Countable
      *
      * @return array
      */
-    public function toArray()
+    public function toArray(): array
     {
         $pages = [];
 
@@ -510,35 +514,28 @@ class Container implements \RecursiveIterator, \Countable
     }
 
     /**
-     * Returns current page
+     * @return Page
      *
-     * Implements RecursiveIterator interface.
-     *
-     * @return Page       current page or null
-     *
-     * @throws \Exception  if the index is invalid
+     * @throws \Exception
      */
-    public function current()
+    #[\ReturnTypeWillChange]
+    public function current()// : Page
     {
         $this->_sort();
-        current($this->_index);
         $hash = key($this->_index);
 
         if (isset($this->_pages[$hash])) {
             return $this->_pages[$hash];
-        } else {
-            throw new \Exception('Corruption detected in container; invalid key found in internal iterator');
         }
+
+        throw new \Exception('Corruption detected in container; invalid key found in internal iterator');
     }
 
     /**
-     * Returns hash code of current page
-     *
-     * Implements RecursiveIterator interface.
-     *
-     * @return string  hash code of current page
+     * @return int|string|null
      */
-    public function key()
+    #[\ReturnTypeWillChange]
+    public function key()// : mixed
     {
         $this->_sort();
 
@@ -546,39 +543,30 @@ class Container implements \RecursiveIterator, \Countable
     }
 
     /**
-     * Moves index pointer to next page in the container
-     *
-     * Implements RecursiveIterator interface.
-     *
      * @return void
      */
-    public function next()
+    #[\ReturnTypeWillChange]
+    public function next()// : void
     {
         $this->_sort();
         next($this->_index);
     }
 
     /**
-     * Sets index pointer to first page in the container
-     *
-     * Implements RecursiveIterator interface.
-     *
      * @return void
      */
-    public function rewind()
+    #[\ReturnTypeWillChange]
+    public function rewind()// : void
     {
         $this->_sort();
         reset($this->_index);
     }
 
     /**
-     * Checks if container index is valid
-     *
-     * Implements RecursiveIterator interface.
-     *
      * @return bool
      */
-    public function valid()
+    #[\ReturnTypeWillChange]
+    public function valid()// : bool
     {
         $this->_sort();
 
@@ -586,25 +574,19 @@ class Container implements \RecursiveIterator, \Countable
     }
 
     /**
-     * Proxy to hasPages()
-     *
-     * Implements RecursiveIterator interface.
-     *
-     * @return bool  whether container has any pages
+     * @return bool
      */
-    public function hasChildren()
+    #[\ReturnTypeWillChange]
+    public function hasChildren()// : bool
     {
         return $this->hasPages();
     }
 
     /**
-     * Returns the child container.
-     *
-     * Implements RecursiveIterator interface.
-     *
      * @return Page|null
      */
-    public function getChildren()
+    #[\ReturnTypeWillChange]
+    public function getChildren()// : Page|null
     {
         $hash = key($this->_index);
 
@@ -616,13 +598,10 @@ class Container implements \RecursiveIterator, \Countable
     }
 
     /**
-     * Returns number of pages in container
-     *
-     * Implements Countable interface.
-     *
-     * @return int  number of pages in the container
+     * @return int
      */
-    public function count()
+    #[\ReturnTypeWillChange]
+    public function count()// : int
     {
         return count($this->_index);
     }

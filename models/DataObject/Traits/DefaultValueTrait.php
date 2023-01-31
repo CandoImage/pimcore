@@ -22,6 +22,9 @@ use Pimcore\Model\DataObject\Exception\InheritanceParentNotFoundException;
 use Pimcore\Model\DataObject\Localizedfield;
 use Pimcore\Model\DataObject\Objectbrick\Data\AbstractData;
 
+/**
+ * @internal
+ */
 trait DefaultValueTrait
 {
     /** @var string */
@@ -31,7 +34,7 @@ trait DefaultValueTrait
      * @param \Pimcore\Model\DataObject\Concrete $object
      * @param array $context
      *
-     * @return null|string
+     * @return mixed
      */
     abstract protected function doGetDefaultValue($object, $context = []);
 
@@ -62,16 +65,8 @@ trait DefaultValueTrait
             $class = null;
             $owner = isset($params['owner']) ? $params['owner'] : null;
             if ($owner instanceof Concrete) {
-                if ($isUpdate) {
-                    // only consider default value for new objects
-                    return $data;
-                }
                 $class = $owner->getClass();
             } elseif ($owner instanceof AbstractData) {
-                if ($isUpdate) {
-                    // only consider default value for new bricks
-                    return $data;
-                }
                 $class = $owner->getObject()->getClass();
             }
 

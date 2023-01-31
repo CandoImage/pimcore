@@ -23,7 +23,10 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\HttpKernel\DependencyInjection\ConfigurableExtension;
 
-class PimcoreInstallExtension extends ConfigurableExtension
+/**
+ * @internal
+ */
+final class PimcoreInstallExtension extends ConfigurableExtension
 {
     protected function loadInternal(array $config, ContainerBuilder $container)
     {
@@ -32,7 +35,7 @@ class PimcoreInstallExtension extends ConfigurableExtension
             new FileLocator(__DIR__ . '/../Resources/config')
         );
 
-        $loader->load('services.yml');
+        $loader->load('services.yaml');
 
         $this->configureInstaller($container, $config);
     }

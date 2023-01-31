@@ -29,5 +29,3 @@ interface CartProductActionAddInterface
      */
     public function trackCartProductActionAdd(CartInterface $cart, ProductInterface $product, $quantity = 1);
 }
-
-class_alias(CartProductActionAddInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\ICartProductActionAdd');

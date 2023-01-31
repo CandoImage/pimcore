@@ -15,9 +15,16 @@
 
 namespace Pimcore\Log\Handler;
 
+use Doctrine\DBAL\Connection;
 use Monolog\Handler\AbstractProcessingHandler;
+use Monolog\Logger;
 use Pimcore\Db;
+use Psr\Log\LogLevel;
 
+/**
+ * @phpstan-import-type Level from \Monolog\Logger
+ * @phpstan-import-type LevelName from \Monolog\Logger
+ */
 class ApplicationLoggerDb extends AbstractProcessingHandler
 {
     const TABLE_NAME = 'application_logs';
@@ -25,18 +32,18 @@ class ApplicationLoggerDb extends AbstractProcessingHandler
     const TABLE_ARCHIVE_PREFIX = 'application_logs_archive';
 
     /**
-     * @var Db\ConnectionInterface
+     * @var Connection
      */
     private $db;
 
     /**
-     * ApplicationLoggerDb constructor.
-     *
-     * @param Db\ConnectionInterface $db
-     * @param string $level
+     * @param Connection $db
+     * @param int|string $level
      * @param bool $bubble
+     *
+     * @phpstan-param Level|LevelName|LogLevel::* $level
      */
-    public function __construct(Db\ConnectionInterface $db, $level = 'debug', $bubble = true)
+    public function __construct(Connection $db, $level = Logger::DEBUG, $bubble = true)
     {
         $this->db = $db;
         parent::__construct($level, $bubble);
@@ -45,7 +52,7 @@ class ApplicationLoggerDb extends AbstractProcessingHandler
     /**
      * @param array $record
      */
-    public function write(array $record)
+    public function write(array $record): void
     {
         $data = [
             'pid' => getmypid(),
@@ -63,22 +70,18 @@ class ApplicationLoggerDb extends AbstractProcessingHandler
     }
 
     /**
-     * @static
-     *
      * @return string[]
      */
     public static function getComponents()
     {
         $db = Db::get();
 
-        $components = $db->fetchCol('SELECT component FROM ' . \Pimcore\Log\Handler\ApplicationLoggerDb::TABLE_NAME . ' WHERE NOT ISNULL(component) GROUP BY component;');
+        $components = $db->fetchFirstColumn('SELECT component FROM ' . \Pimcore\Log\Handler\ApplicationLoggerDb::TABLE_NAME . ' WHERE NOT ISNULL(component) GROUP BY component;');
 
         return $components;
     }
 
     /**
-     * @static
-     *
      * @return string[]
      */
     public static function getPriorities()
@@ -97,7 +100,7 @@ class ApplicationLoggerDb extends AbstractProcessingHandler
 
         $db = Db::get();
 
-        $priorityNumbers = $db->fetchCol('SELECT priority FROM ' . \Pimcore\Log\Handler\ApplicationLoggerDb::TABLE_NAME . ' WHERE NOT ISNULL(priority) GROUP BY priority;');
+        $priorityNumbers = $db->fetchFirstColumn('SELECT priority FROM ' . \Pimcore\Log\Handler\ApplicationLoggerDb::TABLE_NAME . ' WHERE NOT ISNULL(priority) GROUP BY priority;');
         foreach ($priorityNumbers as $priorityNumber) {
             $priorities[$priorityNumber] = $priorityNames[$priorityNumber];
         }

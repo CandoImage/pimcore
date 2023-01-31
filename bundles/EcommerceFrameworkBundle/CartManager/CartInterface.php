@@ -40,12 +40,12 @@ interface CartInterface
     const COUNT_MAIN_AND_SUB_ITEMS = 'main_and_sub';
 
     /**
-     * @return int
+     * @return string|int|null
      */
     public function getId();
 
     /**
-     * @param int $id
+     * @param string|int $id
      */
     public function setId($id);
 
@@ -55,25 +55,19 @@ interface CartInterface
     public function getItems();
 
     /**
+     * @param CartItemInterface[]|null $items
+     */
+    public function setItems($items);
+
+    /**
      * @return bool
      */
     public function isEmpty();
 
     /**
-     * returns if cart is read only
-     * default implementation checks if order object exists and if order state is PAYMENT_PENDING
-     *
-     * @return bool
-     *
-     * @deprecated use checkout implementation V7 instead
-     *
-     */
-    public function isCartReadOnly();
-
-    /**
      * @param string $itemKey
      *
-     * @return CartItemInterface
+     * @return CartItemInterface|null
      */
     public function getItem($itemKey);
 
@@ -85,7 +79,7 @@ interface CartInterface
     /**
      * @param string $itemKey
      *
-     * @return CartItemInterface
+     * @return CartItemInterface|null
      */
     public function getGiftItem($itemKey);
 
@@ -168,20 +162,20 @@ interface CartInterface
     /**
      * calculates amount of items in cart
      *
-     * @param mixed $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
+     * @param string $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
      *
      * @return int
      */
-    public function getItemAmount(/*?string*/ $countSubItems = false);
+    public function getItemAmount(string $countSubItems = self::COUNT_MAIN_ITEMS_ONLY);
 
     /**
      * counts items in cart (does not consider item amount)
      *
-     * @param mixed $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
+     * @param string $countSubItems - use one of COUNT_MAIN_ITEMS_ONLY, COUNT_MAIN_OR_SUB_ITEMS, COUNT_MAIN_AND_SUB_ITEMS
      *
      * @return int
      */
-    public function getItemCount(/*?string*/ $countSubItems = false);
+    public function getItemCount(string $countSubItems = self::COUNT_MAIN_ITEMS_ONLY);
 
     /**
      * @param int $count
@@ -220,7 +214,7 @@ interface CartInterface
      *
      * @param string $key
      *
-     * @return string
+     * @return string|null
      */
     public function getCheckoutData($key);
 
@@ -261,7 +255,7 @@ interface CartInterface
     public function setCreationDate(\DateTime $creationDate = null);
 
     /**
-     * @return \DateTime
+     * @return \DateTime|null
      */
     public function getModificationDate();
 
@@ -348,5 +342,3 @@ interface CartInterface
      */
     public function isVoucherErrorCode($errorCode);
 }
-
-class_alias(CartInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\ICart');

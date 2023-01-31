@@ -4,7 +4,7 @@ Pimcore bundles follow the same rules as normal bundles, but need to implement `
 in order to show up in the extension manager. This gives you the following possibilities:
 
 * The bundle shows up in the extension manager and can be enabled/disabled from there. Normal bundles need to be registered
-  via code in your `AppKernel.php`.
+  via code in your `Kernel.php`.
 * In the extension manager, you're able to trigger installation/uninstallation of bundles, for example to install/update 
   database structure.
 * The bundle adds methods to natively register JS and CSS files to be loaded with the admin interface and in editmode. 
@@ -77,7 +77,7 @@ Read more in [Installers](./01_Installers.md).
 ## Registration to extension manager
 
 To make use of the installer, a bundle needs to be managed through the extension manager and not manually registered on
-the `AppKernel` as normal bundles. As the extension manager needs to find the bundles it can manage, a Pimcore bundle needs
+the `App\Kernel` as normal bundles. As the extension manager needs to find the bundles it can manage, a Pimcore bundle needs
 to fulfill the following requirements:
 
   * Implement the `PimcoreBundleInterface`
@@ -119,14 +119,11 @@ An example of a `composer.json` defining a Pimcore bundle:
 
 #### Returning the composer package version in extension manager
 
-If you provide your bundle as composer package, you'll probably want to show the composer version of your bundle in the
-extension manager grid. As pimcore includes the [ocramius/package-versions](https://github.com/Ocramius/PackageVersions)
-library which generates a list of package versions installed via composer you can easily use that library to return the 
-installed version of your bundle.
+Pimcore provides a `Pimcore\Extension\Bundle\Traits\PackageVersionTrait` which you can include in your bundle. The trait
+includes a `getComposerPackageName` method which will return the name defined in your `composer.json` file.
 
-Pimcore provides a `Pimcore\Extension\Bundle\Traits\PackageVersionTrait` which you can include in your bundle. All you need
-to do is to implement a `getComposerPackageName` method returning the name of your composer package (e.g. `company/foo-bundle`):
-
+If you want to change the default behavior, all you need to do is to override the `getComposerPackageName` method returning
+the name of your composer package (e.g. `company/foo-bundle`):
 
 ```php
 <?php

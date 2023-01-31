@@ -15,10 +15,14 @@
 
 namespace Pimcore\Model\Version;
 
+use Pimcore\Db\Helper;
 use Pimcore\Logger;
 use Pimcore\Model;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Version $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -26,14 +30,14 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int $id
      *
-     * @throws \Exception
+     * @throws NotFoundException
      */
     public function getById($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM versions WHERE id = ?', $id);
+        $data = $this->db->fetchAssociative('SELECT * FROM versions WHERE id = ?', [$id]);
 
-        if (!$data['id']) {
-            throw new \Exception('version with id ' . $id . ' not found');
+        if (!$data) {
+            throw new NotFoundException('version with id ' . $id . ' not found');
         }
 
         $this->assignVariablesToModel($data);
@@ -61,11 +65,11 @@ class Dao extends Model\Dao\AbstractDao
             }
         }
 
-        $this->db->insertOrUpdate('versions', $data);
+        Helper::insertOrUpdate($this->db, 'versions', $data);
 
         $lastInsertId = $this->db->lastInsertId();
         if (!$this->model->getId() && $lastInsertId) {
-            $this->model->setId($lastInsertId);
+            $this->model->setId((int) $lastInsertId);
         }
 
         return $this->model->getId();
@@ -98,7 +102,7 @@ class Dao extends Model\Dao\AbstractDao
      */
     public function getBinaryFileIdForHash(string $hash): ?int
     {
-        $id = $this->db->fetchOne('SELECT IFNULL(binaryFileId, id) FROM versions WHERE binaryFileHash = ? AND cid = ? ORDER BY id ASC LIMIT 1', [$hash, $this->model->getCid()]);
+        $id = $this->db->fetchOne('SELECT IFNULL(binaryFileId, id) FROM versions WHERE binaryFileHash = ? AND cid = ? AND storageType = ? ORDER BY id ASC LIMIT 1', [$hash, $this->model->getCid(), $this->model->getStorageType()]);
         if (!$id) {
             return null;
         }
@@ -139,10 +143,10 @@ class Dao extends Model\Dao\AbstractDao
             $count = 0;
             $stop = false;
             foreach ($elementTypes as $elementType) {
-                if (isset($elementType['days']) && $elementType['days'] > 0) {
+                if (isset($elementType['days']) && !is_null($elementType['days'])) {
                     // by days
                     $deadline = time() - ($elementType['days'] * 86400);
-                    $tmpVersionIds = $this->db->fetchCol('SELECT id FROM versions as a WHERE (ctype = ? AND date < ?) AND NOT public AND id NOT IN (' . $ignoreIdsList . ')', [$elementType['elementType'], $deadline]);
+                    $tmpVersionIds = $this->db->fetchFirstColumn('SELECT id FROM versions as a WHERE (ctype = ? AND date < ?) AND NOT public AND id NOT IN (' . $ignoreIdsList . ')', [$elementType['elementType'], $deadline]);
                     $versionIds = array_merge($versionIds, $tmpVersionIds);
                 } else {
                     // by steps

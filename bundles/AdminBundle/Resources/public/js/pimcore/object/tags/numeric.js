@@ -83,7 +83,8 @@ pimcore.object.tags.numeric = Class.create(pimcore.object.tags.abstract, {
         var input = {
             fieldLabel: this.fieldConfig.title,
             name: this.fieldConfig.name,
-            componentCls: "object_field object_field_type_" + this.type
+            componentCls: this.getWrapperClassNames(),
+            mouseWheelEnabled: false
         };
 
         if (!isNaN(this.data)) {
@@ -99,7 +100,14 @@ pimcore.object.tags.numeric = Class.create(pimcore.object.tags.abstract, {
         if (this.fieldConfig.labelWidth) {
             input.labelWidth = this.fieldConfig.labelWidth;
         }
-        input.width += input.labelWidth;
+
+        if (this.fieldConfig.labelAlign) {
+            input.labelAlign = this.fieldConfig.labelAlign;
+        }
+
+        if (!this.fieldConfig.labelAlign || 'left' === this.fieldConfig.labelAlign) {
+            input.width = this.sumWidths(input.width, input.labelWidth);
+        }
 
         if (this.fieldConfig["unsigned"]) {
             input.minValue = 0;
@@ -131,7 +139,9 @@ pimcore.object.tags.numeric = Class.create(pimcore.object.tags.abstract, {
         var input = {
             fieldLabel: this.fieldConfig.title,
             name: this.fieldConfig.name,
-            componentCls: "object_field object_field_type_" + this.type,
+            labelWidth: 100,
+            width: 175,
+            componentCls: this.getWrapperClassNames(),
         };
 
         if (!isNaN(this.data)) {

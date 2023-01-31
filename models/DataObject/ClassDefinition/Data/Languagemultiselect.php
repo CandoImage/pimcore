@@ -16,6 +16,7 @@
 namespace Pimcore\Model\DataObject\ClassDefinition\Data;
 
 use Pimcore\Model;
+use Pimcore\Model\DataObject\ClassDefinition\Service;
 use Pimcore\Tool;
 
 class Languagemultiselect extends Model\DataObject\ClassDefinition\Data\Multiselect
@@ -23,15 +24,24 @@ class Languagemultiselect extends Model\DataObject\ClassDefinition\Data\Multisel
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'languagemultiselect';
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $onlySystemLanguages = false;
 
+    /**
+     * @internal
+     *
+     * @throws \Exception
+     */
     public function configureOptions()
     {
         $validLanguages = (array) Tool::getValidLanguages();
@@ -85,5 +95,29 @@ class Languagemultiselect extends Model\DataObject\ClassDefinition\Data\Multisel
         $obj->configureOptions();
 
         return $obj;
+    }
+
+    /**
+     * @return $this
+     */
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize()// : static
+    {
+        if (Service::doRemoveDynamicOptions()) {
+            $this->options = null;
+        }
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function resolveBlockedVars(): array
+    {
+        $blockedVars = parent::resolveBlockedVars();
+        $blockedVars[] = 'options';
+
+        return $blockedVars;
     }
 }

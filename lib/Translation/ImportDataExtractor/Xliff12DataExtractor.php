@@ -40,7 +40,7 @@ class Xliff12DataExtractor implements ImportDataExtractorInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function extractElement(string $importId, int $stepId): ?AttributeSet
     {
@@ -90,7 +90,7 @@ class Xliff12DataExtractor implements ImportDataExtractorInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getImportFilePath(string $importId): string
     {
@@ -98,7 +98,7 @@ class Xliff12DataExtractor implements ImportDataExtractorInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function countSteps(string $importId): int
     {

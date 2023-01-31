@@ -17,17 +17,31 @@ declare(strict_types=1);
 
 namespace Pimcore\Bundle\AdminBundle\Security\Factory;
 
-use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory\SecurityFactoryInterface;
+use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory\AuthenticatorFactoryInterface;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 
-class PreAuthenticatedAdminSessionFactory implements SecurityFactoryInterface
+class PreAuthenticatedAdminSessionFactory implements AuthenticatorFactoryInterface
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
+     */
+    public function createAuthenticator(ContainerBuilder $container, string $firewallName, array $config, string $userProviderId): string
+    {
+        $authenticatorId = 'pimcore.security.authenticator.admin_pre_auth.' . $firewallName;
+        $container
+            ->setDefinition($authenticatorId, new ChildDefinition('pimcore.security.authenticator.admin_pre_auth'))
+            ->replaceArgument('$userProvider', new Reference($userProviderId))
+            ->replaceArgument('$firewallName', $firewallName);
+
+        return $authenticatorId;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function create(ContainerBuilder $container, $id, $config, $userProvider, $defaultEntryPoint): array
     {
@@ -53,7 +67,15 @@ class PreAuthenticatedAdminSessionFactory implements SecurityFactoryInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
+     */
+    public function getPriority(): int
+    {
+        return 0;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function getPosition(): string
     {
@@ -61,7 +83,7 @@ class PreAuthenticatedAdminSessionFactory implements SecurityFactoryInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getKey(): string
     {
@@ -69,21 +91,22 @@ class PreAuthenticatedAdminSessionFactory implements SecurityFactoryInterface
     }
 
     /**
-     * @param NodeDefinition|ArrayNodeDefinition $builder
+     * @param NodeDefinition $builder
      */
     public function addConfiguration(NodeDefinition $builder)
     {
         // make sure only the pimcore_admin user provider can be used with this authentication provider
-        $builder
-            ->children()
-                ->scalarNode('provider')
-                    ->defaultValue('pimcore_admin')
-                    ->validate()
-                    ->ifNotInArray(['pimcore_admin'])
-                        ->thenInvalid('The pimcore_admin_pre_auth authenticator can only handle Pimcore admin users through the "pimcore_admin" provider')
+        if ($builder instanceof ArrayNodeDefinition) {
+            $builder
+                ->children()
+                    ->scalarNode('provider')
+                        ->defaultValue('pimcore_admin')
+                        ->validate()
+                            ->ifNotInArray(['pimcore_admin'])
+                            ->thenInvalid('The pimcore_admin_pre_auth authenticator can only handle Pimcore admin users through the "pimcore_admin" provider')
+                        ->end()
                     ->end()
-                ->end()
-            ->end()
-        ;
+                ->end();
+        }
     }
 }

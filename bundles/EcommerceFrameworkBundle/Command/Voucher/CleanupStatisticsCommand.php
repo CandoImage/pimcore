@@ -20,6 +20,9 @@ use Pimcore\Console\AbstractCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class CleanupStatisticsCommand extends AbstractCommand
 {
     protected function configure()
@@ -34,7 +37,7 @@ class CleanupStatisticsCommand extends AbstractCommand
      *
      * @return int
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->output->writeln('<comment>*</comment> Cleaning up <info>statistics</info>');
         Factory::getInstance()->getVoucherService()->cleanUpStatistics();

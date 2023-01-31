@@ -15,6 +15,8 @@
 
 namespace Pimcore\Tool;
 
+use Onnov\DetectEncoding\EncodingDetector;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\Document;
@@ -25,7 +27,7 @@ class Text
     /**
      * @param string $text
      *
-     * @return mixed|string
+     * @return string
      */
     public static function removeLineBreaks($text = '')
     {
@@ -36,10 +38,10 @@ class Text
     }
 
     /**
-     * @param string $text
+     * @param string|null $text
      * @param array $params
      *
-     * @return string
+     * @return string|null
      */
     public static function wysiwygText($text, $params = [])
     {
@@ -56,7 +58,8 @@ class Text
 
                 $linkAttr = null;
                 $path = null;
-                $id = $idMatches[0];
+                $additionalAttributes = [];
+                $id = (int) $idMatches[0];
                 $type = $typeMatches[0];
                 $element = Element\Service::getElementById($type, $id);
                 $oldTag = $matches[0][$i];
@@ -110,8 +113,8 @@ class Text
 
                         if ((isset($widthAttr[1]) && $widthAttr[1]) || (isset($heightAttr[1]) && $heightAttr[1])) {
                             $config = [
-                                'width' => intval((isset($widthAttr[1]) ? $widthAttr[1] : null)),
-                                'height' => intval((isset($heightAttr[1]) ? $heightAttr[1] : null)),
+                                'width' => (int)(isset($widthAttr[1]) ? $widthAttr[1] : null),
+                                'height' => (int)(isset($heightAttr[1]) ? $heightAttr[1] : null),
                             ];
                         }
 
@@ -137,8 +140,13 @@ class Text
                         if (!preg_match('/pimcore_disable_thumbnail="([^"]+)*"/', $oldTag)) {
                             if (!empty($config)) {
                                 $path = $element->getThumbnail($config);
+                                $pathHdpi = $element->getThumbnail(array_merge($config, ['highResolution' => 2]));
+                                $additionalAttributes = [
+                                    'srcset' => $path . ' 1x, ' . $pathHdpi . ' 2x',
+                                ];
                             } elseif ($element->getWidth() > 2000 || $element->getHeight() > 2000) {
                                 // if the image is too large, size it down to 2000px this is the max. for wysiwyg
+                                // for those big images we don't generate a hdpi version
                                 $path = $element->getThumbnail([
                                     'width' => 2000,
                                 ]);
@@ -152,6 +160,9 @@ class Text
                     if ($path) {
                         $pattern = '/' . $linkAttr . '="[^"]*"/';
                         $replacement = $linkAttr . '="' . $path . '"';
+                        if (!empty($additionalAttributes)) {
+                            $replacement .= ' ' . array_to_html_attribute_string($additionalAttributes);
+                        }
                         $newTag = preg_replace($pattern, $replacement, $oldTag);
 
                         $text = str_replace($oldTag, $newTag, $text);
@@ -175,109 +186,39 @@ class Text
     }
 
     /**
-     * @deprecated
-     * @static
-     *
-     * @param  array $idMapping e.g. array("asset"=>array(OLD_ID=>NEW_ID),"object"=>array(OLD_ID=>NEW_ID),"document"=>array(OLD_ID=>NEW_ID));
-     * @param  string $text html text of wysiwyg field
-     *
-     * @return mixed
-     */
-    public static function replaceWysiwygTextRelationIds($idMapping, $text)
-    {
-        if (!empty($text)) {
-            $html = str_get_html($text);
-            if (!$html) {
-                return $text;
-            }
-
-            $s = $html->find('a[pimcore_id],img[pimcore_id]');
-
-            foreach ($s as $el) {
-                $type = null;
-
-                // image
-                if ($el->src) {
-                    $type = 'asset';
-                }
-
-                // link
-                if ($el->href) {
-                    if ($el->pimcore_type == 'asset') {
-                        $type = 'asset';
-                    } elseif ($el->pimcore_type == 'document') {
-                        $type = 'document';
-                    }
-                }
-
-                $newId = $idMapping[$type][$el->attr['pimcore_id']] ?? null;
-                if ($newId) {
-                    //update id
-
-                    if ($type == 'asset') {
-                        $pimcoreElement = Asset::getById($newId);
-                    } else {
-                        $pimcoreElement = Document::getById($newId);
-                    }
-
-                    //TODO
-
-                    $el->pimcore_id = $newId;
-                    $el->src = $pimcoreElement->getFullPath();
-                } else {
-                    //remove relation, not found in mapping
-                    $el->pimcore_id = null;
-                    $el->src = null;
-                }
-            }
-
-            $return = $html->save();
-
-            $html->clear();
-            unset($html);
-
-            return $return;
-        }
-    }
-
-    /**
-     * @static
-     *
      * @param string $text
      *
      * @return array
      */
-    public static function getElementsTagsInWysiwyg($text)
+    private static function getElementsTagsInWysiwyg($text)
     {
         if (!is_string($text) || strlen($text) < 1) {
             return [];
         }
 
         $hash = 'elements_raw_wysiwyg_text_' . md5($text);
-        if (\Pimcore\Cache\Runtime::isRegistered($hash)) {
-            return \Pimcore\Cache\Runtime::get($hash);
+        if (RuntimeCache::isRegistered($hash)) {
+            return RuntimeCache::get($hash);
         }
 
         //$text = Pimcore_Tool_Text::removeLineBreaks($text);
         preg_match_all("@\<(a|img)[^>]*(pimcore_id=\"[0-9]+\")[^>]*(pimcore_type=\"[asset|document|object]+\")[^>]*\>@msUi", $text, $matches);
 
-        \Pimcore\Cache\Runtime::set($hash, $matches);
+        RuntimeCache::set($hash, $matches);
 
         return $matches;
     }
 
     /**
-     * @static
-     *
      * @param string $text
      *
      * @return array
      */
-    public static function getElementsInWysiwyg($text)
+    private static function getElementsInWysiwyg($text)
     {
         $hash = 'elements_wysiwyg_text_' . md5($text);
-        if (\Pimcore\Cache\Runtime::isRegistered($hash)) {
-            return \Pimcore\Cache\Runtime::get($hash);
+        if (RuntimeCache::isRegistered($hash)) {
+            return RuntimeCache::get($hash);
         }
 
         $elements = [];
@@ -291,27 +232,22 @@ class Text
                 $id = $idMatches[0];
                 $type = $typeMatches[0];
 
-                $element = Element\Service::getElementById($type, $id);
-
-                if ($id && $type && $element instanceof Element\ElementInterface) {
+                if ($id && $type) {
                     $elements[] = [
                         'id' => $id,
                         'type' => $type,
-                        'element' => $element,
                     ];
                 }
             }
         }
 
-        \Pimcore\Cache\Runtime::set($hash, $elements);
+        RuntimeCache::set($hash, $elements);
 
         return $elements;
     }
 
     /**
      * extracts all dependencies to other elements from wysiwyg text
-     *
-     * @static
      *
      * @param  string $text
      *
@@ -341,17 +277,13 @@ class Text
      *
      * @return array
      */
-    public static function getCacheTagsOfWysiwygText($text, $tags = [])
+    public static function getCacheTagsOfWysiwygText($text, array $tags = []): array
     {
-        $tags = is_array($tags) ? $tags : [];
-
         if (!empty($text)) {
             $elements = self::getElementsInWysiwyg($text);
             foreach ($elements as $element) {
-                $el = $element['element'];
-                if (!array_key_exists($el->getCacheTag(), $tags)) {
-                    $tags = $el->getCacheTags($tags);
-                }
+                $tag = Element\Service::getElementCacheTag($element['type'], $element['id']);
+                $tags[$tag] = $tag;
             }
         }
 
@@ -403,52 +335,8 @@ class Text
             return 'UTF-16LE';
         }
 
-        if (function_exists('mb_detect_encoding')) {
-            $encoding = mb_detect_encoding($text, [
-                'UTF-8',
-                'UTF-7',
-                'UTF7-IMAP',
-                'ASCII',
-                'Windows-1252',
-                'Windows-1254',
-                'ISO-8859-1',
-                'ISO-8859-2',
-                'ISO-8859-3',
-                'ISO-8859-4',
-                'ISO-8859-5',
-                'ISO-8859-6',
-                'ISO-8859-7',
-                'ISO-8859-8',
-                'ISO-8859-9',
-                'ISO-8859-10',
-                'ISO-8859-13',
-                'ISO-8859-14',
-                'ISO-8859-15',
-                'ISO-8859-16',
-                'EUC-CN',
-                'CP936',
-                'HZ',
-                'EUC-TW',
-                'BIG-5',
-                'EUC-KR',
-                'UHC',
-                'ISO-2022-KR',
-                'Windows-1251',
-                'CP866',
-                'KOI8-R',
-                'KOI8-U',
-                'ArmSCII-8',
-                'CP850',
-                'EUC-JP',
-                'SJIS',
-                'eucJP-win',
-                'SJIS-win',
-                'CP51932',
-                'JIS',
-                'ISO-2022-JP',
-                'ISO-2022-JP-MS',
-            ]);
-        }
+        $detector = new EncodingDetector();
+        $encoding = $detector->getEncoding($text);
 
         if (empty($encoding)) {
             $encoding = 'UTF-8';
@@ -486,7 +374,7 @@ class Text
             if (false !== ($length = strrpos($text, ' '))) {
                 $text = substr($text, 0, $length);
             }
-            $string = $text.'...';
+            $string = $text . '…';
         }
 
         return $string;

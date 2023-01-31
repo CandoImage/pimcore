@@ -171,5 +171,3 @@ class ContainerService
         return false;
     }
 }
-
-class_alias(ContainerService::class, 'Pimcore\Templating\Helper\Placeholder\ContainerService');

@@ -1,22 +1,26 @@
 ## Server Requirements 
 
-For production we highly recommend a *nix based system. 
+For production, we highly recommend a *nix based system.
+
+> Also have a look at our official [Docker images](https://hub.docker.com/r/pimcore/pimcore) and the
+> docker-compose files in our [skeleton](https://github.com/pimcore/skeleton/blob/10.2/docker-compose.yaml) 
+> and [demo application](https://github.com/pimcore/demo/blob/10.2/docker-compose.yaml).  
+
 
 ### Webserver 
-- Apache >= 2.2
+- Apache >= 2.4
   - mod_rewrite
   - .htaccess support (`AllowOverride All`)
 - Nginx
 
 
-### PHP ^7.2 
-PHP 8 is not supported by Pimcore 6.x. 
+### PHP >= 8.0
 Both **mod_php** and **FCGI (FPM)** are supported.  
 
 #### Required Settings and Modules & Extensions
 - `memory_limit` >= 128M
 - `upload_max_filesize` and `post_max_size` >= 100M (depending on your data) 
-- [pdo_mysql](http://php.net/pdo-mysql) or [mysqli](http://php.net/mysqli)
+- [pdo_mysql](http://php.net/pdo-mysql)
 - [iconv](http://php.net/iconv)
 - [dom](http://php.net/dom)
 - [simplexml](http://php.net/simplexml)
@@ -30,18 +34,20 @@ Both **mod_php** and **FCGI (FPM)** are supported.
 - [opcache](http://php.net/opcache)
 - [curl](http://php.net/curl)
 - CLI SAPI (for Cron Jobs)
-- [Composer](https://getcomposer.org/) (added to `$PATH` - see also [Additional Tools Installation](./03_System_Setup_and_Hosting/06_Additional_Tools_Installation.md))
+- [Composer 2](https://getcomposer.org/) (added to `$PATH` - see also [Additional Tools Installation](./03_System_Setup_and_Hosting/06_Additional_Tools_Installation.md))
 
-#### Recommended Modules & Extensions 
+#### Recommended or Optional Modules & Extensions 
 - [imagick](http://php.net/imagick) (if not installed *gd* is used instead, but with less supported image types)
+  - LCMS delegate for Image Magick to prevent negative colors for CMYK images
 - [phpredis](https://github.com/phpredis/phpredis) (recommended cache backend adapter)
 - [graphviz](https://www.graphviz.org/) (for rendering workflow overview)
-
+- [mysqli](http://php.net/mysqli) (PDO although is still required for parameter mappings)
+  
 ### Database Server
-- MariaDB >= 10.0.0.5
-- MySQL >= 5.6.4 
-- AWS Aurora (MySQL)
-- Percona Server
+- MariaDB >= 10.3
+- MySQL >= 8.0
+- Percona Server (supported versions see MySQL)
+- [AWS Aurora](https://aws.amazon.com/de/about-aws/whats-new/2021/11/amazon-aurora-mysql-8-0/) (supported versions see MySQL)
 
 #### Features
 - InnoDB / XtraDB storage engine
@@ -65,8 +71,6 @@ All permissions on database level, specifically:
 #### System Variables
 ```
 [mysqld]
-innodb_file_format = Barracuda
-innodb_large_prefix = 1
 innodb_file_per_table = 1
 
 [mariadb]
@@ -95,19 +99,16 @@ On Debian based systems, you can use the following command to install all requir
 - FFMPEG (>= 3)
 - Ghostscript (>= 9.16)
 - LibreOffice (>= 4.3)
-- wkhtmltoimage / wkhtmltopdf (>= 0.12)
+- wkhtmltopdf (>= 0.12) (deprecated)
+- Chromium/Chrome
 - xvfb
 - timeout (GNU core utils)
 - pdftotext (poppler utils)
 - inkscape
-- zopflipng
-- pngcrush
+- pngquant
+- optipng
 - jpegoptim
-- pngout 
-- advpng
-- cjpeg ([MozJPEG](https://github.com/mozilla/mozjpeg))
 - exiftool
-- SQIP - SVG Placeholder
 - [facedetect](https://github.com/wavexx/facedetect) 
 - [Graphviz](https://www.graphviz.org/)
 

@@ -19,16 +19,17 @@ pimcore.document.settings_abstract = Class.create({
     },
 
     setDocumentType: function (field, newValue, oldValue) {
-        var allowedFields = ["module","controller","action","template"];
+        if (!newValue.data.id) {
+            return;
+        }
+        var allowedFields = ["controller", "template"];
         var form = this.getLayout().getForm();
         var element = null;
 
         for (var i = 0; i < allowedFields.length; i++) {
             element = form.findField(allowedFields[i]);
             if (element) {
-                if (newValue.data.id > 0) {
-                    element.setValue(newValue.data[allowedFields[i]]);
-                }
+                element.setValue(newValue.data[allowedFields[i]]);
             }
         }
     },
@@ -139,6 +140,7 @@ pimcore.document.settings_abstract = Class.create({
                                                     "contentMasterDocumentPath_" + this.document.id).getValue()
                                             },
                                             success:function () {
+                                                this.document.resetChanges();
                                                 this.document.reload();
                                             }.bind(this)
                                         });
@@ -206,7 +208,7 @@ pimcore.document.settings_abstract = Class.create({
                     rootProperty: "docTypes"
                 }
             },
-            fields: ["id","module","controller","action","template",{
+            fields: ["id","controller", "template",{
                name: 'name',
                convert: function(v, rec) {
                    return (rec['data']['group'] ? t(rec['data']['group']) + ' > ' : '') + t(rec['data']['name']);
@@ -255,7 +257,7 @@ pimcore.document.settings_abstract = Class.create({
                     forceSelection: false,
                     store: new Ext.data.Store({
                         autoDestroy: true,
-                        autoLoad: true,
+                        autoLoad: false,
                         proxy: {
                             type: 'ajax',
                             url: Routing.generate('pimcore_admin_misc_getavailablecontroller_references'),
@@ -266,6 +268,11 @@ pimcore.document.settings_abstract = Class.create({
                         },
                         fields: ["name"]
                     }),
+                    listeners: {
+                        afterrender: function (el) {
+                            el.getStore().load();
+                        }
+                    },
                     triggerAction: "all",
                     value: this.document.data.controller,
                     matchFieldWidth: false,
@@ -279,8 +286,11 @@ pimcore.document.settings_abstract = Class.create({
                     displayField: 'path',
                     valueField: 'path',
                     name: "template",
-                    disableKeyFilter: true,
-                    queryMode: "remote",
+                    typeAhead: true,
+                    queryMode: "local",
+                    anyMatch: true,
+                    editable: true,
+                    forceSelection: false,
                     store: new Ext.data.Store({
                         autoDestroy: true,
                         autoLoad: false,
@@ -294,22 +304,17 @@ pimcore.document.settings_abstract = Class.create({
                         },
                         fields: ["path"]
                     }),
+                    listeners: {
+                        afterrender: function (el) {
+                            el.getStore().load();
+                        }
+                    },
                     triggerAction: "all",
                     value: this.document.data.template,
                     matchFieldWidth: false,
                     listConfig: {
                         maxWidth: 600
                     }
-                },
-                {
-                    fieldLabel: t('bundle') + " (" + t('deprecated') + ")",
-                    name: "module",
-                    value: this.document.data.module
-                },
-                {
-                    fieldLabel: t('action') + " (" + t('deprecated') + ")",
-                    name: "action",
-                    value: this.document.data.action
                 }
             ],
             defaults: {
@@ -325,6 +330,49 @@ pimcore.document.settings_abstract = Class.create({
         });
 
         return fieldSet;
+    },
+
+    getStaticGeneratorFields: function (collapsed) {
+
+        if(collapsed !== true) {
+            collapsed = false;
+        }
+
+        var date = new Date(this.document.data.staticLastGenerated * 1000);
+        date = Ext.Date.format(date, "Y-m-d H:i");
+
+        return {
+            xtype:'fieldset',
+            title: t('static_generator'),
+            collapsible: true,
+            collapsed: collapsed,
+            autoHeight:true,
+            defaultType: 'textfield',
+            defaults: {
+                labelWidth: 300,
+                width: 850
+            },
+            items :[
+                {
+                    boxLabel: t('static_generator_enable'),
+                    xtype: 'checkbox',
+                    name: 'staticGeneratorEnabled',
+                    checked: this.document.data.staticGeneratorEnabled
+                },
+                {
+                    fieldLabel: t('static_generator_lifetime'),
+                    labelWidth: 300,
+                    xtype: 'numberfield',
+                    name: 'staticGeneratorLifetime',
+                    value: this.document.data.staticGeneratorLifetime,
+                    width: 400,
+                }, {
+                    xtype: "displayfield",
+                    value: t("last_generated") + ": " + date,
+                    hidden: !this.document.data.staticGeneratorEnabled
+                }
+            ]
+        };
     },
 
     getValues: function () {

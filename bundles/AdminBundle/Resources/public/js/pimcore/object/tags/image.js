@@ -32,6 +32,7 @@ pimcore.object.tags.image = Class.create(pimcore.object.tags.abstract, {
         return {
             text: t(field.label), width: 100, sortable: false, dataIndex: field.key,
             getEditor: this.getWindowCellEditor.bind(this, field),
+            getRelationFilter: this.getRelationFilter,
             renderer: function (key, value, metaData, record, rowIndex, colIndex, store, view) {
                 this.applyPermissionStyle(key, value, metaData, record);
 
@@ -49,7 +50,7 @@ pimcore.object.tags.image = Class.create(pimcore.object.tags.abstract, {
                             frame: true
                         };
                         var path = Routing.generate('pimcore_admin_asset_getimagethumbnail', params);
-                        return '<img src="'+path+'" />';
+                        return '<img src="'+path+'" loading="lazy" />';
                     }
 
                     var params = {
@@ -61,18 +62,29 @@ pimcore.object.tags.image = Class.create(pimcore.object.tags.abstract, {
 
                     var path = Routing.generate('pimcore_admin_asset_getimagethumbnail', params);
 
-                    return '<img src="'+path+'" style="width:88px; height:88px;"  />';
+                    return '<img src="'+path+'" style="width:88px; height:88px;" loading="lazy" />';
                 }
             }.bind(this, field.key)
         };
     },
 
-    getLayoutEdit: function () {
+    getRelationFilter: function (dataIndex, editor) {
+        var filterValue = editor.data && editor.data.id !== undefined ? editor.data.id : null;
+        return new Ext.util.Filter({
+            operator: "=",
+            type: "int",
+            id: "x-gridfilter-" + dataIndex,
+            property: dataIndex,
+            dataIndex: dataIndex,
+            value: filterValue === null ? 'null' : filterValue
+        });
+    },
 
-        if (intval(this.fieldConfig.width) < 1) {
+    getLayoutEdit: function () {
+        if (!this.fieldConfig.width) {
             this.fieldConfig.width = 300;
         }
-        if (intval(this.fieldConfig.height) < 1) {
+        if (!this.fieldConfig.height) {
             this.fieldConfig.height = 300;
         }
 
@@ -117,7 +129,7 @@ pimcore.object.tags.image = Class.create(pimcore.object.tags.abstract, {
                         handler: this.openSearchEditor.bind(this)
                     }]
             },
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             bodyCls: "pimcore_droptarget_image pimcore_image_container"
         };
 
@@ -166,10 +178,10 @@ pimcore.object.tags.image = Class.create(pimcore.object.tags.abstract, {
     },
 
     getLayoutShow: function () {
-        if (intval(this.fieldConfig.width) < 1) {
+        if (!this.fieldConfig.width) {
             this.fieldConfig.width = 300;
         }
-        if (intval(this.fieldConfig.height) < 1) {
+        if (!this.fieldConfig.height) {
             this.fieldConfig.height = 300;
         }
 
@@ -253,7 +265,17 @@ pimcore.object.tags.image = Class.create(pimcore.object.tags.abstract, {
             } catch (e) {
                 console.log(e);
             }
-        }.bind(this), null, this.context);
+        }.bind(this),
+        function (res) {
+            const response = Ext.decode(res.response.responseText);
+            if (response && response.success === false) {
+                pimcore.helpers.showNotification(t("error"), response.message, "error",
+                    res.response.responseText);
+            } else {
+                pimcore.helpers.showNotification(t("error"), res, "error",
+                    res.response.responseText);
+            }
+        }.bind(this), this.context, "image");
     },
 
     addDataFromSelector: function (item) {

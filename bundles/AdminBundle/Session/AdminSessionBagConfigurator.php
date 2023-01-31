@@ -17,37 +17,14 @@ declare(strict_types=1);
 
 namespace Pimcore\Bundle\AdminBundle\Session;
 
-use Pimcore\Session\Attribute\LockableAttributeBag;
+use Pimcore\Bundle\AdminBundle\EventListener\AdminSessionBagListener;
 use Pimcore\Session\SessionConfiguratorInterface;
-use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
-class AdminSessionBagConfigurator implements SessionConfiguratorInterface
+/**
+ * @internal
+ *
+ * @deprecated remove in Pimcore 11
+ */
+class AdminSessionBagConfigurator extends AdminSessionBagListener implements SessionConfiguratorInterface
 {
-    /**
-     * Attribute bag configuration
-     *
-     * @var array
-     */
-    private $config = [];
-
-    /**
-     * @param array $config
-     */
-    public function __construct(array $config)
-    {
-        $this->config = $config;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function configure(SessionInterface $session)
-    {
-        foreach ($this->config as $name => $config) {
-            $bag = new LockableAttributeBag($config['storage_key']);
-            $bag->setName($name);
-
-            $session->registerBag($bag);
-        }
-    }
 }

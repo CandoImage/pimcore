@@ -88,8 +88,29 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
                         return result.join("<br />");
                     }
                 }.bind(this, field.key),
+            getRelationFilter: this.getRelationFilter,
             getEditor: this.getWindowCellEditor.bind(this, field)
         };
+    },
+
+    getRelationFilter: function (dataIndex, editor) {
+        var filterValues = editor.store.getData().items;
+        if (!filterValues || !Array.isArray(filterValues) || !filterValues.length) {
+            filterValues = null;
+        } else {
+            filterValues = filterValues.map(function (item) {
+                return item.data.id;
+            }).join(',');
+        }
+
+        return new Ext.util.Filter({
+            operator: "like",
+            type: "string",
+            id: "x-gridfilter-" + dataIndex,
+            property: dataIndex,
+            dataIndex: dataIndex,
+            value: filterValues
+        });
     },
 
     openParentSearchEditor: function () {
@@ -205,17 +226,13 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
                 success: function (response) {
                     var data = Ext.decode(response.responseText);
                     if (data.success) {
-                        this.store.add({
-                            id: data.id,
-                            fullpath: parent + "/" + pimcore.helpers.getValidFilename(name, "object"),
-                            type: className
-                        });
-                        pimcore.helpers.openElement(data.id, "object", "object");
                         var initData = {
                             id: data.id
                         };
 
                         this.loadObjectData(initData, this.visibleFields);
+                        pimcore.helpers.openElement(data.id, "object", "object");
+
                         this.window.close();
                     } else {
                         pimcore.helpers.showNotification(t("error"), t("saving_failed"), "error", data.message);
@@ -299,7 +316,7 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
         if(visibleFields.length === 0) {
             columns.push(
                 {text: 'ID', dataIndex: 'id', width: 50},
-                {text: t("reference"), dataIndex: 'fullpath', flex: 200, renderer:this.fullPathRenderCheck.bind(this)},
+                {text: t("reference"), dataIndex: 'fullpath', flex: 200, renderer: this.fullPathRenderCheck.bind(this)},
                 {text: t("class"), dataIndex: 'classname', width: 100}
             );
         }
@@ -325,9 +342,12 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
                 fc.editor = null;
                 fc.sortable = false;
 
-                if(fc.layout.key === "fullpath") {
+                if (fc.layout.key === "fullpath") {
                     fc.renderer = this.fullPathRenderCheck.bind(this);
-                } else if(fc.layout.layout.fieldtype == "select" || fc.layout.layout.fieldtype == "multiselect") {
+                } else if (fc.layout.layout.fieldtype == 'select'
+                    || fc.layout.layout.fieldtype == 'multiselect'
+                    || fc.layout.layout.fieldtype == 'booleanSelect'
+                ) {
                     fc.layout.layout.options.forEach(option => {
                         option.key = t(option.key);
                     });
@@ -341,12 +361,9 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
     },
 
     getLayoutEdit: function () {
-
-        if (intval(this.fieldConfig.height) < 15) {
+        if (!this.fieldConfig.height) {
             this.fieldConfig.height = null;
         }
-
-        var cls = 'object_field object_field_type_' + this.type;
 
         var columns = this.getVisibleColumns();
         var toolbarItems = this.getEditToolbarItems();
@@ -430,13 +447,15 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
             style: "margin-bottom: 10px",
             viewConfig: {
                 markDirty: false,
-                enableTextSelection: true,
+                enableTextSelection: this.fieldConfig.enableTextSelection,
                 plugins: {
                     ptype: 'gridviewdragdrop',
                     draggroup: 'element'
                 },
                 listeners: {
                     drop: function (node, data, dropRec, dropPosition) {
+                        this.dataChanged = true;
+
                         // this is necessary to avoid endless recursion when long lists are sorted via d&d
                         // TODO: investigate if there this is already fixed 6.2
                         if (this.object.toolbar && this.object.toolbar.items && this.object.toolbar.items.items) {
@@ -448,14 +467,14 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
                     }.bind(this)
                 }
             },
-            selModel: Ext.create('Ext.selection.RowModel', {}),
+            multiSelect: true,
             columns: {
                 defaults: {
                     sortable: false
                 },
                 items: columns
             },
-            componentCls: cls,
+            componentCls: this.getWrapperClassNames(),
             autoExpandColumn: 'path',
             width: this.fieldConfig.width,
             height: this.fieldConfig.height,
@@ -576,7 +595,8 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
                     iconCls: "pimcore_icon_search",
                     handler: this.openSearchEditor.bind(this)
                 },
-                this.getCreateControl()]);
+                this.getCreateControl()
+            ]);
         }
 
         return toolbarItems;
@@ -591,9 +611,8 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
 
 
     getLayoutShow: function () {
-
         var autoHeight = false;
-        if (intval(this.fieldConfig.height) < 15) {
+        if (!this.fieldConfig.height) {
             autoHeight = true;
         }
 
@@ -632,7 +651,7 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
             style: "margin-bottom: 10px",
             title: this.fieldConfig.title,
             viewConfig: {
-            enableTextSelection: true,
+                enableTextSelection: this.fieldConfig.enableTextSelection,
                 listeners: {
                     afterrender: function (gridview) {
                         this.requestNicePathData(this.store.data);
@@ -736,7 +755,7 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
 
         // check max amount in field
         if (this.fieldConfig["maxItems"] && this.fieldConfig["maxItems"] >= 1) {
-            if (this.store.getCount() >= this.fieldConfig.maxItems) {
+            if ((this.store.getData().getSource() || this.store.getData()).count() >= this.fieldConfig.maxItems) {
                 Ext.Msg.alert(t("error"), t("limit_reached"));
                 return true;
             }
@@ -914,6 +933,3 @@ pimcore.object.tags.manyToManyObjectRelation = Class.create(pimcore.object.tags.
     },
 
 });
-
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.tags.objects = pimcore.object.tags.manyToManyObjectRelation;

@@ -15,14 +15,24 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class StringContains extends AbstractOperator
+/**
+ * @internal
+ */
+final class StringContains extends AbstractOperator
 {
-    /** @var string */
+    /**
+     * @var string
+     */
     private $search;
 
-    /** @var bool */
+    /**
+     * @var bool
+     */
     private $insensitive;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -31,6 +41,9 @@ class StringContains extends AbstractOperator
         $this->insensitive = $config->insensitive ?? false;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();
@@ -69,11 +82,7 @@ class StringContains extends AbstractOperator
                 $newChildsResult[] = $newValue;
             }
 
-            if (count($childs) > 0) {
-                $result->value = $newChildsResult;
-            } else {
-                $result->value = $newChildsResult[0];
-            }
+            $result->value = $newChildsResult;
         }
 
         return $result;

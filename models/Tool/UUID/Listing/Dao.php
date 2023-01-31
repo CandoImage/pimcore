@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Model\Tool\UUID;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Tool\UUID\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -30,7 +32,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function load()
     {
-        $items = $this->db->fetchCol('SELECT uuid FROM ' . UUID\Dao::TABLE_NAME .' '. $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $items = $this->db->fetchFirstColumn('SELECT uuid FROM ' . UUID\Dao::TABLE_NAME .' '. $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
         $result = [];
         foreach ($items as $uuid) {
             $result[] = UUID::getByUuid($uuid);

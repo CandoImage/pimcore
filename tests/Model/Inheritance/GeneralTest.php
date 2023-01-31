@@ -15,6 +15,7 @@
 
 namespace Pimcore\Tests\Model\Inheritance;
 
+use Pimcore\Db\Connection;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\Folder;
@@ -26,7 +27,7 @@ use Pimcore\Tests\Util\TestHelper;
 
 class GeneralTest extends ModelTestCase
 {
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         TestHelper::cleanUp();
@@ -46,20 +47,18 @@ class GeneralTest extends ModelTestCase
     {
         // According to the bootstrap file en and de are valid website languages
 
-        /** @var Inheritance $one */
         $one = new Inheritance();
         $one->setKey('one');
         $one->setParentId(1);
-        $one->setPublished(1);
+        $one->setPublished(true);
 
         $one->setNormalInput('parenttext');
         $one->save();
 
-        /** @var Inheritance $two */
         $two = new Inheritance();
         $two->setKey('two');
         $two->setParentId($one->getId());
-        $two->setPublished(1);
+        $two->setPublished(true);
         $two->setNormalInput('childtext');
         $two->save();
 
@@ -157,11 +156,10 @@ class GeneralTest extends ModelTestCase
         $target->setSomeAttribute('Some content 1');
         $target->save();
 
-        /** @var Inheritance $one */
         $one = new Inheritance();
         $one->setKey('one');
         $one->setParentId(1);
-        $one->setPublished(1);
+        $one->setPublished(true);
 
         $one->setNormalInput('parenttext');
         $one->setRelation($target);
@@ -169,11 +167,10 @@ class GeneralTest extends ModelTestCase
 
         // create child "two", inherit relation from "one"
 
-        /** @var Inheritance $two */
         $two = new Inheritance();
         $two->setKey('one');
         $two->setParentId($one->getId());
-        $two->setPublished(1);
+        $two->setPublished(true);
 
         $two->setNormalInput('parenttext');
         $two->save();
@@ -190,13 +187,13 @@ class GeneralTest extends ModelTestCase
 
         // enable inheritance and set the target
         DataObject::setGetInheritedValues(true);
-        $two = Concrete::getById($two->getId(), true);
+        $two = Concrete::getById($two->getId(), ['force' => true]);
         $two->setRelation($target);
         $two->save();
 
         // disable inheritance and check that the relation has been set on "two"
         DataObject::setGetInheritedValues(false);
-        $two = Concrete::getById($two->getId(), true);
+        $two = Concrete::getById($two->getId(), ['force' => true]);
         $fetchedTarget = $two->getRelation();
         $this->assertTrue($fetchedTarget && $fetchedTarget->getId() == $target->getId(), 'expectected inherited target');
 
@@ -220,7 +217,7 @@ class GeneralTest extends ModelTestCase
         $one = new Inheritance();
         $one->setKey('one');
         $one->setParentId(1);
-        $one->setPublished(1);
+        $one->setPublished(true);
 
         $one->setNormalInput('parenttext');
         $one->save();
@@ -233,7 +230,7 @@ class GeneralTest extends ModelTestCase
         $two = new Inheritance();
         $two->setKey('two');
         $two->setParentId($folder->getId());
-        $two->setPublished(1);
+        $two->setPublished(true);
 
         $two->setNormalInput('childtext');
         $two->save();
@@ -250,12 +247,14 @@ class GeneralTest extends ModelTestCase
         $this->assertEquals(1, count($relationobjects), 'inheritance for object relations failed');
         $this->assertEquals($one->getId(), $relationobjects[0]->getId(), 'inheritance for object relations failed (wrong object)');
 
+        /** @var Connection $db */
         $db = $this->tester->getContainer()->get('database_connection');
         $table = 'object_' . $one->getClassId();
 
-        $relationobjectsString = $db->fetchColumn('SELECT relationobjects FROM ' . $table . ' WHERE oo_id = ?', [
-            $two->getId(),
-        ]);
+        $relationobjectsString = $db->fetchOne(
+            'SELECT relationobjects FROM ' . $table . ' WHERE oo_id = ?',
+            [$two->getId()]
+        );
 
         $this->assertEquals(
             ',' . $one->getId() . ',',
@@ -281,7 +280,7 @@ class GeneralTest extends ModelTestCase
         $one = new Inheritance();
         $one->setKey('one');
         $one->setParentId(1);
-        $one->setPublished(1);
+        $one->setPublished(true);
 
         $one->setNormalInput('parenttext');
         $one->save();
@@ -294,7 +293,7 @@ class GeneralTest extends ModelTestCase
         $two = new Inheritance();
         $two->setKey('two');
         $two->setParentId($objectBetween->getId());
-        $two->setPublished(1);
+        $two->setPublished(true);
 
         $two->setNormalInput('childtext');
         $two->save();
@@ -313,12 +312,14 @@ class GeneralTest extends ModelTestCase
         $this->assertCount(1, $relationobjects, 'inheritance for object relations failed');
         $this->assertEquals($one->getId(), $relationobjects[0]->getId(), 'inheritance for object relations failed (wrong object)');
 
+        /** @var Connection $db */
         $db = $this->tester->getContainer()->get('database_connection');
         $table = 'object_' . $one->getClassId();
 
-        $relationobjectsString = $db->fetchColumn('SELECT relationobjects FROM ' . $table . ' WHERE oo_id = ?', [
-            $two->getId(),
-        ]);
+        $relationobjectsString = $db->fetchOne(
+            'SELECT relationobjects FROM ' . $table . ' WHERE oo_id = ?',
+            [$two->getId()]
+        );
 
         $this->assertEquals(
             ',' . $one->getId() . ',',

@@ -15,16 +15,26 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\Model;
 
-use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\UnsupportedException;
 use Pimcore\Logger;
+use Pimcore\Model\DataObject;
 
-class DefaultMockup implements ProductInterface
+class DefaultMockup implements ProductInterface, LinkGeneratorAwareInterface
 {
+    /** @var int */
     protected $id;
 
+    /** @var array */
     protected $params;
 
+    /** @var array */
     protected $relations;
+
+    /**
+     * contains link generators by class type (just for caching)
+     *
+     * @var array
+     */
+    protected static array $linkGenerators = [];
 
     public function __construct($id, $params, $relations)
     {
@@ -39,8 +49,17 @@ class DefaultMockup implements ProductInterface
         }
     }
 
+    public function getLinkGenerator(): ?DataObject\ClassDefinition\LinkGeneratorInterface
+    {
+        if ($classId = $this->params['o_classId'] ?? null) {
+            return static::$linkGenerators[$classId] ??= DataObject\ClassDefinition::getById($classId)->getLinkGenerator();
+        }
+
+        return null;
+    }
+
     /**
-     * @return mixed
+     * @return array
      */
     public function getParams()
     {
@@ -90,7 +109,7 @@ class DefaultMockup implements ProductInterface
     }
 
     /**
-     * @return mixed
+     * @return int
      */
     public function getId()
     {
@@ -169,9 +188,9 @@ class DefaultMockup implements ProductInterface
      * called by default CommitOrderProcessor to get the product name to store it in the order item
      * should be overwritten in mapped sub classes of product classes
      *
-     * @return string
+     * @return string|null
      */
-    public function getOSName()
+    public function getOSName(): ?string
     {
         return $this->__call('getOSName', []);
     }
@@ -180,9 +199,9 @@ class DefaultMockup implements ProductInterface
      * called by default CommitOrderProcessor to get the product number to store it in the order item
      * should be overwritten in mapped sub classes of product classes
      *
-     * @return string
+     * @return string|null
      */
-    public function getOSProductNumber()
+    public function getOSProductNumber(): ?string
     {
         return $this->__call('getOSProductNumber', []);
     }
@@ -190,8 +209,6 @@ class DefaultMockup implements ProductInterface
     /**
      * returns array of categories.
      * has to be overwritten either in pimcore object or mapped sub class.
-     *
-     * @throws UnsupportedException
      *
      * @return array
      */

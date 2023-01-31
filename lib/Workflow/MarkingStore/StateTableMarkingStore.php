@@ -36,14 +36,16 @@ class StateTableMarkingStore implements MarkingStoreInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @return Marking
      */
-    public function getMarking($subject)
+    public function getMarking($subject)// : Marking
     {
         $subject = $this->checkIfSubjectIsValid($subject);
 
         $placeName = '';
 
-        if ($workflowState = WorkflowState::getByPrimary($subject->getId(), Service::getType($subject), $this->workflowName)) {
+        if ($workflowState = WorkflowState::getByPrimary($subject->getId(), Service::getElementType($subject), $this->workflowName)) {
             $placeName = $workflowState->getPlace();
         }
 
@@ -65,10 +67,10 @@ class StateTableMarkingStore implements MarkingStoreInterface
      *
      * @throws \Exception
      */
-    public function setMarking($subject, Marking $marking)
+    public function setMarking($subject, Marking $marking, array $context = [])
     {
         $subject = $this->checkIfSubjectIsValid($subject);
-        $type = Service::getType($subject);
+        $type = Service::getElementType($subject);
 
         if (!$workflowState = WorkflowState::getByPrimary($subject->getId(), $type, $this->workflowName)) {
             $workflowState = new WorkflowState();

@@ -16,9 +16,6 @@
 namespace Pimcore\Model\Listing\Dao;
 
 use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Query\QueryBuilder as DoctrineQueryBuilder;
-use Pimcore\Db\ZendCompatibility\Expression;
-use Pimcore\Db\ZendCompatibility\QueryBuilder as ZendCompatibilityQueryBuilder;
 use Pimcore\Model\DataObject;
 
 trait QueryBuilderHelperTrait
@@ -28,19 +25,12 @@ trait QueryBuilderHelperTrait
      */
     protected $onCreateQueryBuilderCallback;
 
-    /**
-     * @param callable|null $callback
-     */
     public function onCreateQueryBuilder(?callable $callback): void
     {
         $this->onCreateQueryBuilderCallback = $callback;
     }
 
-    /**
-     * @param DoctrineQueryBuilder $queryBuilder
-     * @param bool $join
-     */
-    protected function applyListingParametersToQueryBuilder(QueryBuilder $queryBuilder, bool $join = false): void
+    protected function applyListingParametersToQueryBuilder(QueryBuilder $queryBuilder): void
     {
         $this->applyConditionsToQueryBuilder($queryBuilder);
         $this->applyGroupByToQueryBuilder($queryBuilder);
@@ -53,6 +43,9 @@ trait QueryBuilderHelperTrait
         }
     }
 
+    /**
+     * @internal
+     */
     private function applyConditionsToQueryBuilder(QueryBuilder $queryBuilder): void
     {
         $condition = $this->model->getCondition();
@@ -79,10 +72,14 @@ trait QueryBuilderHelperTrait
         }
 
         if ($condition) {
-            $queryBuilder->where($condition);
+            $queryBuilder->where($condition)
+                ->setParameters($this->model->getConditionVariables(), $this->model->getConditionVariableTypes());
         }
     }
 
+    /**
+     * @internal
+     */
     private function applyGroupByToQueryBuilder(QueryBuilder $queryBuilder): void
     {
         $groupBy = $this->model->getGroupBy();
@@ -91,6 +88,9 @@ trait QueryBuilderHelperTrait
         }
     }
 
+    /**
+     * @internal
+     */
     private function applyOrderByToQueryBuilder(QueryBuilder $queryBuilder): void
     {
         $orderKey = $this->model->getOrderKey();
@@ -119,7 +119,7 @@ trait QueryBuilderHelperTrait
     }
 
     /**
-     * @param DoctrineQueryBuilder $queryBuilder
+     * @internal
      */
     private function applyLimitToQueryBuilder(QueryBuilder $queryBuilder): void
     {
@@ -127,85 +127,35 @@ trait QueryBuilderHelperTrait
         $queryBuilder->setMaxResults($this->model->getLimit());
     }
 
-    /**
-     * @internal
-     *
-     * @deprecated
-     *
-     * @param string|string[]|null $columns $columns
-     *
-     * @return ZendCompatibilityQueryBuilder|QueryBuilder
-     */
-    protected function getQueryBuilderCompatibility($columns = '*')
+    protected function prepareQueryBuilderForTotalCount(QueryBuilder $queryBuilder, string $identifierColumn): void
     {
-        if (!is_callable($this->onCreateQueryCallback)) {
-            // use Doctrine query builder (default)
-            if (!is_array($columns)) {
-                $columns = [$columns];
-            }
+        $originalSelect = $queryBuilder->getQueryPart('select');
+        $queryBuilder->select('COUNT(*)');
+        $queryBuilder->resetQueryPart('orderBy');
+        $queryBuilder->setMaxResults(null);
+        $queryBuilder->setFirstResult(0);
 
-            return $this->getQueryBuilder(...$columns);
-        } else {
-            // use deprecated ZendCompatibility\QueryBuilder
-            return $this->getQuery($columns);
+        if (method_exists($this->model, 'addDistinct') && $this->model->addDistinct()) {
+            $queryBuilder->distinct();
+        }
+
+        if ($this->isQueryBuilderPartInUse($queryBuilder, 'groupBy') || $this->isQueryBuilderPartInUse($queryBuilder, 'having')) {
+            $queryBuilder->select(!empty($originalSelect) ? $originalSelect : $identifierColumn);
+
+            // Rewrite to 'SELECT COUNT(*) FROM (' . $queryBuilder . ') XYZ'
+            $innerQuery = (string)$queryBuilder;
+            $queryBuilder
+                ->resetQueryParts()
+                ->select('COUNT(*)')
+                ->from('(' . $innerQuery . ')', 'XYZ')
+            ;
+        } elseif ($this->isQueryBuilderPartInUse($queryBuilder, 'distinct')) {
+            $countIdentifier = 'DISTINCT ' . $identifierColumn;
+            $queryBuilder->select('COUNT(' . $countIdentifier . ') AS totalCount');
         }
     }
 
-    protected function prepareQueryBuilderForTotalCount(&$queryBuilder): void
-    {
-        if ($queryBuilder instanceof DoctrineQueryBuilder) {
-            $queryBuilder->select('COUNT(*)');
-            $queryBuilder->resetQueryPart('orderBy');
-            $queryBuilder->setMaxResults(null);
-            $queryBuilder->setFirstResult(0);
-
-            if ($this instanceof DataObject\Listing\Dao) {
-                if (method_exists($this->model, 'addDistinct') && $this->model->addDistinct()) {
-                    $queryBuilder->distinct();
-                }
-
-                if ($this->isQueryBuilderPartinUse($queryBuilder, 'groupBy') || $this->isQueryBuilderPartinUse($queryBuilder, 'having')) {
-                    $queryBuilder = 'SELECT COUNT(*) FROM (' . $queryBuilder . ') as XYZ';
-                } elseif ($this->isQueryBuilderPartinUse($queryBuilder, 'distinct')) {
-                    $countIdentifier = 'DISTINCT ' . $this->getTableName() . '.o_id';
-                    $queryBuilder->select('COUNT(' . $countIdentifier . ') AS totalCount');
-                }
-            }
-        } elseif ($queryBuilder instanceof ZendCompatibilityQueryBuilder) {
-            $queryBuilder->reset(ZendCompatibilityQueryBuilder::COLUMNS);
-            $queryBuilder->columns([new Expression('COUNT(*)')]);
-            $queryBuilder->reset(ZendCompatibilityQueryBuilder::LIMIT_COUNT);
-            $queryBuilder->reset(ZendCompatibilityQueryBuilder::LIMIT_OFFSET);
-            $queryBuilder->reset(ZendCompatibilityQueryBuilder::ORDER);
-
-            if (method_exists($this->model, 'addDistinct') && $this->model->addDistinct()) {
-                $queryBuilder->distinct(true);
-            }
-
-            if ($this instanceof DataObject\Listing\Dao) {
-                if ($this->isQueryPartinUse($queryBuilder, ZendCompatibilityQueryBuilder::GROUP) || $this->isQueryPartinUse($queryBuilder, ZendCompatibilityQueryBuilder::HAVING)) {
-                    $queryBuilder = 'SELECT COUNT(*) FROM (' . $queryBuilder . ') as XYZ';
-                } else {
-                    $queryBuilder->reset(ZendCompatibilityQueryBuilder::COLUMNS);
-
-                    $countIdentifier = '*';
-                    if ($this->isQueryPartinUse($queryBuilder, ZendCompatibilityQueryBuilder::DISTINCT)) {
-                        $countIdentifier = 'DISTINCT ' . $this->getTableName() . '.o_id';
-                    }
-
-                    $queryBuilder->columns(['totalCount' => new Expression('COUNT(' . $countIdentifier . ')')]);
-                }
-            }
-        }
-    }
-
-    /**
-     * @param DoctrineQueryBuilder $query
-     * @param string $part
-     *
-     * @return bool
-     */
-    protected function isQueryBuilderPartinUse($query, $part)
+    protected function isQueryBuilderPartInUse(QueryBuilder $query, string $part): bool
     {
         try {
             if ($query->getQueryPart($part)) {

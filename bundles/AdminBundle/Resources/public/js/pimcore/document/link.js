@@ -21,7 +21,15 @@ pimcore.document.link = Class.create(pimcore.document.document, {
         this.setType("link");
         this.addLoadingPanel();
 
-        pimcore.plugin.broker.fireEvent("preOpenDocument", this, "link");
+        const preOpenDocumentLink = new CustomEvent(pimcore.events.preOpenDocument, {
+            detail: {
+                document: this,
+                type: "link"
+            }
+        });
+
+        document.dispatchEvent(preOpenDocumentLink);
+
         this.getData();
     },
 
@@ -30,7 +38,7 @@ pimcore.document.link = Class.create(pimcore.document.document, {
         var user = pimcore.globalmanager.get("user");
 
         if (this.isAllowed("properties")) {
-            this.properties = new pimcore.document.properties(this, "document");
+            this.properties = new pimcore.document.properties(this, "document", true);
         }
 
         if (this.isAllowed("settings")) {
@@ -134,7 +142,15 @@ pimcore.document.link = Class.create(pimcore.document.document, {
 
         this.tab.on("afterrender", function (tabId) {
             this.tabPanel.setActiveItem(tabId);
-            pimcore.plugin.broker.fireEvent("postOpenDocument", this, "link");
+
+            const postOpenDocumentLink = new CustomEvent(pimcore.events.postOpenDocument, {
+                detail: {
+                    document: this,
+                    type: "link"
+                }
+            });
+
+            document.dispatchEvent(postOpenDocumentLink);
         }.bind(this, tabId));
 
         this.removeLoadingPanel();
@@ -339,7 +355,8 @@ pimcore.document.link = Class.create(pimcore.document.document, {
             });
 
             pathField.on("render", function (el) {
-                var dd = new Ext.dd.DropZone(el.getEl().dom.parentNode.parentNode, {
+                let currentId = this.data.id;
+                let dd = new Ext.dd.DropZone(el.getEl().dom.parentNode.parentNode, {
                     ddGroup: "element",
 
                     getTargetFromEvent: function (e) {
@@ -347,19 +364,31 @@ pimcore.document.link = Class.create(pimcore.document.document, {
                     },
 
                     onNodeOver: function (target, dd, e, data) {
-                        if (data.records.length === 1 && data.records[0].data.elementType === "document" && data.records[0].data.type !== "folder") {
+                        if (data.records[0].data.id == currentId){
+                            return false;
+                        }
+
+                        if (data.records.length === 1 && (
+                            data.records[0].data.elementType === "document" ||
+                            data.records[0].data.elementType === "asset" ||
+                            data.records[0].data.elementType === "object")
+                            && data.records[0].data.type !== "folder") {
                             return Ext.dd.DropZone.prototype.dropAllowed;
                         }
                     },
 
                     onNodeDrop: function (target, dd, e, data) {
 
-                        if(!pimcore.helpers.dragAndDropValidateSingleItem(data) || !isChangeAllowed) {
+                        if(!pimcore.helpers.dragAndDropValidateSingleItem(data) || !isChangeAllowed || data.records[0].data.id == currentId) {
                             return false;
                         }
 
                         data = data.records[0].data;
-                        if (data.type !== "folder" && data.elementType === "document") {
+                        if (data.type !== "folder" && (
+                            data.elementType === "document" ||
+                            data.elementType === "asset" ||
+                            data.elementType === "object")
+                            ) {
                             internalTypeField.setValue(data.elementType);
                             linkTypeField.setValue('internal');
                             pathField.setValue(data.path);
@@ -451,6 +480,10 @@ pimcore.document.link = Class.create(pimcore.document.document, {
                     hidden: !isChangeAllowed,
                     handler: function () {
                         pimcore.helpers.itemselector(false, function (data) {
+                            if (this.data.id == data.id){
+                                Ext.Msg.alert(t('error'),t('link_recursion_error'));
+                                return false;
+                            }
                             pathField.setValue(data.fullpath);
                             linkTypeField.setValue('internal');
                             internalTypeField.setValue(data.type);

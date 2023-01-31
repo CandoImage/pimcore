@@ -17,20 +17,15 @@ pimcore.document.editables.wysiwyg = Class.create(pimcore.document.editable, {
 
     type: "wysiwyg",
 
-    initialize: function(id, name, config, data, inherited) {
-
-        this.id = id;
-        this.name = name;
-        config = this.parseConfig(config);
+    initialize: function($super, id, name, config, data, inherited) {
+        $super(id, name, config, data, inherited);
 
         if (!data) {
             data = "";
         }
-        this.data = data;
-        this.config = config;
-        this.inherited = inherited;
+        this.data = data ?? "";
 
-        if(config["required"]) {
+        if (config["required"]) {
             this.required = config["required"];
         }
     },
@@ -42,7 +37,7 @@ pimcore.document.editables.wysiwyg = Class.create(pimcore.document.editable, {
         this.textarea.setAttribute("contenteditable","true");
 
         Ext.get(this.id).appendChild(this.textarea);
-        Ext.get(this.id).insertHtml("beforeEnd",'<div class="pimcore_tag_droptarget pimcore_editable_droptarget"></div>');
+        Ext.get(this.id).insertHtml("beforeEnd",'<div class="pimcore_editable_droptarget"></div>');
 
         this.textarea.id = this.id + "_textarea";
         this.textarea.innerHTML = this.data;
@@ -266,18 +261,20 @@ pimcore.document.editables.wysiwyg = Class.create(pimcore.document.editable, {
     },
 
     checkValue: function (mark) {
-
         var value = this.getValue();
+        var textarea = Ext.get(this.textarea);
 
-        if(trim(strip_tags(value)).length < 1) {
-            Ext.get(this.textarea).addCls("empty");
+        // Sync DOM class names with ExtJs (CKEditor may have added classes in the meantime)
+        textarea.setCls(textarea.dom.className);
+
+        if (trim(strip_tags(value)).length < 1) {
+            textarea.addCls("empty");
         } else {
-            Ext.get(this.textarea).removeCls("empty");
+            textarea.removeCls("empty");
         }
 
-
         if (this.required) {
-            this.validateRequiredValue(value, Ext.get(this.textarea), this, mark);
+            this.validateRequiredValue(value, textarea, this, mark);
         }
     },
 

@@ -21,12 +21,11 @@ use Pimcore\Model\Paginator\PaginateListingInterface;
 
 /**
  * @method Document[] load()
- * @method Document current()
+ * @method Document|false current()
  * @method int getTotalCount()
  * @method int getCount()
  * @method int[] loadIdList()
  * @method \Pimcore\Model\Document\Listing\Dao getDao()
- * @method onCreateQuery(callable $callback)
  * @method onCreateQueryBuilder(?callable $callback)
  * @method array loadIdPathList()
  */
@@ -35,26 +34,18 @@ class Listing extends Model\Listing\AbstractListing implements PaginateListingIn
     /**
      * Return all documents as Type Document. eg. for trees an so on there isn't the whole data required
      *
-     * @var bool
-     */
-    public $objectTypeDocument = false;
-
-    /**
-     * @var array|null
+     * @internal
      *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $documents = null;
-
-    /**
      * @var bool
      */
-    public $unpublished = false;
+    protected $objectTypeDocument = false;
 
-    public function __construct()
-    {
-        $this->documents = & $this->data;
-    }
+    /**
+     * @internal
+     *
+     * @var bool
+     */
+    protected $unpublished = false;
 
     /**
      * @return Document[]
@@ -99,9 +90,7 @@ class Listing extends Model\Listing\AbstractListing implements PaginateListingIn
     }
 
     /**
-     * Returns the SQL condition value.
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getCondition()
     {
@@ -124,22 +113,16 @@ class Listing extends Model\Listing\AbstractListing implements PaginateListingIn
      */
 
     /**
-     * Returns the total items count.
-     *
      * @return int
      */
-    public function count()
+    #[\ReturnTypeWillChange]
+    public function count()// : int
     {
         return $this->getTotalCount();
     }
 
     /**
-     * Returns the listing based on defined offset and limit as parameters.
-     *
-     * @param int $offset
-     * @param int $itemCountPerPage
-     *
-     * @return Document[]
+     * {@inheritdoc}
      */
     public function getItems($offset, $itemCountPerPage)
     {
@@ -147,15 +130,5 @@ class Listing extends Model\Listing\AbstractListing implements PaginateListingIn
         $this->setLimit($itemCountPerPage);
 
         return $this->load();
-    }
-
-    /**
-     * @deprecated will be removed in Pimcore 10
-     *
-     * @return self
-     */
-    public function getPaginatorAdapter()
-    {
-        return $this;
     }
 }

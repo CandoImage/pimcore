@@ -15,20 +15,23 @@
 
 namespace Pimcore\Maintenance\Tasks;
 
-use Pimcore\Db\ConnectionInterface;
+use Doctrine\DBAL\Connection;
 use Pimcore\Maintenance\TaskInterface;
 
-final class TmpStoreCleanupTask implements TaskInterface
+/**
+ * @internal
+ */
+class TmpStoreCleanupTask implements TaskInterface
 {
     /**
-     * @var ConnectionInterface
+     * @var Connection
      */
     private $db;
 
     /**
-     * @param ConnectionInterface $db
+     * @param Connection $db
      */
-    public function __construct(ConnectionInterface $db)
+    public function __construct(Connection $db)
     {
         $this->db = $db;
     }
@@ -38,6 +41,6 @@ final class TmpStoreCleanupTask implements TaskInterface
      */
     public function execute()
     {
-        $this->db->deleteWhere('tmp_store', 'expiryDate < '.time());
+        $this->db->executeQuery('DELETE FROM tmp_store WHERE `expiryDate` < :time', ['time' => time()]);
     }
 }

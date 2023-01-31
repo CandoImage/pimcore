@@ -176,7 +176,7 @@ class DeviceDetector
         return $this->getDevice();
     }
 
-    protected function determineDeviceType()
+    private function determineDeviceType()
     {
         $this->setWasUsed(true);
 
@@ -184,7 +184,7 @@ class DeviceDetector
             return;
         }
 
-        $userAgent = $_SERVER['HTTP_USER_AGENT'];
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
         $type = null;
 

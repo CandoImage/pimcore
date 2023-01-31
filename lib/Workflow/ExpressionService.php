@@ -15,14 +15,15 @@
 
 namespace Pimcore\Workflow;
 
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Authentication\AuthenticationTrustResolverInterface;
-use Symfony\Component\Security\Core\Authentication\Token\AnonymousToken;
+use Symfony\Component\Security\Core\Authentication\Token\NullToken;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Core\Role\RoleHierarchyInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\Workflow\EventListener\ExpressionLanguage;
-use Symfony\Component\Workflow\Workflow;
+use Symfony\Component\Workflow\WorkflowInterface;
 
 class ExpressionService
 {
@@ -47,12 +48,12 @@ class ExpressionService
     private $trustResolver;
 
     /**
-     * @var RoleHierarchyInterface
+     * @var RoleHierarchyInterface|null
      */
     private $roleHierarchy;
 
     /**
-     * @var ValidatorInterface
+     * @var ValidatorInterface|null
      */
     private $validator;
 
@@ -66,35 +67,51 @@ class ExpressionService
         $this->validator = $validator;
     }
 
-    public function evaluateExpression(Workflow $workflow, $subject, string $expression)
+    /**
+     * @param object $subject
+     *
+     * @return mixed
+     */
+    public function evaluateExpression(WorkflowInterface $workflow, $subject, string $expression)
     {
-        return $this->expressionLanguage->evaluate($expression, $this->getVariables($workflow, $subject));
+        return $this->expressionLanguage->evaluate($expression, $this->getVariables($subject));
     }
 
+    /**
+     * @param object $subject
+     *
+     * @return array
+     */
     // code should be sync with Symfony\Component\Security\Core\Authorization\Voter\ExpressionVoter
-    private function getVariables(Workflow $workflow, $subject)
+    private function getVariables($subject)
     {
-        $token = $this->tokenStorage->getToken() ?: new AnonymousToken('', 'anonymous', []);
+        $token = $this->tokenStorage->getToken() ?: new NullToken;
 
-        $roles = $token ? $token->getRoles() : [];
+        $roleNames = $token->getRoleNames();
         if (null !== $this->roleHierarchy) {
-            $roles = $this->roleHierarchy->getReachableRoles($roles);
+            $roleNames = $this->roleHierarchy->getReachableRoleNames($roleNames);
         }
 
         $variables = [
             'token' => $token,
-            'user' => $token->getUser(),
+            'user' => $token->getUser() ?: 'anonymous',
+            'object' => $subject,
             'subject' => $subject,
-            'roles' => array_map(function ($role) {
-                return $role->getRole();
-            }, $roles),
-            // needed for the is_granted expression function
-            'auth_checker' => $this->authenticationChecker,
+            'role_names' => $roleNames,
             // needed for the is_* expression function
             'trust_resolver' => $this->trustResolver,
+            // needed for the is_granted expression function
+            'auth_checker' => $this->authenticationChecker,
             // needed for the is_valid expression function
             'validator' => $this->validator,
         ];
+
+        // this is mainly to propose a better experience when the expression is used
+        // in an access control rule, as the developer does not know that it's going
+        // to be handled by this voter
+        if ($subject instanceof Request) {
+            $variables['request'] = $subject;
+        }
 
         return $variables;
     }

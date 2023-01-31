@@ -17,16 +17,13 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager;
 
 use ArrayAccess;
 use Doctrine\DBAL\Query\QueryBuilder as DoctrineQueryBuilder;
-use Pimcore\Db\ZendCompatibility\QueryBuilder as ZendCompatibilityQueryBuilder;
 use Pimcore\Model\Paginator\PaginateListingInterface;
 use SeekableIterator;
 
 /**
  * Interface OrderListInterface
  *
- * @method OrderListItemInterface current()
- * @method DoctrineQueryBuilder getQueryBuilder()
- * @method ZendCompatibilityQueryBuilder|DoctrineQueryBuilder getQueryBuilderCompatibility()
+ * @method OrderListItemInterface|false current()
  */
 interface OrderListInterface extends SeekableIterator, ArrayAccess, PaginateListingInterface
 {
@@ -35,14 +32,12 @@ interface OrderListInterface extends SeekableIterator, ArrayAccess, PaginateList
     const LIST_TYPE_ORDER_ITEM = 'item';
 
     /**
-     * @deprecated
-     *
-     * @return ZendCompatibilityQueryBuilder
+     * @return DoctrineQueryBuilder
      */
-    public function getQuery();
+    public function getQueryBuilder(): DoctrineQueryBuilder;
 
     /**
-     * @return \Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderListItemInterface[]
+     * @return OrderListInterface
      */
     public function load();
 
@@ -137,7 +132,7 @@ interface OrderListInterface extends SeekableIterator, ArrayAccess, PaginateList
      * enable customer query
      * table alias: customer
      *
-     * @param int $classId
+     * @param string $classId
      *
      * @return $this
      */
@@ -185,5 +180,3 @@ interface OrderListInterface extends SeekableIterator, ArrayAccess, PaginateList
      */
     public function setUseSubItems($useSubItems);
 }
-
-class_alias(OrderListInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\IOrderList');

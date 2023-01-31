@@ -29,7 +29,7 @@ class Ecommerce extends AbstractAnalyticsTracker implements CheckoutCompleteInte
         parent::configureOptions($resolver);
 
         $resolver->setDefaults([
-            'template_prefix' => 'PimcoreEcommerceFrameworkBundle:Tracking/analytics/classic',
+            'template_prefix' => '@PimcoreEcommerceFramework/Tracking/analytics/classic',
         ]);
     }
 

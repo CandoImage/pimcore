@@ -19,13 +19,16 @@ namespace Pimcore\Model\Document\Targeting;
 
 use Pimcore\Model\Document\PageSnippet;
 
+/**
+ * @internal
+ */
 trait TargetingDocumentDaoTrait
 {
     public function hasTargetGroupSpecificEditables(): bool
     {
         /** @var PageSnippet\Dao $this */
         $count = $this->db->fetchOne(
-            'SELECT count(*) FROM documents_elements WHERE documentId = ? AND name LIKE ?',
+            'SELECT count(*) FROM documents_editables WHERE documentId = ? AND name LIKE ?',
             [
                 $this->model->getId(),
                 '%' . TargetingDocumentInterface::TARGET_GROUP_EDITABLE_PREFIX . '%' . TargetingDocumentInterface::TARGET_GROUP_EDITABLE_SUFFIX . '%',
@@ -38,8 +41,8 @@ trait TargetingDocumentDaoTrait
     public function getTargetGroupSpecificEditableNames(): array
     {
         /** @var PageSnippet\Dao $this */
-        $names = $this->db->fetchCol(
-            'SELECT name FROM documents_elements WHERE documentId = ? AND name LIKE ?',
+        $names = $this->db->fetchFirstColumn(
+            'SELECT name FROM documents_editables WHERE documentId = ? AND name LIKE ?',
             [
                 $this->model->getId(),
                 '%' . TargetingDocumentInterface::TARGET_GROUP_EDITABLE_PREFIX . '%' . TargetingDocumentInterface::TARGET_GROUP_EDITABLE_SUFFIX . '%',

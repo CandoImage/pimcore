@@ -20,22 +20,10 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\Site\Listing\Dao getDao()
  * @method Model\Site[] load()
- * @method Model\Site current()
+ * @method Model\Site|false current()
  */
 class Listing extends Model\Listing\AbstractListing
 {
-    /**
-     * @var Model\Site[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $sites = null;
-
-    public function __construct()
-    {
-        $this->sites = & $this->data;
-    }
-
     /**
      * @return Model\Site[]
      */
@@ -47,7 +35,7 @@ class Listing extends Model\Listing\AbstractListing
     /**
      * @param Model\Site[]|null $sites
      *
-     * @return static
+     * @return $this
      */
     public function setSites($sites)
     {

@@ -26,16 +26,20 @@ abstract class AbstractOperator implements OperatorInterface
     protected $label;
 
     /**
-     * @var mixed
+     * @var array
      */
-    protected $context;
+    protected array $context = [];
 
     /**
      * @var ConfigElementInterface[]
      */
     protected $childs;
 
-    public function __construct(\stdClass $config, $context = null)
+    /**
+     * @param \stdClass $config
+     * @param array $context
+     */
+    public function __construct(\stdClass $config, array $context = [])
     {
         $this->label = $config->label;
         $this->childs = $config->childs;
@@ -58,21 +62,33 @@ abstract class AbstractOperator implements OperatorInterface
         return false;
     }
 
+    /**
+     * @return array
+     */
     public function getContext()
     {
         return $this->context;
     }
 
+    /**
+     * @param array $context
+     */
     public function setContext($context)
     {
         $this->context = $context;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabel()
     {
         return $this->label;
     }
 
+    /**
+     * @param string $label
+     */
     public function setLabel($label)
     {
         $this->label = $label;

@@ -65,7 +65,7 @@ pimcore.object.tags.input = Class.create(pimcore.object.tags.abstract, {
         };
 
         if (!this.fieldConfig.showCharCount) {
-            input.componentCls = "object_field object_field_type_" + this.type;
+            input.componentCls = this.getWrapperClassNames();
         }
 
         if (this.data) {
@@ -81,15 +81,23 @@ pimcore.object.tags.input = Class.create(pimcore.object.tags.abstract, {
         if (this.fieldConfig.labelWidth) {
             input.labelWidth = this.fieldConfig.labelWidth;
         }
-        input.width += input.labelWidth;
+
+        if (this.fieldConfig.labelAlign) {
+            input.labelAlign = this.fieldConfig.labelAlign;
+        }
+
+        if (!this.fieldConfig.labelAlign || 'left' === this.fieldConfig.labelAlign) {
+            input.width = this.sumWidths(input.width, input.labelWidth);
+        }
 
         if(this.fieldConfig.columnLength) {
             input.maxLength = this.fieldConfig.columnLength;
             input.enforceMaxLength = true;
         }
 
-        if(this.fieldConfig["regex"]) {
-            input.regex = new RegExp(this.fieldConfig.regex);
+        if (this.fieldConfig["regex"]) {
+            let regexFlags = implode('', this.fieldConfig["regexFlags"] ?? []);
+            input.regex = new RegExp(this.fieldConfig.regex, regexFlags);
         }
 
         this.component = new Ext.form.TextField(input);

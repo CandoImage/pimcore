@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Model\Document\Targeting\TargetingDocumentDaoInterface;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Document\Snippet $model
  */
 class Dao extends Model\Document\PageSnippet\Dao implements TargetingDocumentDaoInterface
@@ -30,29 +32,23 @@ class Dao extends Model\Document\PageSnippet\Dao implements TargetingDocumentDao
      *
      * @param int $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id = null)
     {
-        try {
-            if ($id != null) {
-                $this->model->setId($id);
-            }
+        if ($id != null) {
+            $this->model->setId($id);
+        }
 
-            $data = $this->db->fetchRow("SELECT documents.*, documents_snippet.*, tree_locks.locked FROM documents
-                LEFT JOIN documents_snippet ON documents.id = documents_snippet.id
-                LEFT JOIN tree_locks ON documents.id = tree_locks.id AND tree_locks.type = 'document'
-                    WHERE documents.id = ?", $this->model->getId());
+        $data = $this->db->fetchAssociative("SELECT documents.*, documents_snippet.*, tree_locks.locked FROM documents
+            LEFT JOIN documents_snippet ON documents.id = documents_snippet.id
+            LEFT JOIN tree_locks ON documents.id = tree_locks.id AND tree_locks.type = 'document'
+                WHERE documents.id = ?", [$this->model->getId()]);
 
-            if (!empty($data['id'])) {
-                $this->assignVariablesToModel($data);
-            } else {
-                throw new \Exception('Snippet with the ID ' . $this->model->getId() . " doesn't exists");
-            }
-
+        if (!empty($data['id'])) {
             $this->assignVariablesToModel($data);
-        } catch (\Exception $e) {
-            // nothing to do
+        } else {
+            throw new Model\Exception\NotFoundException('Snippet with the ID ' . $this->model->getId() . " doesn't exists");
         }
     }
 
@@ -63,14 +59,5 @@ class Dao extends Model\Document\PageSnippet\Dao implements TargetingDocumentDao
         $this->db->insert('documents_snippet', [
             'id' => $this->model->getId(),
         ]);
-    }
-
-    /**
-     * @throws \Exception
-     */
-    public function delete()
-    {
-        $this->db->delete('documents_snippet', ['id' => $this->model->getId()]);
-        parent::delete();
     }
 }

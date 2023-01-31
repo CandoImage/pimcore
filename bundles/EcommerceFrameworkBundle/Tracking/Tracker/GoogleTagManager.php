@@ -61,12 +61,12 @@ class GoogleTagManager extends Tracker implements
         parent::configureOptions($resolver);
 
         $resolver->setDefaults([
-            'template_prefix' => 'PimcoreEcommerceFrameworkBundle:Tracking/analytics/tagManager',
+            'template_prefix' => '@PimcoreEcommerceFramework/Tracking/analytics/tagManager',
         ]);
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function trackProductImpression(ProductInterface $product, string $list = 'default')
     {
@@ -192,7 +192,7 @@ class GoogleTagManager extends Tracker implements
         $items = $this->trackingItemBuilder->buildCheckoutItems($order);
 
         $call = [
-            'event' => 'checkout',
+            'event' => 'purchase',
             'ecommerce' => [
                 'currencyCode' => $order->getCurrency(),
                 'purchase' => [
@@ -295,7 +295,7 @@ class GoogleTagManager extends Tracker implements
     /**
      * @param int|float|string $price
      *
-     * @return mixed
+     * @return string
      */
     private function formatPrice($price = null)
     {
@@ -303,7 +303,7 @@ class GoogleTagManager extends Tracker implements
     }
 
     /**
-     * @param array $call
+     * @param array|null $call
      *
      * @return string
      */
@@ -321,7 +321,7 @@ class GoogleTagManager extends Tracker implements
 
     protected function getDeferredItems(string $dimension)
     {
-        return $this->deferred[$dimension];
+        return $this->deferred[$dimension] ?? null;
     }
 
     protected function consolidateDeferredDimensions()

@@ -22,9 +22,12 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class RequirementsCheckCommand extends AbstractCommand
 {
-    /** @var array $levelsToDisplay */
+    /** @var int[] $levelsToDisplay */
     protected $levelsToDisplay = [];
 
     /**
@@ -42,7 +45,7 @@ class RequirementsCheckCommand extends AbstractCommand
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         switch ($input->getOption('min-level')) {
             case 'warning':
@@ -73,16 +76,12 @@ class RequirementsCheckCommand extends AbstractCommand
 
     /**
      * @param Requirements\Check[] $checks
-     * @param string $title
-     *
-     * @return void
      */
     protected function display(array $checks, string $title = ''): void
     {
         $checksTab = [];
 
         foreach ($checks as $check) {
-            /** @var Requirements\Check $check */
             if (in_array($check->getState(), $this->levelsToDisplay)) {
                 $checksTab[] = [$check->getName(), $this->displayState($check->getState())];
             }
@@ -93,12 +92,7 @@ class RequirementsCheckCommand extends AbstractCommand
         }
     }
 
-    /**
-     * @param string $state
-     *
-     * @return string
-     */
-    protected function displayState(string $state): string
+    protected function displayState(int $state): string
     {
         switch ($state) {
             case Requirements\Check::STATE_OK:

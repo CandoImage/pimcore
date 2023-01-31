@@ -26,44 +26,40 @@ use Pimcore\Tool\Frontend;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
  * Sets canonical headers for hardlink documents
+ *
+ * @internal
  */
 class HardlinkCanonicalListener implements EventSubscriberInterface
 {
     use PimcoreContextAwareTrait;
 
     /**
-     * @var DocumentResolver
-     */
-    protected $documentResolver;
-
-    /**
      * @param DocumentResolver $documentResolver
      */
-    public function __construct(DocumentResolver $documentResolver)
+    public function __construct(protected DocumentResolver $documentResolver)
     {
-        $this->documentResolver = $documentResolver;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             KernelEvents::RESPONSE => 'onKernelResponse',
         ];
     }
 
-    public function onKernelResponse(FilterResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event)
     {
         $request = $event->getRequest();
 
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 

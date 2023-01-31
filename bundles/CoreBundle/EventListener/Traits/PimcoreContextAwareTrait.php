@@ -19,6 +19,9 @@ use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Symfony\Component\DependencyInjection\Exception\RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
 
+/**
+ * @internal
+ */
 trait PimcoreContextAwareTrait
 {
     /**

@@ -19,28 +19,18 @@ use Pimcore\Model;
 use Pimcore\Model\Tool\Targeting\TargetGroup;
 
 /**
+ * @internal
+ *
  * @method Listing\Dao getDao()
  * @method TargetGroup[] load()
- * @method TargetGroup current()
+ * @method TargetGroup|false current()
  */
 class Listing extends Model\Listing\AbstractListing
 {
     /**
-     * @var TargetGroup[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $targetGroups = null;
-
-    public function __construct()
-    {
-        $this->targetGroups = & $this->data;
-    }
-
-    /**
      * @param TargetGroup[] $targetGroups
      *
-     * @return static
+     * @return $this
      */
     public function setTargetGroups(array $targetGroups)
     {

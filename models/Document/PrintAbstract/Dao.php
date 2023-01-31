@@ -15,9 +15,13 @@
 
 namespace Pimcore\Model\Document\PrintAbstract;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model\Document;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Document\PrintAbstract $model
  */
 class Dao extends Document\PageSnippet\Dao
@@ -51,15 +55,15 @@ class Dao extends Document\PageSnippet\Dao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow("SELECT documents.*, documents_printpage.*, tree_locks.locked FROM documents
+        $data = $this->db->fetchAssociative("SELECT documents.*, documents_printpage.*, tree_locks.locked FROM documents
             LEFT JOIN documents_printpage ON documents.id = documents_printpage.id
             LEFT JOIN tree_locks ON documents.id = tree_locks.id AND tree_locks.type = 'document'
-                WHERE documents.id = ?", $this->model->getId());
+                WHERE documents.id = ?", [$this->model->getId()]);
 
         if (!empty($data['id'])) {
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('Print Document with the ID ' . $this->model->getId() . " doesn't exists");
+            throw new NotFoundException('Print Document with the ID ' . $this->model->getId() . " doesn't exists");
         }
     }
 
@@ -107,8 +111,8 @@ class Dao extends Document\PageSnippet\Dao
             }
         }
 
-        $this->db->insertOrUpdate('documents', $dataDocument);
-        $this->db->insertOrUpdate('documents_printpage', $dataPage);
+        Helper::insertOrUpdate($this->db, 'documents', $dataDocument);
+        Helper::insertOrUpdate($this->db, 'documents_printpage', $dataPage);
 
         $this->updateLocks();
     }

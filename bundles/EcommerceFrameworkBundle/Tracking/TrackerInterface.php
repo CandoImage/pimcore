@@ -31,5 +31,3 @@ interface TrackerInterface
      */
     public function getCheckoutTenants(): array;
 }
-
-class_alias(TrackerInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\ITracker');

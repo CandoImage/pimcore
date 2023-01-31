@@ -30,6 +30,8 @@ use Symfony\Component\Workflow\Marking;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  * @author Grégoire Pineau <lyrixx@lyrixx.info>
+ *
+ * @internal
  */
 class GraphvizDumper implements DumperInterface
 {
@@ -61,7 +63,7 @@ class GraphvizDumper implements DumperInterface
      *  * node: The default options for nodes (places + transitions)
      *  * edge: The default options for edges
      */
-    public function dump(Definition $definition, Marking $marking = null, array $options = [])
+    public function dump(Definition $definition, Marking $marking = null, array $options = []): string
     {
         $places = $this->findPlaces($definition, $marking, $options['workflowName']);
         $transitions = $this->findTransitions($definition);
@@ -84,7 +86,7 @@ class GraphvizDumper implements DumperInterface
         $places = [];
         foreach ($definition->getPlaces() as $place) {
             $attributes = [];
-            if ($place === $definition->getInitialPlace()) {
+            if (in_array($place, $definition->getInitialPlaces(), true)) {
                 $attributes['style'] = 'filled';
                 $attributes['fillcolor'] = '#DFDFDF';
             }

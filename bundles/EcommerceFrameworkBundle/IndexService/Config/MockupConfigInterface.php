@@ -31,5 +31,3 @@ interface MockupConfigInterface
      */
     public function createMockupObject($objectId, $data, $relations);
 }
-
-class_alias(MockupConfigInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config\IMockupConfig');

@@ -9,9 +9,6 @@ Depending on their priority, Redirects come second (priority 99) or fifth (all o
 
 ## Setting up Redirects
 Redirects are configured in the Redirects editor, accessible via the Tools menu. 
- 
- ![Configure Redirects](../../img/redirects1.png)
-
 
 #### Regular Expression and Back-Reference Syntax
 
@@ -33,19 +30,25 @@ Each redirect has a priority.
 * 1 (lowest) - 10 (highest): Redirects with priority 1 to 10 come fifth in route processing and are processed after document paths and custom routes. 
 
 
-
-### Redirects with Documents
-
-There are two additional features for Redirects in combination with Pimcore Documents.  
- 
-#### Shortcut for creating Redirects in Documents Settings
-Redirects for certain Pimcore Documents can be configured directly in the Document settings. All URLs matching the 
-here defined patterns are redirected to the current Document. These Redirects also appear in the [Redirects editor](#setting-up-redirects). 
-
-![Redirects in Documents](../../img/redirects4.png)
-
 #### Creating Redirects When Moving or Renaming Documents
-It might be handy if Pimcore automatically creates Redirects when renaming of moving Documents (in terms of SEO and user experience). There is an option in 
-the *System Settings* to enable that.
+Pimcore provides the ability to automatically create Redirects when renaming and  moving Documents (in terms of SEO and user experience). A User will be prompted with the auto redirect option on performing these actions on documents.
 
-![Redirects in System Settings](../../img/redirects5.png)
+![Redirect Priority](../../img/redirects4.png)
+
+![Redirect Priority](../../img/redirects5.png)
+
+
+#### Creating custom redirect status codes
+The redirect status codes list can be extended by adding custom codes in config.yaml:
+
+```yaml
+pimcore:
+    redirects:
+        status_codes:
+            308: Permanent Redirect
+```
+
+
+The new status codes can be seen in admin.
+
+![Redirect Priority](../../img/redirects7.png)

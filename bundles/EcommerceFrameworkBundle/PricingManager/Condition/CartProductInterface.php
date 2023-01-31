@@ -20,5 +20,3 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\ConditionInterface;
 interface CartProductInterface extends ConditionInterface
 {
 }
-
-class_alias(CartProductInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Condition\ICartProduct');

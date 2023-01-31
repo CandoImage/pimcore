@@ -17,11 +17,12 @@ namespace Pimcore\Model\Translation\Listing;
 
 use Doctrine\DBAL\Query\QueryBuilder as DoctrineQueryBuilder;
 use Pimcore\Cache;
-use Pimcore\Db\ZendCompatibility\Expression;
 use Pimcore\Model;
 use Pimcore\Model\Listing\Dao\QueryBuilderHelperTrait;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Translation\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -31,25 +32,20 @@ class Dao extends Model\Listing\Dao\AbstractDao
     /**
      * @return string
      */
-    protected function getDatabaseTableName(): string
+    public function getDatabaseTableName(): string
     {
         return Model\Translation\Dao::TABLE_PREFIX . $this->model->getDomain();
     }
-
-    /**
-     * @deprecated
-     *
-     * @var \Closure
-     */
-    protected $onCreateQueryCallback;
 
     /**
      * @return int
      */
     public function getTotalCount()
     {
-        $queryBuilder = $this->getQueryBuilderCompatibility([$this->getDatabaseTableName() . '.key']);
-        $this->prepareQueryBuilderForTotalCount($queryBuilder);
+        $queryBuilder = $this->getQueryBuilder([$this->getDatabaseTableName() . '.key']);
+        $queryBuilder->resetQueryPart('orderBy');
+        $queryBuilder->setMaxResults(null);
+        $queryBuilder->setFirstResult(0);
 
         $query = sprintf('SELECT COUNT(*) as amount FROM (%s) AS a', (string) $queryBuilder);
         $amount = (int) $this->db->fetchOne($query, $this->model->getConditionVariables());
@@ -66,7 +62,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
             return count($this->model->load());
         }
 
-        $queryBuilder = $this->getQueryBuilderCompatibility([$this->getDatabaseTableName() . '.key']);
+        $queryBuilder = $this->getQueryBuilder([$this->getDatabaseTableName() . '.key']);
 
         $query = sprintf('SELECT COUNT(*) as amount FROM (%s) AS a', (string) $queryBuilder);
         $amount = (int) $this->db->fetchOne($query, $this->model->getConditionVariables());
@@ -79,19 +75,19 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function getAllTranslations()
     {
-        $queryBuilder = $this->getQueryBuilderCompatibility(['*']);
+        $queryBuilder = $this->getQueryBuilder(['*']);
         $cacheKey = $this->getDatabaseTableName().'_data_' . md5((string)$queryBuilder);
         if (!empty($this->model->getConditionParams()) || !$translations = Cache::load($cacheKey)) {
             $translations = [];
-
             $queryBuilder->setMaxResults(null); //retrieve all results
-            $translationsData = $this->db->fetchAll((string) $queryBuilder, $this->model->getConditionVariables());
+            $translationsData = $this->db->fetchAllAssociative((string) $queryBuilder, $this->model->getConditionVariables());
 
             foreach ($translationsData as $t) {
                 if (!isset($translations[$t['key']])) {
                     $translations[$t['key']] = new Model\Translation();
                     $translations[$t['key']]->setDomain($this->model->getDomain());
                     $translations[$t['key']]->setKey($t['key']);
+                    $translations[$t['key']]->setType($t['type']);
                 }
 
                 $translations[$t['key']]->addTranslation($t['language'], $t['text']);
@@ -106,7 +102,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
             }
 
             if (empty($this->model->getConditionParams())) {
-                Cache::save($translations, $cacheKey, ['translator', 'translate'], 999);
+                Cache::save($translations, $cacheKey, ['translator', 'translate'], null, 999);
             }
         }
 
@@ -118,8 +114,8 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function loadRaw()
     {
-        $queryBuilder = $this->getQueryBuilderCompatibility(['*']);
-        $translationsData = $this->db->fetchAll((string) $queryBuilder, $this->model->getConditionVariables());
+        $queryBuilder = $this->getQueryBuilder(['*']);
+        $translationsData = $this->db->fetchAllAssociative((string) $queryBuilder, $this->model->getConditionVariables());
 
         return $translationsData;
     }
@@ -129,15 +125,19 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function load()
     {
-        $allTranslations = $this->getAllTranslations();
+        //$allTranslations = $this->getAllTranslations();
         $translations = [];
         $this->model->setGroupBy($this->getDatabaseTableName() . '.key', false);
 
-        $queryBuilder = $this->getQueryBuilderCompatibility([$this->getDatabaseTableName() . '.key']);
-        $translationsData = $this->db->fetchAll((string) $queryBuilder, $this->model->getConditionVariables());
+        $queryBuilder = $this->getQueryBuilder([$this->getDatabaseTableName() . '.key']);
+        $translationsData = $this->db->fetchAllAssociative((string) $queryBuilder, $this->model->getConditionVariables());
 
         foreach ($translationsData as $t) {
-            $translations[] = $allTranslations[$t['key']] ?? '';
+            $transObj = Model\Translation::getByKey(id: $t['key'], domain: $this->model->getDomain(), languages: $this->model->getLanguages());
+
+            if ($transObj) {
+                $translations[] = $transObj;
+            }
         }
 
         $this->model->setTranslations($translations);
@@ -151,7 +151,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
     public function isCacheable()
     {
         $count = $this->db->fetchOne('SELECT COUNT(*) FROM ' . $this->getDatabaseTableName());
-        $cacheLimit = Model\Translation\AbstractTranslation\Listing::getCacheLimit();
+        $cacheLimit = Model\Translation\Listing::getCacheLimit();
         if ($count > $cacheLimit) {
             return false;
         }
@@ -161,7 +161,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
 
     public function cleanup()
     {
-        $keysToDelete = $this->db->fetchCol('SELECT `key` FROM ' . $this->getDatabaseTableName() . ' as tbl1 WHERE
+        $keysToDelete = $this->db->fetchFirstColumn('SELECT `key` FROM ' . $this->getDatabaseTableName() . ' as tbl1 WHERE
                (SELECT count(*) FROM ' . $this->getDatabaseTableName() . " WHERE `key` = tbl1.`key` AND (`text` IS NULL OR `text` = ''))
                = (SELECT count(*) FROM " . $this->getDatabaseTableName() . ' WHERE `key` = tbl1.`key`) GROUP BY `key`;');
 
@@ -171,9 +171,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
                 $preparedKeys[] = $this->db->quote($value);
             }
 
-            if (!empty($preparedKeys)) {
-                $this->db->deleteWhere($this->getDatabaseTableName(), '`key` IN (' . implode(',', $preparedKeys) . ')');
-            }
+            $this->db->executeStatement('DELETE FROM ' . $this->getDatabaseTableName() . ' WHERE ' . '`key` IN (' . implode(',', $preparedKeys) . ')');
         }
     }
 
@@ -190,38 +188,5 @@ class Dao extends Model\Listing\Dao\AbstractDao
         $this->applyListingParametersToQueryBuilder($queryBuilder);
 
         return $queryBuilder;
-    }
-
-    /**
-     * @param array|string|Expression $columns
-     *
-     * @return \Pimcore\Db\ZendCompatibility\QueryBuilder
-     */
-    protected function getQuery($columns = '*')
-    {
-        @trigger_error(sprintf('Using %s is deprecated and will be removed in Pimcore 10, please use getQueryBuilder() instead', __METHOD__), E_USER_DEPRECATED);
-
-        $select = $this->db->select();
-        $select->from([ $this->getDatabaseTableName()], $columns);
-        $this->addConditions($select);
-        $this->addOrder($select);
-        $this->addLimit($select);
-        $this->addGroupBy($select);
-
-        if ($this->onCreateQueryCallback) {
-            $closure = $this->onCreateQueryCallback;
-            $closure($select);
-        }
-
-        return $select;
-    }
-
-    /**
-     * @param callable $callback
-     */
-    public function onCreateQuery(callable $callback)
-    {
-        @trigger_error(sprintf('Using %s is deprecated and will be removed in Pimcore 10, please use onCreateQueryBuilder() instead', __METHOD__), E_USER_DEPRECATED);
-        $this->onCreateQueryCallback = $callback;
     }
 }

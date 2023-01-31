@@ -32,11 +32,11 @@ class NumberRangeSelection extends \Pimcore\Bundle\EcommerceFrameworkBundle\Filt
      * @param ProductListInterface $productList
      * @param array $currentFilter
      *
-     * @return string
+     * @return array
      *
      * @throws \Exception
      */
-    public function getFilterFrontend(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter)
+    public function getFilterValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, array $currentFilter): array
     {
         $ranges = $filterDefinition->getRanges();
         $groupByValues = $productList->getGroupByValues($filterDefinition->getField(), true);
@@ -48,7 +48,7 @@ class NumberRangeSelection extends \Pimcore\Bundle\EcommerceFrameworkBundle\Filt
 
         foreach ($groupByValues as $groupByValue) {
             if ($groupByValue['label']) {
-                $value = floatval($groupByValue['label']);
+                $value = (float)$groupByValue['label'];
 
                 if (!$value) {
                     $value = 0;
@@ -74,7 +74,7 @@ class NumberRangeSelection extends \Pimcore\Bundle\EcommerceFrameworkBundle\Filt
             $currentValue = implode('-', $currentFilter[$filterDefinition->getField()]);
         }
 
-        return $this->render($this->getTemplate($filterDefinition), [
+        return [
             'hideFilter' => $filterDefinition->getRequiredFilterField() && empty($currentFilter[$filterDefinition->getRequiredFilterField()]),
             'label' => $filterDefinition->getLabel(),
             'currentValue' => $currentValue,
@@ -84,7 +84,7 @@ class NumberRangeSelection extends \Pimcore\Bundle\EcommerceFrameworkBundle\Filt
             'definition' => $filterDefinition,
             'fieldname' => $filterDefinition->getField(),
             'resultCount' => $productList->count(),
-        ]);
+        ];
     }
 
     /**
@@ -98,7 +98,7 @@ class NumberRangeSelection extends \Pimcore\Bundle\EcommerceFrameworkBundle\Filt
      */
     public function addCondition(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter, $params, $isPrecondition = false)
     {
-        $field = $filterDefinition->getField();
+        $field = $this->getField($filterDefinition);
         $rawValue = $params[$field] ?? null;
 
         if (!empty($rawValue) && $rawValue != AbstractFilterType::EMPTY_STRING) {
@@ -108,8 +108,13 @@ class NumberRangeSelection extends \Pimcore\Bundle\EcommerceFrameworkBundle\Filt
         } elseif ($rawValue == AbstractFilterType::EMPTY_STRING) {
             $value = null;
         } else {
-            $value['from'] = $filterDefinition->getPreSelectFrom();
-            $value['to'] = $filterDefinition->getPreSelectTo();
+            $value = ['from' => null, 'to' => null];
+            if (method_exists($filterDefinition, 'getPreSelectFrom')) {
+                $value['from'] = $filterDefinition->getPreSelectFrom();
+            }
+            if (method_exists($filterDefinition, 'getPreSelectTo')) {
+                $value['to'] = $filterDefinition->getPreSelectTo();
+            }
         }
 
         $currentFilter[$field] = $value;

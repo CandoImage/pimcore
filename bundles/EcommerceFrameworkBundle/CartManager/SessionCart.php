@@ -15,13 +15,14 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\CartManager;
 
-use Pimcore\Bundle\EcommerceFrameworkBundle\Tools\SessionConfigurator;
+use Pimcore\Bundle\EcommerceFrameworkBundle\EventListener\SessionBagListener;
+use Symfony\Component\HttpFoundation\Exception\SessionNotFoundException;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 
 class SessionCart extends AbstractCart implements CartInterface
 {
     /**
-     * @var CartInterface[]
+     * @var SessionCart[]
      */
     protected static $unserializedCarts;
 
@@ -43,8 +44,17 @@ class SessionCart extends AbstractCart implements CartInterface
 
     protected static function getSessionBag(): AttributeBagInterface
     {
+        try {
+            $session = \Pimcore::getContainer()->get('request_stack')->getSession();
+        } catch (SessionNotFoundException $e) {
+            trigger_deprecation('pimcore/pimcore', '10.5',
+                sprintf('Session used with non existing request stack in %s, that will not be possible in Pimcore 11.', __CLASS__));
+
+            $session = \Pimcore::getContainer()->get('session');
+        }
+
         /** @var AttributeBagInterface $sessionBag */
-        $sessionBag = \Pimcore::getContainer()->get('session')->getBag(SessionConfigurator::ATTRIBUTE_BAG_CART);
+        $sessionBag = $session->getBag(SessionBagListener::ATTRIBUTE_BAG_CART);
 
         if (empty($sessionBag->get('carts'))) {
             $sessionBag->set('carts', []);
@@ -74,8 +84,6 @@ class SessionCart extends AbstractCart implements CartInterface
      */
     public function delete()
     {
-        $this->setIgnoreReadonly();
-
         $session = static::getSessionBag();
 
         if (!$this->getId()) {
@@ -105,7 +113,7 @@ class SessionCart extends AbstractCart implements CartInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function modified()
     {
@@ -115,7 +123,7 @@ class SessionCart extends AbstractCart implements CartInterface
     /**
      * @param int $id
      *
-     * @return CartInterface|SessionCart
+     * @return SessionCart|null
      */
     public static function getById($id)
     {
@@ -129,7 +137,7 @@ class SessionCart extends AbstractCart implements CartInterface
      *
      * @param int $userId
      *
-     * @return CartInterface[]
+     * @return SessionCart[]
      */
     public static function getAllCartsForUser($userId)
     {
@@ -147,6 +155,8 @@ class SessionCart extends AbstractCart implements CartInterface
 
     /**
      * @return array
+     *
+     * @internal
      */
     public function __sleep()
     {
@@ -166,11 +176,11 @@ class SessionCart extends AbstractCart implements CartInterface
 
     /**
      * modified flag needs to be set
+     *
+     * @internal
      */
     public function __wakeup()
     {
-        $this->setIgnoreReadonly();
-
         $timestampBackup = $this->getModificationDate();
 
         // set current cart
@@ -186,6 +196,5 @@ class SessionCart extends AbstractCart implements CartInterface
         $this->modified();
 
         $this->setModificationDate($timestampBackup);
-        $this->unsetIgnoreReadonly();
     }
 }

@@ -23,6 +23,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class ClassesRebuildCommand extends AbstractCommand
 {
     /**
@@ -52,6 +55,7 @@ class ClassesRebuildCommand extends AbstractCommand
 
     /**
      * @param ClassDefinitionManager $classDefinitionManager
+     *
      * @required
      */
     public function setClassDefinitionManager(ClassDefinitionManager $classDefinitionManager)
@@ -60,9 +64,9 @@ class ClassesRebuildCommand extends AbstractCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if ($input->getOption('delete-classes')) {
             $questionResult = true;
@@ -89,9 +93,6 @@ class ClassesRebuildCommand extends AbstractCommand
             }
         }
 
-        $list = new ClassDefinition\Listing();
-        $list->load();
-
         if ($output->isVerbose()) {
             $output->writeln('---------------------');
             $output->writeln('Saving all classes');
@@ -105,10 +106,11 @@ class ClassesRebuildCommand extends AbstractCommand
                 }
             }
         } else {
-            foreach ($list->getClasses() as $class) {
+            $list = new ClassDefinition\Listing();
+            foreach ($list->getData() as $class) {
                 if ($class instanceof ClassDefinition) {
                     if ($output->isVerbose()) {
-                        $output->writeln(sprintf('%s [%s] created', $class->getName(), $class->getId()));
+                        $output->writeln(sprintf('%s [%s] saved', $class->getName(), $class->getId()));
                     }
 
                     $class->save(false);

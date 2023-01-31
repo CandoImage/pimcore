@@ -21,47 +21,61 @@ use Pimcore\Model;
  * @method bool getById(string $id)
  * @method \Pimcore\Model\Tool\TmpStore\Dao getDao()
  */
-class TmpStore extends Model\AbstractModel
+final class TmpStore extends Model\AbstractModel
 {
     /**
+     * @internal
+     *
      * @var string
      */
-    public $id;
+    protected $id;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $tag;
+    protected $tag;
 
     /**
+     * @internal
+     *
      * @var mixed
      */
-    public $data;
+    protected $data;
 
     /**
+     * @internal
+     *
      * @var int
      */
-    public $date;
+    protected $date;
 
     /**
+     * @internal
+     *
      * @var int
      */
-    public $expiryDate;
+    protected $expiryDate;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $serialized = false;
+    protected $serialized = false;
 
     /**
-     * @var TmpStore|null
+     * @internal
+     *
+     * @var self|null
      */
-    protected static $instance;
+    protected static ?self $instance = null;
 
     /**
-     * @return TmpStore
+     * @return self
      */
-    protected static function getInstance()
+    private static function getInstance(): self
     {
         if (!self::$instance) {
             self::$instance = new self();
@@ -73,7 +87,7 @@ class TmpStore extends Model\AbstractModel
     /**
      * @return int
      */
-    protected static function getDefaultLifetime()
+    private static function getDefaultLifetime()
     {
         return 86400 * 7;
     }
@@ -123,13 +137,12 @@ class TmpStore extends Model\AbstractModel
     /**
      * @param string $id
      *
-     * @return mixed
+     * @return void
      */
     public static function delete($id)
     {
         $instance = self::getInstance();
-
-        return $instance->getDao()->delete($id);
+        $instance->getDao()->delete($id);
     }
 
     /**
@@ -263,7 +276,7 @@ class TmpStore extends Model\AbstractModel
     /**
      * @param int|null $lifetime
      *
-     * @return mixed
+     * @return bool
      */
     public function update($lifetime = null)
     {

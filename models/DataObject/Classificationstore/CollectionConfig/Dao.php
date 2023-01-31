@@ -18,6 +18,8 @@ namespace Pimcore\Model\DataObject\Classificationstore\CollectionConfig;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Classificationstore\CollectionConfig $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -29,7 +31,7 @@ class Dao extends Model\Dao\AbstractDao
      *
      * @param int $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id = null)
     {
@@ -37,19 +39,19 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow('SELECT * FROM ' . self::TABLE_NAME_COLLECTIONS . ' WHERE id = ?', $this->model->getId());
+        $data = $this->db->fetchAssociative('SELECT * FROM ' . self::TABLE_NAME_COLLECTIONS . ' WHERE id = ?', [$this->model->getId()]);
 
         if (!empty($data['id'])) {
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('CollectionConfig with id: ' . $this->model->getId() . ' does not exist');
+            throw new Model\Exception\NotFoundException('CollectionConfig with id: ' . $this->model->getId() . ' does not exist');
         }
     }
 
     /**
      * @param string|null $name
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getByName($name = null)
     {
@@ -60,12 +62,12 @@ class Dao extends Model\Dao\AbstractDao
         $name = $this->model->getName();
         $storeId = $this->model->getStoreId();
 
-        $data = $this->db->fetchRow('SELECT * FROM ' . self::TABLE_NAME_COLLECTIONS . ' WHERE name = ? and storeId = ?', [$name, $storeId]);
+        $data = $this->db->fetchAssociative('SELECT * FROM ' . self::TABLE_NAME_COLLECTIONS . ' WHERE name = ? and storeId = ?', [$name, $storeId]);
 
         if (!empty($data['id'])) {
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('Config with name: ' . $this->model->getName() . ' does not exist');
+            throw new Model\Exception\NotFoundException(sprintf('Classification store collection config with name "%s" does not exist.', $name));
         }
     }
 
@@ -121,6 +123,6 @@ class Dao extends Model\Dao\AbstractDao
 
         $this->db->insert(self::TABLE_NAME_COLLECTIONS, []);
 
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 }

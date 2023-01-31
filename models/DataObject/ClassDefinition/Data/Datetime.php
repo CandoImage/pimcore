@@ -25,12 +25,12 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
 {
     use Extension\ColumnType;
     use Extension\QueryColumnType;
-
     use Model\DataObject\Traits\DefaultValueTrait;
-    use Model\DataObject\ClassDefinition\NullablePhpdocReturnTypeTrait;
 
     /**
      * Static type of this element
+     *
+     * @internal
      *
      * @var string
      */
@@ -39,6 +39,8 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * Type for the column to query
      *
+     * @internal
+     *
      * @var string
      */
     public $queryColumnType = 'bigint(20)';
@@ -46,23 +48,22 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * Type for the column
      *
+     * @internal
+     *
      * @var string
      */
     public $columnType = 'bigint(20)';
 
     /**
-     * Type for the generated phpdoc
+     * @internal
      *
-     * @var string
-     */
-    public $phpdocType = '\\Carbon\\Carbon';
-
-    /**
      * @var int|null
      */
     public $defaultValue;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $useCurrentDate;
@@ -95,7 +96,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * @see ResourcePersistenceAwareInterface::getDataFromResource
      *
-     * @param int $data
+     * @param string|null $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
@@ -136,7 +137,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * @see Data::getDataForEditmode
      *
-     * @param \DateTime $data
+     * @param \DateTime|null $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
@@ -156,7 +157,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
      *
      * @return \Carbon\Carbon
      */
-    protected function getDateFromTimestamp($timestamp)
+    private function getDateFromTimestamp($timestamp)
     {
         $date = new \Carbon\Carbon();
         $date->setTimestamp($timestamp);
@@ -167,7 +168,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * @see Data::getDataFromEditmode
      *
-     * @param int $data
+     * @param mixed $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
@@ -175,7 +176,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
      */
     public function getDataFromEditmode($data, $object = null, $params = [])
     {
-        if ($data) {
+        if (is_numeric($data)) {
             return $this->getDateFromTimestamp($data / 1000);
         }
 
@@ -199,7 +200,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     }
 
     /**
-     * @param \DateTime $data
+     * @param \DateTime|null $data
      * @param Model\DataObject\Concrete|null $object
      * @param array $params
      *
@@ -217,7 +218,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * @see Data::getVersionPreview
      *
-     * @param \DateTime $data
+     * @param \DateTime|null $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
@@ -233,14 +234,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     }
 
     /**
-     * converts object data to a simple string value or CSV Export
-     *
-     * @abstract
-     *
-     * @param Model\DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return string|null
+     * {@inheritdoc}
      */
     public function getForCsvExport($object, $params = [])
     {
@@ -249,77 +243,15 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
             return $data->format('Y-m-d H:i');
         }
 
-        return null;
-    }
-
-    /**
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|Model\DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return \Carbon\Carbon|null
-     */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
-    {
-        $timestamp = strtotime($importValue);
-        if ($timestamp) {
-            return $this->getDateFromTimestamp($timestamp);
-        }
-
-        return null;
-    }
-
-    /**
-     * @param Model\DataObject\Concrete|Model\DataObject\Localizedfield|Model\DataObject\Objectbrick\Data\AbstractData|\Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData $object
-     * @param mixed $params
-     *
-     * @return string
-     */
-    public function getDataForSearchIndex($object, $params = [])
-    {
         return '';
     }
 
     /**
-     * converts data to be exposed via webservices
-     *
-     * @deprecated
-     *
-     * @param Model\DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
-    public function getForWebserviceExport($object, $params = [])
+    public function getDataForSearchIndex($object, $params = [])
     {
-        return $this->getForCsvExport($object, $params);
-    }
-
-    /**
-     * @deprecated
-     *
-     * @param mixed $value
-     * @param null|Model\DataObject\Concrete $object
-     * @param mixed $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @return \Carbon\Carbon|null
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($value, $object = null, $params = [], $idMapper = null)
-    {
-        $timestamp = strtotime($value);
-        if (empty($value)) {
-            return null;
-        }
-        if ($timestamp !== false) {
-            return $this->getDateFromTimestamp($timestamp);
-        }
-
-        throw new \Exception('cannot get values from web service import - invalid data');
+        return '';
     }
 
     /**
@@ -337,7 +269,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
      */
     public function setDefaultValue($defaultValue)
     {
-        if (strlen(strval($defaultValue)) > 0) {
+        if (strlen((string)$defaultValue) > 0) {
             if (is_numeric($defaultValue)) {
                 $this->defaultValue = (int)$defaultValue;
             } else {
@@ -368,11 +300,8 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
         return $this->useCurrentDate;
     }
 
-    /** True if change is allowed in edit mode.
-     * @param Model\DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return bool
+    /**
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
@@ -385,7 +314,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
      * @param Model\DataObject\Concrete|null $object
      * @param mixed $params
      *
-     * @return mixed
+     * @return Carbon|null
      */
     public function getDiffDataFromEditmode($data, $object = null, $params = [])
     {
@@ -463,16 +392,16 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
         return parent::getFilterConditionExt($value, $operator, $params);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function isFilterable(): bool
     {
         return true;
     }
 
     /**
-     * @param \Pimcore\Model\DataObject\Concrete $object
-     * @param array $context
-     *
-     * @return Carbon|null
+     * {@inheritdoc}
      */
     protected function doGetDefaultValue($object, $context = [])
     {
@@ -503,7 +432,39 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
+     */
+    public function getParameterTypeDeclaration(): ?string
+    {
+        return '?\\' . Carbon::class;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?\\' . Carbon::class;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
+    {
+        return '\\' . Carbon::class . '|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return '\\' . Carbon::class . '|null';
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function normalize($value, $params = [])
     {
@@ -515,7 +476,7 @@ class Datetime extends Data implements ResourcePersistenceAwareInterface, QueryR
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function denormalize($value, $params = [])
     {
