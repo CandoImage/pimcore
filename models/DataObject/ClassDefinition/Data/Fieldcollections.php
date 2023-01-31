@@ -137,6 +137,10 @@ class Fieldcollections extends Data implements CustomResourcePersistingInterface
                             if (isset($params['context']['containerKey']) === false) {
                                 $params['context']['containerKey'] = $idx;
                             }
+                            //@TODO: needs to be checked if still used
+                            if ($fd instanceof Localizedfields) {
+                                $params['fieldcollection'] = $item->getFieldname();
+                            }
                             $collectionData[$fd->getName()] = $fd->getDataForEditmode($value, $object, $params);
                         }
                     }
