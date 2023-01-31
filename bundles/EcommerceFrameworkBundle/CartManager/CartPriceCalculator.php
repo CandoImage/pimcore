@@ -83,7 +83,7 @@ class CartPriceCalculator implements CartPriceCalculatorInterface
     protected $appliedPricingRules = [];
 
     /**
-     * @var PricingManagerInterface
+     * @var PricingManagerInterface|null
      */
     protected $pricingManager;
 
@@ -159,7 +159,7 @@ class CartPriceCalculator implements CartPriceCalculatorInterface
         $subTotalNet = Decimal::zero();
         $subTotalGross = Decimal::zero();
 
-        /** @var Currency $currency */
+        /** @var Currency|null $currency */
         $currency = null;
 
         /** @var TaxEntry[] $subTotalTaxes */
@@ -226,7 +226,6 @@ class CartPriceCalculator implements CartPriceCalculatorInterface
 
         $this->modifications = [];
         foreach ($this->getModificators() as $modificator) {
-            // @var CartPriceModificatorInterface $modificator
             $modification = $modificator->modify($currentSubTotal, $this->cart);
             if ($modification !== null) {
                 $this->modifications[$modificator->getName()] = $modification;
@@ -262,7 +261,7 @@ class CartPriceCalculator implements CartPriceCalculatorInterface
             // apply pricing rules
             $this->appliedPricingRules = $this->getPricingManager()->applyCartRules($this->cart);
 
-            //check if some pricing rule needs recalculation of sums
+            // @phpstan-ignore-next-line check if some pricing rule needs recalculation of sums
             if (!$this->isCalculated) {
                 $this->calculate(true);
             }
@@ -407,7 +406,15 @@ class CartPriceCalculator implements CartPriceCalculatorInterface
             }
         }
 
-        $itemRules = array_merge($this->appliedPricingRules, $itemRules);
+        $itemRules = array_filter($itemRules, function (RuleInterface $rule) {
+            return $rule->hasProductActions();
+        });
+
+        $cartRules = array_filter($this->appliedPricingRules, function (RuleInterface $rule) {
+            return $rule->hasCartActions();
+        });
+
+        $itemRules = array_merge($cartRules, $itemRules);
         $uniqueItemRules = [];
         foreach ($itemRules as $rule) {
             $uniqueItemRules[$rule->getId()] = $rule;

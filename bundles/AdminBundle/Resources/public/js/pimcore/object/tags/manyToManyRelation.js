@@ -76,6 +76,7 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
         return {
             text: t(field.label), width: 150, sortable: false, dataIndex: field.key,
             getEditor: this.getWindowCellEditor.bind(this, field),
+            getRelationFilter: this.getRelationFilter,
             renderer: function (key, value, metaData, record) {
                 this.applyPermissionStyle(key, value, metaData, record);
 
@@ -100,13 +101,31 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
         };
     },
 
-    getLayoutEdit: function () {
+    getRelationFilter: function (dataIndex, editor) {
+        var filterValues = editor.store.getData().items;
+        if (!filterValues || !Array.isArray(filterValues) || !filterValues.length) {
+            filterValues = null;
+        } else {
+            filterValues = filterValues.map(function (item) {
+                return item.data.type + "|" + item.data.id;
+            }).join(',');
+        }
 
+        return new Ext.util.Filter({
+            operator: "like",
+            type: "string",
+            id: "x-gridfilter-" + dataIndex,
+            property: dataIndex,
+            dataIndex: dataIndex,
+            value: filterValues === null ? 'null' : filterValues
+        });
+    },
+
+    getLayoutEdit: function () {
         var autoHeight = false;
-        if (intval(this.fieldConfig.height) < 15) {
+        if (!this.fieldConfig.height) {
             autoHeight = true;
         }
-        var cls = 'object_field object_field_type_' + this.type;
 
         var toolbarItems = this.getEditToolbarItems();
 
@@ -185,16 +204,18 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
             store: this.store,
             border: true,
             style: "margin-bottom: 10px",
-
-            selModel: Ext.create('Ext.selection.RowModel', {}),
+            multiSelect: true,
             viewConfig: {
                 markDirty: false,
+                enableTextSelection: this.fieldConfig.enableTextSelection,
                 plugins: {
                     ptype: 'gridviewdragdrop',
                     draggroup: 'element'
                 },
                 listeners: {
                     drop: function (node, data, dropRec, dropPosition) {
+                        this.dataChanged = true;
+
                         // this is necessary to avoid endless recursion when long lists are sorted via d&d
                         // TODO: investigate if there this is already fixed 6.2
                         if (this.object.toolbar && this.object.toolbar.items && this.object.toolbar.items.items) {
@@ -212,7 +233,7 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
                 },
                 items: columns
             },
-            componentCls: cls,
+            componentCls: this.getWrapperClassNames(),
             tbar: {
                 items: toolbarItems,
                 ctCls: "pimcore_force_auto_width",
@@ -414,7 +435,7 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
             style: "margin-bottom: 10px",
             title: this.fieldConfig.title,
             viewConfig: {
-            enableTextSelection: true,
+                enableTextSelection: this.fieldConfig.enableTextSelection,
                 listeners: {
                     refresh: function (gridview) {
                         this.requestNicePathData(this.store.data);
@@ -430,6 +451,12 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
     },
 
     uploadDialog: function () {
+        if (!this.fieldConfig.allowMultipleAssignments || (this.fieldConfig["maxItems"] && this.fieldConfig["maxItems"] >= 1)) {
+            if (this.fieldConfig.maxItems && (this.store.getData().getSource() || this.store.getData()).count() >= this.fieldConfig.maxItems) {
+                Ext.Msg.alert(t("error"), t("limit_reached"));
+                return true;
+            }
+        }
         pimcore.helpers.assetSingleUploadDialog(this.fieldConfig.assetUploadPath, "path", function (res) {
             try {
                 var data = Ext.decode(res.response.responseText);
@@ -446,7 +473,17 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
             } catch (e) {
                 console.log(e);
             }
-        }.bind(this), null, this.context);
+        }.bind(this), 
+        function (res) {
+            const response = Ext.decode(res.response.responseText);
+            if (response && response.success === false) {
+                pimcore.helpers.showNotification(t("error"), response.message, "error",
+                    res.response.responseText);
+            } else {
+                pimcore.helpers.showNotification(t("error"), res, "error",
+                    res.response.responseText);
+            }
+        }.bind(this), this.context);
     },
 
     onRowContextmenu: function (grid, record, tr, rowIndex, e, eOpts) {
@@ -548,7 +585,7 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
 
         // check max amount in field
         if (this.fieldConfig["maxItems"] && this.fieldConfig["maxItems"] >= 1) {
-            if (this.store.getCount() >= this.fieldConfig.maxItems) {
+            if ((this.store.getData().getSource() || this.store.getData()).count() >= this.fieldConfig.maxItems) {
                 Ext.Msg.alert(t("error"), t("limit_reached"));
                 return true;
             }
@@ -740,6 +777,3 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
     }
 
 });
-
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.tags.multihref = pimcore.object.tags.manyToManyRelation;

@@ -23,24 +23,28 @@ use Pimcore\Model\Document;
 class Printcontainer extends Document\PrintAbstract
 {
     /**
-     * Static type of the document
-     *
-     * @var string
+     * {@inheritdoc}
      */
-    protected $type = 'printcontainer';
+    protected string $type = 'printcontainer';
 
     /**
+     * @internal
+     *
      * @var string
      */
     protected $action = 'container';
 
     /**
+     * @internal
+     *
      * @var array
      */
     private $allChildren = [];
 
     /**
      * @return array
+     *
+     * @internal
      */
     public function getTreeNodeConfig()
     {

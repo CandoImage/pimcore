@@ -20,19 +20,19 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\Document\Editable\Dao getDao()
  */
-class Date extends Model\Document\Editable
+class Date extends Model\Document\Editable implements EditmodeDataInterface
 {
     /**
      * Contains the date
      *
+     * @internal
+     *
      * @var \Carbon\Carbon|null
      */
-    public $date;
+    protected $date;
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -40,9 +40,7 @@ class Date extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -50,11 +48,17 @@ class Date extends Model\Document\Editable
     }
 
     /**
-     * Converts the data so it's suitable for the editmode
-     *
-     * @return int|null
+     * @return \Carbon\Carbon|null
      */
-    public function getDataEditmode()
+    public function getDate()
+    {
+        return $this->getData();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDataEditmode() /** : mixed */
     {
         if ($this->date) {
             return $this->date->getTimestamp();
@@ -64,7 +68,7 @@ class Date extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -75,7 +79,7 @@ class Date extends Model\Document\Editable
         } elseif (isset($this->config['format']) && $this->config['format']) {
             $format = $this->config['format'];
         } else {
-            $format = \DateTime::ISO8601;
+            $format = 'Y-m-d\TH:i:sO'; // ISO8601
         }
 
         if ($this->date instanceof \DateTimeInterface) {
@@ -84,9 +88,7 @@ class Date extends Model\Document\Editable
     }
 
     /**
-     * @see Tag::getDataForResource
-     *
-     * @return int|null
+     * {@inheritdoc}
      */
     public function getDataForResource()
     {
@@ -98,11 +100,7 @@ class Date extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -114,11 +112,7 @@ class Date extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -131,7 +125,7 @@ class Date extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -143,56 +137,11 @@ class Date extends Model\Document\Editable
     }
 
     /**
-     * Receives a Webservice\Data\Document\Element from webservice import and fill the current tag's data
-     *
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        if (!$wsElement or empty($wsElement->value)) {
-            $this->date = null;
-        } elseif (is_numeric($wsElement->value)) {
-            $this->setDateFromTimestamp($wsElement->value);
-        } else {
-            throw new \Exception('cannot get document tag date from WS - invalid value [  '.$wsElement->value.' ]');
-        }
-    }
-
-    /**
-     * Returns the current tag's data for web service export
-     *
-     * @deprecated
-     *
-     * @param Model\Document\PageSnippet|null $document
-     * @param array $params
-     * @abstract
-     *
-     * @return int|null
-     */
-    public function getForWebserviceExport($document = null, $params = [])
-    {
-        if ($this->date) {
-            return $this->date->getTimestamp();
-        } else {
-            return null;
-        }
-    }
-
-    /**
      * @param int $timestamp
      */
-    protected function setDateFromTimestamp($timestamp)
+    private function setDateFromTimestamp($timestamp)
     {
         $this->date = new \Carbon\Carbon();
         $this->date->setTimestamp($timestamp);
     }
 }
-
-class_alias(Date::class, 'Pimcore\Model\Document\Tag\Date');

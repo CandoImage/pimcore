@@ -15,31 +15,16 @@
 
 namespace Pimcore\Http\Request\Resolver;
 
-use Pimcore\Controller\Config\ConfigNormalizer;
 use Symfony\Cmf\Bundle\RoutingBundle\Routing\DynamicRouter;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RequestStack;
 
+/**
+ * @internal
+ */
 class TemplateResolver extends AbstractRequestResolver
 {
     /**
-     * @var ConfigNormalizer
-     */
-    protected $configNormalizer;
-
-    /**
-     * @param RequestStack $requestStack
-     * @param ConfigNormalizer $configNormalizer
-     */
-    public function __construct(RequestStack $requestStack, ConfigNormalizer $configNormalizer)
-    {
-        parent::__construct($requestStack);
-
-        $this->configNormalizer = $configNormalizer;
-    }
-
-    /**
-     * @param Request $request
+     * @param Request|null $request
      *
      * @return null|string
      */
@@ -49,10 +34,7 @@ class TemplateResolver extends AbstractRequestResolver
             $request = $this->getCurrentRequest();
         }
 
-        $template = $request->get(DynamicRouter::CONTENT_TEMPLATE, null);
-        $template = $this->configNormalizer->normalizeTemplateName($template);
-
-        return $template;
+        return $request->get(DynamicRouter::CONTENT_TEMPLATE);
     }
 
     /**

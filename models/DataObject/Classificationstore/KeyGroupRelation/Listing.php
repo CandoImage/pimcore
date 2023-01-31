@@ -20,25 +20,13 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\DataObject\Classificationstore\KeyGroupRelation\Listing\Dao getDao()
  * @method Model\DataObject\Classificationstore\KeyGroupRelation[] load()
- * @method Model\DataObject\Classificationstore\KeyGroupRelation current()
+ * @method Model\DataObject\Classificationstore\KeyGroupRelation|false current()
  * @method int getTotalCount()
  */
 class Listing extends Model\Listing\AbstractListing
 {
-    /**
-     * @var Model\DataObject\Classificationstore\KeyGroupRelation[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $list = null;
-
     /** @var bool */
-    public $resolveGroupName;
-
-    public function __construct()
-    {
-        $this->list = & $this->data;
-    }
+    protected $resolveGroupName = false;
 
     /**
      * @return Model\DataObject\Classificationstore\KeyGroupRelation[]
@@ -51,7 +39,7 @@ class Listing extends Model\Listing\AbstractListing
     /**
      * @param Model\DataObject\Classificationstore\KeyGroupRelation[]|null $theList
      *
-     * @return static
+     * @return $this
      */
     public function setList($theList)
     {
@@ -71,6 +59,6 @@ class Listing extends Model\Listing\AbstractListing
      */
     public function setResolveGroupName($resolveGroupName)
     {
-        $this->resolveGroupName = $resolveGroupName;
+        $this->resolveGroupName = (bool) $resolveGroupName;
     }
 }

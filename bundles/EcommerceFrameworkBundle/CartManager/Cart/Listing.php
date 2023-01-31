@@ -19,24 +19,16 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 
 /**
  * @method \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\Cart[] load()
- * @method \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\Cart current()
+ * @method \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\Cart|false current()
  * @method int getTotalCount()
  * @method \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\Cart\Listing\Dao getDao()
+ * @method void setCartClass(string $cartClass)
  */
 class Listing extends \Pimcore\Model\Listing\AbstractListing
 {
-    /**
-     * @var array
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    public $carts;
-
     public function __construct()
     {
         $this->getDao()->setCartClass(Factory::getInstance()->getCartManager()->getCartClassName());
-
-        $this->carts = & $this->data;
     }
 
     /**
@@ -60,7 +52,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing
     /**
      * @param array $carts
      *
-     * @return static
+     * @return $this
      */
     public function setCarts($carts)
     {

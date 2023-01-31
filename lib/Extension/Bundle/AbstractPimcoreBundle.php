@@ -20,7 +20,7 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 abstract class AbstractPimcoreBundle extends Bundle implements PimcoreBundleInterface
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getNiceName()
     {
@@ -28,7 +28,7 @@ abstract class AbstractPimcoreBundle extends Bundle implements PimcoreBundleInte
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getDescription()
     {
@@ -36,7 +36,7 @@ abstract class AbstractPimcoreBundle extends Bundle implements PimcoreBundleInte
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getVersion()
     {
@@ -76,7 +76,7 @@ abstract class AbstractPimcoreBundle extends Bundle implements PimcoreBundleInte
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getEditmodeJsPaths()
     {
@@ -84,7 +84,7 @@ abstract class AbstractPimcoreBundle extends Bundle implements PimcoreBundleInte
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getEditmodeCssPaths()
     {

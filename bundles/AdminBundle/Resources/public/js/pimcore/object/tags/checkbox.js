@@ -35,6 +35,8 @@ pimcore.object.tags.checkbox = Class.create(pimcore.object.tags.abstract, {
 
     getGridColumnConfig:function (field) {
         var columnConfig = {
+            xtype: "checkcolumn",
+            disabled: field.layout.noteditable,
             text: t(field.label),
             dataIndex:field.key,
             renderer:function (key, value, metaData, record, rowIndex, colIndex, store) {
@@ -57,10 +59,6 @@ pimcore.object.tags.checkbox = Class.create(pimcore.object.tags.abstract, {
                 return Ext.String.format('<div style="text-align: center"><div role="button" class="x-grid-checkcolumn{0}" style=""></div></div>', value ? '-checked' : '');
             }.bind(this, field)
         };
-
-        if(!field.layout.noteditable) {
-            columnConfig.editor = Ext.create('Ext.form.field.Checkbox', {style: 'margin-top: 2px;'});
-        }
 
         return columnConfig;
     },
@@ -112,11 +110,6 @@ pimcore.object.tags.checkbox = Class.create(pimcore.object.tags.abstract, {
             }
         };
 
-        if (this.fieldConfig.labelWidth) {
-            checkbox.labelWidth = this.fieldConfig.labelWidth;
-        }
-
-
         this.createEmptyButton();
 
         this.checkbox = new Ext.form.Checkbox(checkbox);
@@ -128,7 +121,7 @@ pimcore.object.tags.checkbox = Class.create(pimcore.object.tags.abstract, {
                 this.checkbox,
                 this.emptyButton
             ],
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             border: false,
             style: {
                 padding: 0
@@ -137,6 +130,10 @@ pimcore.object.tags.checkbox = Class.create(pimcore.object.tags.abstract, {
 
         if (this.fieldConfig.labelWidth) {
             componentCfg.labelWidth = this.fieldConfig.labelWidth;
+        }
+
+        if (this.fieldConfig.labelAlign) {
+            componentCfg.labelAlign = this.fieldConfig.labelAlign;
         }
 
         this.component = Ext.create('Ext.form.FieldContainer', componentCfg);

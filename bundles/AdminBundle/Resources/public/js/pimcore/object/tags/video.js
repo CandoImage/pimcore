@@ -24,6 +24,8 @@ pimcore.object.tags.video = Class.create(pimcore.object.tags.abstract, {
             this.data = {};
         }
 
+        this.data.allowedTypes = fieldConfig.allowedTypes;
+
         this.fieldConfig = fieldConfig;
     },
 
@@ -47,18 +49,17 @@ pimcore.object.tags.video = Class.create(pimcore.object.tags.abstract, {
                         height: 88,
                         frame: true
                     });
-                    return '<img src="' + path + '" />';
+                    return '<img src="' + path + '" loading="lazy" />';
                 }
             }.bind(this, field.key)
         };
     },
 
     getLayoutEdit: function () {
-
-        if (intval(this.fieldConfig.width) < 1) {
+        if (!this.fieldConfig.width) {
             this.fieldConfig.width = 300;
         }
-        if (intval(this.fieldConfig.height) < 1) {
+        if (!this.fieldConfig.height) {
             this.fieldConfig.height = 300;
         }
 
@@ -79,7 +80,7 @@ pimcore.object.tags.video = Class.create(pimcore.object.tags.abstract, {
                 iconCls: "pimcore_icon_delete",
                 handler: this.empty.bind(this)
             }],
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             bodyCls: "pimcore_video_container"
         };
 
@@ -96,11 +97,10 @@ pimcore.object.tags.video = Class.create(pimcore.object.tags.abstract, {
     },
 
     getLayoutShow: function () {
-
-        if (intval(this.fieldConfig.width) < 1) {
+        if (!this.fieldConfig.width) {
             this.fieldConfig.width = 300;
         }
-        if (intval(this.fieldConfig.height) < 1) {
+        if (!this.fieldConfig.height) {
             this.fieldConfig.height = 300;
         }
 
@@ -181,7 +181,7 @@ pimcore.object.tags.video = Class.create(pimcore.object.tags.abstract, {
     updateVideo: function () {
 
         var width = this.component.getWidth();
-        //need to geht height this way, because element has no hight at afterrender (whyever)
+        //need to geht height this way, because element has no height at afterrender (whyever)
         var height = this.fieldConfig.height - 55;
 
         var content = '';
@@ -211,9 +211,11 @@ pimcore.object.tags.video = Class.create(pimcore.object.tags.abstract, {
     },
 
     empty: function () {
+        let allowedTypes = this.fieldConfig.allowedTypes;
         this.data = {
-            type: "asset",
-            data: ""
+            type: "",
+            data: "",
+            allowedTypes: allowedTypes,
         };
 
         this.component.setHtml("");

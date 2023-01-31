@@ -13,7 +13,7 @@
 
 pimcore.registerNS("pimcore.asset.asset");
 pimcore.asset.asset = Class.create(pimcore.element.abstract, {
-
+    willClose: false,
     getData: function () {
         Ext.Ajax.request({
             url: Routing.generate('pimcore_admin_asset_getdatabyid'),
@@ -23,19 +23,26 @@ pimcore.asset.asset = Class.create(pimcore.element.abstract, {
             }.bind(this),
             params: {
                 id: this.id,
-                type: this.type
+                    type: this.type
             }
         });
     },
 
     getDataComplete: function (response) {
-
         try {
             this.data = Ext.decode(response.responseText);
+
+            if (this.data.success === false && this.options && this.options.ignoreNotFoundError) {
+                return;
+            }
 
             if (typeof this.data.editlock == "object") {
                 pimcore.helpers.lockManager(this.id, "asset", this.type, this.data);
                 throw "asset is locked";
+            }
+
+            if (this.type !== this.data.type) {
+                Ext.MessageBox.alert(t("warning"), t("asset_type_changed"));
             }
 
             this.addTab();
@@ -100,7 +107,15 @@ pimcore.asset.asset = Class.create(pimcore.element.abstract, {
 
         this.tab.on("afterrender", function (tabId) {
             this.tabPanel.setActiveItem(tabId);
-            pimcore.plugin.broker.fireEvent("postOpenAsset", this, this.getType());
+
+            const postOpenAsset = new CustomEvent(pimcore.events.postOpenAsset, {
+                detail: {
+                    asset: this,
+                    type: this.getType()
+                }
+            });
+
+            document.dispatchEvent(postOpenAsset);
         }.bind(this, tabId));
 
         this.removeLoadingPanel();
@@ -348,21 +363,20 @@ pimcore.asset.asset = Class.create(pimcore.element.abstract, {
 
         this.tab.mask();
 
-        try {
-            pimcore.plugin.broker.fireEvent("preSaveAsset", this.id);
-        } catch (e) {
-            if (e instanceof pimcore.error.ValidationException) {
-                this.tab.unmask();
-                pimcore.helpers.showPrettyError('asset', t("error"), t("saving_failed"), e.message);
-                return false;
-            }
+        const preSaveAsset = new CustomEvent(pimcore.events.preSaveAsset, {
+            detail: {
+                id: this.id,
+                task: task
+            },
+            cancelable: true
+        });
 
-            if (e instanceof pimcore.error.ActionCancelledException) {
-                this.tab.unmask();
-                pimcore.helpers.showNotification(t("Info"), 'Asset not saved: ' + e.message, 'info');
-                return false;
-            }
+        const isAllowed = document.dispatchEvent(preSaveAsset);
+        if (!isAllowed) {
+            this.tab.unmask();
+            return false;
         }
+
 
         let params = this.getSaveData(only);
         if (task) {
@@ -380,7 +394,14 @@ pimcore.asset.asset = Class.create(pimcore.element.abstract, {
                         this.resetChanges();
                         Ext.apply(this.data, rdata.data);
 
-                        pimcore.plugin.broker.fireEvent("postSaveAsset", this.id);
+                        const postSaveAsset = new CustomEvent(pimcore.events.postSaveAsset, {
+                            detail: {
+                                id: this.id
+                            }
+                        });
+
+                        document.dispatchEvent(postSaveAsset);
+
                         pimcore.helpers.updateTreeElementStyle('asset', this.id, rdata.treeData);
 
                     }
@@ -399,6 +420,11 @@ pimcore.asset.asset = Class.create(pimcore.element.abstract, {
                 if(typeof callback == "function") {
                     callback();
                 }
+
+                if (this.willClose){
+                    this.close();
+                }
+
             }.bind(this),
             failure: function () {
                 this.tab.unmask();
@@ -406,14 +432,13 @@ pimcore.asset.asset = Class.create(pimcore.element.abstract, {
             params: params
         });
     },
-
-    saveClose: function(){
-        this.save(null, function () {
-            var tabPanel = Ext.getCmp("pimcore_panel_tabs");
-            tabPanel.remove(this.tab);
-        }.bind(this));
+    close: function(){
+        pimcore.helpers.closeAsset(this.id);
     },
-
+    saveClose: function(){
+        this.willClose = true;
+        this.save(null);
+    },
     remove: function () {
         var options = {
             "elementType" : "asset",

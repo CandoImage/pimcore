@@ -46,18 +46,20 @@ class Service
                 $dateTime->setTimestamp($value);
             }
             $data['value'] = $dateTime;
-        } elseif (false) { //TODO
+            /**
+            } elseif (false) { //TODO
 
-            $data['type'] = 'document';
-            $data['value'] = $value;
-        } elseif (false) { //TODO
+                $data['type'] = 'document';
+                $data['value'] = $value;
+            } elseif (false) { //TODO
 
-            $data['type'] = 'asset';
-            $data['value'] = $value;
-        } elseif (false) { //TODO
+                $data['type'] = 'asset';
+                $data['value'] = $value;
+            } elseif (false) { //TODO
 
-            $data['type'] = 'object';
-            $data['value'] = $value;
+                $data['type'] = 'object';
+                $data['value'] = $value;
+            */
         } else {
             $data['type'] = 'text';
             $data['value'] = $value;
@@ -72,7 +74,7 @@ class Service
      * @param mixed $data
      * @param string $pimcoreTagName
      *
-     * @return mixed|null
+     * @return mixed
      */
     public static function getDataFromEditmode($data, $pimcoreTagName)
     {
@@ -95,7 +97,7 @@ class Service
     /**
      * Creates a note for an action with a transition
      *
-     * @param Element\AbstractElement $element
+     * @param Element\ElementInterface $element
      * @param string $type
      * @param string $title
      * @param string $description
@@ -104,7 +106,7 @@ class Service
      *
      * @return Element\Note $note
      */
-    public static function createActionNote($element, $type, $title, $description, $noteData, $user = null)
+    public static function createActionNote(Element\ElementInterface $element, $type, $title, $description, $noteData, $user = null)
     {
         //prepare some vars for creating the note
         if (!$user) {

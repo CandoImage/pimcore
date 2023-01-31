@@ -19,7 +19,7 @@ use Pimcore\Bundle\InstallBundle\InstallerKernel;
 use Pimcore\Version;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Input\ArgvInput;
-use Symfony\Component\Debug\Debug;
+use Symfony\Component\ErrorHandler\Debug;
 
 @ini_set('display_errors', 'On');
 
@@ -35,7 +35,7 @@ if (file_exists($a = getcwd() . '/vendor/autoload.php')) {
     $projectRoot = __DIR__ . '/../../../..';
 } elseif (file_exists($a = __DIR__ . '/../autoload.php')) {
     require $a;
-    $projectRoot = '/..';
+    $projectRoot = __DIR__ . '/..';
 } else {
     fwrite(STDERR, 'Cannot locate autoloader; please run "composer install"' . PHP_EOL);
     exit(1);
@@ -45,15 +45,35 @@ define('PIMCORE_PROJECT_ROOT', $projectRoot);
 
 Bootstrap::defineConstants();
 
-Debug::enable(PIMCORE_PHP_ERROR_REPORTING);
+Debug::enable();
 
 // Load a startup file if it exists - this is a good place to preconfigure the system
 // before the kernel is loaded - e.g. to set trusted proxies on the request object
-$startupFile = PIMCORE_PROJECT_ROOT . '/app/startup.php';
+$startupFile = PIMCORE_PROJECT_ROOT . '/config/pimcore/startup.php';
 if (file_exists($startupFile)) {
     include_once $startupFile;
 }
 
+$input = new \Symfony\Component\Console\Input\ArgvInput();
+$env = $input->getParameterOption(['--env', '-e'], null, true);
+
+if ($env !== null) {
+    $putEnv = sprintf(
+        'APP_ENV=%s',
+        $_SERVER['APP_ENV'] = $_ENV['APP_ENV'] = $env
+    );
+
+    putenv($putEnv);
+}
+
+if ($input->hasParameterOption('--no-debug', true)) {
+    $putEnv = sprintf(
+        'APP_DEBUG=%s',
+        $_SERVER['APP_DEBUG'] = $_ENV['APP_DEBUG'] = '0'
+    );
+
+    putenv($putEnv);
+}
 
 $kernel = new InstallerKernel(PIMCORE_PROJECT_ROOT, Config::getEnvironment(), true);
 Pimcore::setKernel($kernel);

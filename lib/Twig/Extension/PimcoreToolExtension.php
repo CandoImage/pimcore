@@ -21,9 +21,12 @@ use Pimcore\Tool\DeviceDetector;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
+/**
+ * @internal
+ */
 class PimcoreToolExtension extends AbstractExtension
 {
-    public function getFunctions()
+    public function getFunctions(): array
     {
         return [
             new TwigFunction('pimcore_language_flag', [\Pimcore\Tool::class, 'getLanguageFlagFile']),

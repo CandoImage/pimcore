@@ -15,8 +15,10 @@
 
 namespace Pimcore\Http;
 
+use Symfony\Component\HttpFoundation\Exception\SessionNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Routing\RequestContext;
 
 class RequestHelper
@@ -43,11 +45,17 @@ class RequestHelper
         $this->requestContext = $requestContext;
     }
 
+    /**
+     * @return bool
+     */
     public function hasCurrentRequest(): bool
     {
         return null !== $this->requestStack->getCurrentRequest();
     }
 
+    /**
+     * @return Request
+     */
     public function getCurrentRequest(): Request
     {
         if (!$this->requestStack->getCurrentRequest()) {
@@ -71,16 +79,54 @@ class RequestHelper
         return $request;
     }
 
+    /**
+     * @deprecated will be removed in Pimcore 11, use getMainRequest() instead
+     *
+     * @return bool
+     */
     public function hasMasterRequest(): bool
     {
-        return null !== $this->requestStack->getMasterRequest();
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.2',
+            sprintf('%s is deprecated, please use RequestHelper::hasMainRequest() instead.', __METHOD__)
+        );
+
+        return $this->hasMainRequest();
     }
 
+    /**
+     * @return bool
+     */
+    public function hasMainRequest(): bool
+    {
+        return null !== $this->requestStack->getMainRequest();
+    }
+
+    /**
+     * @deprecated will be removed in Pimcore 11 - use getMainRequest() instead
+     *
+     * @return Request
+     */
     public function getMasterRequest(): Request
     {
-        $masterRequest = $this->requestStack->getMasterRequest();
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.2',
+            sprintf('%s is deprecated, please use RequestHelper::getMainRequest() instead.', __METHOD__)
+        );
+
+        return $this->getMainRequest();
+    }
+
+    /**
+     * @return Request
+     */
+    public function getMainRequest(): Request
+    {
+        $masterRequest = $this->requestStack->getMainRequest();
         if (null === $masterRequest) {
-            throw new \LogicException('There is no master request available.');
+            throw new \LogicException('There is no main request available.');
         }
 
         return $masterRequest;
@@ -96,8 +142,8 @@ class RequestHelper
         $request = $this->getRequest($request);
         $attribute = self::ATTRIBUTE_FRONTEND_REQUEST;
 
-        if ($request->attributes->has($attribute) && $request->attributes->get($attribute)) {
-            return true;
+        if ($request->attributes->has($attribute)) {
+            return (bool)$request->attributes->get($attribute);
         }
 
         $frontendRequest = $this->detectFrontendRequest($request);
@@ -114,23 +160,14 @@ class RequestHelper
      *
      * @return bool
      */
-    protected function detectFrontendRequest(Request $request): bool
+    private function detectFrontendRequest(Request $request): bool
     {
         if (\Pimcore::inAdmin()) {
             return false;
         }
 
-        $excludePatterns = [
-            "/^\/admin.*/",
-            "/^\/install.*/",
-            "/^\/plugin.*/",
-            "/^\/webservice.*/",
-        ];
-
-        foreach ($excludePatterns as $pattern) {
-            if (preg_match($pattern, $request->getRequestUri())) {
-                return false;
-            }
+        if (preg_match('@^/admin.*@', $request->getRequestUri())) {
+            return false;
         }
 
         return true;
@@ -171,6 +208,8 @@ class RequestHelper
     /**
      * Get an anonymized client IP from the request
      *
+     * @internal
+     *
      * @param Request|null $request
      *
      * @return string
@@ -189,7 +228,7 @@ class RequestHelper
      *
      * @return string
      */
-    public function anonymizeIp(string $ip)
+    private function anonymizeIp(string $ip)
     {
         $aip = substr($ip, 0, strrpos($ip, '.') + 1);
         $aip .= '255';
@@ -222,5 +261,15 @@ class RequestHelper
         );
 
         return $request;
+    }
+
+    /**
+     * Gets the current session from RequestStack
+     *
+     * @throws SessionNotFoundException
+     */
+    public function getSession(): SessionInterface
+    {
+        return $this->requestStack->getSession();
     }
 }

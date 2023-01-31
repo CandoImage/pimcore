@@ -1,6 +1,6 @@
 # Modifying Pimcore Permissions Based On Workflow Places
 
-As listed in the [configuration details section](./01_Configuration_Details.md) it's possible to modify the Pimcore 
+As listed in the [configuration details section](./01_Configuration_Details/README.md) it's possible to modify the Pimcore 
 element permissions based on the current workflow place.
 
 It's possible to add multiple permission configurations based on conditions. The first entry where the condition is 
@@ -15,7 +15,7 @@ Pimcore admins are allowed to publish and delete the object but for all other us
    places:
       closed:
          permissions:
-           - condition: is_fully_authenticated() and 'ROLE_PIMCORE_ADMIN' in roles
+           - condition: is_fully_authenticated() and 'ROLE_PIMCORE_ADMIN' in role_names
              publish: true
              delete: true
            - publish: false
@@ -30,7 +30,7 @@ will be hidden. `modify` is a short hand for save, publish, unpublish, delete an
    places:
       closed:
          permissions:
-           - condition: is_fully_authenticated() and 'ROLE_PIMCORE_ADMIN' in roles
+           - condition: is_fully_authenticated() and 'ROLE_PIMCORE_ADMIN' in role_names
              modify: true
            - modify: false
 ```

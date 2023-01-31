@@ -20,6 +20,7 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject\ClassDefinition\Data\Select;
+use Pimcore\Model\DataObject\ClassDefinition\Service;
 
 class IndexFieldSelectionCombo extends Select
 {
@@ -64,7 +65,7 @@ class IndexFieldSelectionCombo extends Select
                     ];
                 }
             } catch (\Exception $e) {
-                Logger::error($e);
+                Logger::error((string) $e);
             }
         }
 
@@ -99,5 +100,18 @@ class IndexFieldSelectionCombo extends Select
     public function getConsiderTenants()
     {
         return $this->considerTenants;
+    }
+
+    /**
+     * @return $this
+     */
+    #[\ReturnTypeWillChange]
+    public function jsonSerialize()// : static
+    {
+        if (Service::doRemoveDynamicOptions()) {
+            $this->options = null;
+        }
+
+        return $this;
     }
 }

@@ -48,9 +48,17 @@ class User implements UserInterface, EquatableInterface, GoogleTwoFactorInterfac
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getUsername()
+    {
+        return $this->getUserIdentifier();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getUserIdentifier()// : string
     {
         return $this->user->getName();
     }
@@ -58,15 +66,15 @@ class User implements UserInterface, EquatableInterface, GoogleTwoFactorInterfac
     /**
      * @return PimcoreUser
      */
-    public function getUser()
+    public function getUser()// : PimcoreUser
     {
         return $this->user;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function getRoles()
+    public function getRoles()// : array
     {
         $roles = [];
 
@@ -77,7 +85,6 @@ class User implements UserInterface, EquatableInterface, GoogleTwoFactorInterfac
         }
 
         foreach ($this->user->getRoles() as $roleId) {
-            /** @var PimcoreUser\Role $role */
             if ($role = PimcoreUser\Role::getById($roleId)) {
                 $roles[] = 'ROLE_' . strtoupper($role->getName());
             }
@@ -87,23 +94,23 @@ class User implements UserInterface, EquatableInterface, GoogleTwoFactorInterfac
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function getPassword()
+    public function getPassword()// : ?string
     {
         return $this->user->getPassword();
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function getSalt()
+    public function getSalt()// : ?string
     {
         return null;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function eraseCredentials()
     {
@@ -112,9 +119,9 @@ class User implements UserInterface, EquatableInterface, GoogleTwoFactorInterfac
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function isEqualTo(UserInterface $user)
+    public function isEqualTo(UserInterface $user)// : bool
     {
         return $user instanceof self && $user->getId() === $this->getId();
     }
@@ -147,9 +154,9 @@ class User implements UserInterface, EquatableInterface, GoogleTwoFactorInterfac
      * Return the Google Authenticator secret
      * When an empty string or null is returned, the Google authentication is disabled.
      *
-     * @return string
+     * @return string|null
      */
-    public function getGoogleAuthenticatorSecret(): string
+    public function getGoogleAuthenticatorSecret(): ?string
     {
         if ($this->isGoogleAuthenticatorEnabled()) {
             $secret = $this->user->getTwoFactorAuthentication('secret');
@@ -163,6 +170,6 @@ class User implements UserInterface, EquatableInterface, GoogleTwoFactorInterfac
             return $secret;
         }
 
-        return '';
+        return null;
     }
 }

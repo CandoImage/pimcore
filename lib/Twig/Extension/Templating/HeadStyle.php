@@ -80,7 +80,7 @@ class HeadStyle extends AbstractExtension implements RuntimeExtensionInterface
     /**
      * Capture type and/or attributes (used for hinting during capture)
      *
-     * @var string|null
+     * @var array|null
      */
     protected $_captureAttrs = null;
 
@@ -242,7 +242,8 @@ class HeadStyle extends AbstractExtension implements RuntimeExtensionInterface
      *
      * @return void
      */
-    public function offsetSet($index, $value)
+    #[\ReturnTypeWillChange]
+    public function offsetSet($index, $value)// : void
     {
         if (!$this->_isValid($value)) {
             throw new Exception('Invalid value passed to offsetSet; please use offsetSetStyle()');
@@ -287,7 +288,7 @@ class HeadStyle extends AbstractExtension implements RuntimeExtensionInterface
      * Start capture action
      *
      * @param string $type
-     * @param string|null $attrs
+     * @param array|null $attrs
      *
      * @return void
      */
@@ -336,7 +337,7 @@ class HeadStyle extends AbstractExtension implements RuntimeExtensionInterface
      * Convert content and attributes into valid style tag
      *
      * @param  \stdClass $item Item to render
-     * @param  string $indent Indentation to use
+     * @param  null|string $indent Indentation to use
      *
      * @return string
      */
@@ -384,7 +385,7 @@ class HeadStyle extends AbstractExtension implements RuntimeExtensionInterface
             . $escapeStart . $indent . $item->content . PHP_EOL . $escapeEnd
             . '</style>';
 
-        if (null == $escapeStart && null == $escapeEnd) {
+        if (null === $escapeStart) {
             if (str_replace(' ', '', $item->attributes['conditional']) === '!IE') {
                 $html = '<!-->' . $html . '<!--';
             }
@@ -397,7 +398,7 @@ class HeadStyle extends AbstractExtension implements RuntimeExtensionInterface
     /**
      * Create string representation of placeholder
      *
-     * @param  string|int $indent
+     * @param  null|string|int $indent
      *
      * @return string
      */
@@ -445,5 +446,3 @@ class HeadStyle extends AbstractExtension implements RuntimeExtensionInterface
         return $data;
     }
 }
-
-class_alias(HeadStyle::class, 'Pimcore\Templating\Helper\HeadStyle');

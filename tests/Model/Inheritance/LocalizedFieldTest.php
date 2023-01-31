@@ -24,11 +24,60 @@ use Pimcore\Tool;
 
 class LocalizedFieldTest extends ModelTestCase
 {
-    public function setUp()
+    /** @var array */
+    protected $originalConfig;
+
+    public function setUp(): void
     {
         parent::setUp();
         TestHelper::cleanUp();
         \Pimcore::setAdminMode();
+        $this->originalConfig = \Pimcore\Config::getSystemConfiguration();
+    }
+
+    public function tearDown(): void
+    {
+        \Pimcore\Config::setSystemConfiguration($this->originalConfig);
+        parent::tearDown();
+    }
+
+    public function testFallback()
+    {
+        $configuration = $this->originalConfig;
+        $configuration['general']['fallback_languages']['de'] = 'en';
+        \Pimcore\Config::setSystemConfiguration($configuration);
+
+        // create root -> one -> two -> three
+        $one = new Inheritance();
+        $one->setKey('one');
+        $one->setParentId(1);
+        $one->setPublished(true);
+        $one->save();
+
+        $two = new Inheritance();
+        $two->setKey('two');
+        $two->setParentId($one->getId());
+        $two->setPublished(true);
+        $two->save();
+
+        $one->setInput('abc', 'en');
+        $one->save();
+
+        $one->save();
+
+        $db = Db::get();
+
+        $query = 'SELECT * FROM object_localized_query_' . $two->getClassId() . '_de where ooo_id = ' . $two->getId();
+        $result = $db->fetchAssociative($query);
+        $this->assertEquals($result['input'], 'abc');
+
+        $query = 'SELECT * FROM object_localized_query_' . $two->getClassId() . '_en where ooo_id = ' . $two->getId();
+        $result = $db->fetchAssociative($query);
+        $this->assertEquals($result['input'], 'abc');
+
+        $query = 'SELECT * FROM object_localized_query_' . $two->getClassId() . '_fr where ooo_id = ' . $two->getId();
+        $result = $db->fetchAssociative($query);
+        $this->assertNull($result['input']);
     }
 
     /**
@@ -44,7 +93,6 @@ class LocalizedFieldTest extends ModelTestCase
     {
         // According to the bootstrap file en and de are valid website languages
 
-        /** @var Inheritance $one */
         $one = new Inheritance();
         $one->setKey('one');
         $one->setParentId(1);
@@ -54,7 +102,6 @@ class LocalizedFieldTest extends ModelTestCase
         $one->setInput('parenttextDE', 'de');
         $one->save();
 
-        /** @var Inheritance $two */
         $two = new Inheritance();
         $two->setKey('two');
         $two->setParentId($one->getId());
@@ -63,7 +110,6 @@ class LocalizedFieldTest extends ModelTestCase
         $two->setInput('childtextDE', 'de');
         $two->save();
 
-        /** @var Inheritance $three */
         $three = new Inheritance();
         $three->setKey('three');
         $three->setParentId($two->getId());
@@ -181,11 +227,9 @@ class LocalizedFieldTest extends ModelTestCase
         $class->save();
     }
 
-    /**
-     * @expectedException \Exception
-     */
     public function testInvalidLocaleList()
     {
+        $this->expectException(\Exception::class);
         $this->markTestSkipped('TODO: the following test should fail, but no exception is thrown');
 
         // invalid locale
@@ -200,21 +244,18 @@ class LocalizedFieldTest extends ModelTestCase
     {
         // create root -> one -> two -> three
 
-        /** @var Inheritance $one */
         $one = new Inheritance();
         $one->setKey('one');
         $one->setParentId(1);
         $one->setPublished(true);
         $one->save();
 
-        /** @var Inheritance $two */
         $two = new Inheritance();
         $two->setKey('two');
         $two->setParentId($one->getId());
         $two->setPublished(true);
         $two->save();
 
-        /** @var Inheritance $three */
         $three = new Inheritance();
         $three->setKey('three');
         $three->setParentId($two->getId());
@@ -227,7 +268,7 @@ class LocalizedFieldTest extends ModelTestCase
 
         $db = Db::get();
         $query = 'SELECT * FROM object_localized_data_inheritance WHERE ooo_id = ' . $two->getId() . ' GROUP BY ooo_id';
-        $result = $db->fetchAll($query);
+        $result = $db->fetchAllAssociative($query);
         // pick the language
         $this->assertCount(1, $result);
 
@@ -252,11 +293,11 @@ class LocalizedFieldTest extends ModelTestCase
         $two->setInput('SOMEINPUT', $groupByLanguage);
         $two->save();
         // check that it is in the query table for the $groupByLanguage
-        $result = $db->fetchAll('SELECT * from object_localized_query_inheritance_' . $groupByLanguage . ' WHERE ooo_id = ' . $two->getId());
+        $result = $db->fetchAllAssociative('SELECT * from object_localized_query_inheritance_' . $groupByLanguage . ' WHERE ooo_id = ' . $two->getId());
         $this->assertEquals('SOMEINPUT', $result[0]['input']);
 
         // and null for the alternative language
-        $result = $db->fetchAll('SELECT * from object_localized_query_inheritance_' . $otherLanguage . ' WHERE ooo_id = ' . $two->getId());
+        $result = $db->fetchAllAssociative('SELECT * from object_localized_query_inheritance_' . $otherLanguage . ' WHERE ooo_id = ' . $two->getId());
         $this->assertEquals(null, $result[0]['input']);
 
         // now update the parent for the alternative language, use the same value !!!
@@ -264,7 +305,7 @@ class LocalizedFieldTest extends ModelTestCase
         $one->save();
 
         // now the alternative input value in the query table should be SOMEINPUT as well!!!
-        $result = $db->fetchAll('SELECT * from object_localized_query_inheritance_' . $otherLanguage . ' WHERE ooo_id = ' . $two->getId());
+        $result = $db->fetchAllAssociative('SELECT * from object_localized_query_inheritance_' . $otherLanguage . ' WHERE ooo_id = ' . $two->getId());
         $this->assertEquals('SOMEINPUT', $result[0]['input']);
 
         var_dump($result);

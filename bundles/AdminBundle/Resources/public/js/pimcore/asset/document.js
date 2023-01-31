@@ -21,7 +21,15 @@ pimcore.asset.document = Class.create(pimcore.asset.asset, {
         this.setType("document");
         this.addLoadingPanel();
 
-        pimcore.plugin.broker.fireEvent("preOpenAsset", this, "document");
+        const preOpenAssetDocument = new CustomEvent(pimcore.events.preOpenAsset, {
+            detail: {
+                object: this,
+                type: "document"
+            }
+        });
+
+        document.dispatchEvent(preOpenAssetDocument);
+
 
         var user = pimcore.globalmanager.get("user");
 
@@ -128,13 +136,6 @@ pimcore.asset.document = Class.create(pimcore.asset.asset, {
             return true;
         }
 
-        var getActiveXObject = function(name) {
-            // this is IE11 only (not Edge)
-            try {
-                return new ActiveXObject(name);
-            } catch(e) {}
-        };
-
         var hasNavigatorPlugin = function(name) {
             if(navigator["plugins"]) {
                 for (key in navigator.plugins) {
@@ -149,8 +150,7 @@ pimcore.asset.document = Class.create(pimcore.asset.asset, {
         };
 
         var supported = hasNavigatorPlugin('Adobe Acrobat') || hasNavigatorPlugin('Chrome PDF Viewer')
-            || hasNavigatorPlugin('WebKit built-in PDF') || hasNavigatorPlugin('Edge PDF Viewer')
-            || getActiveXObject('AcroPDF.PDF') || getActiveXObject('PDF.PdfCtrl');
+            || hasNavigatorPlugin('WebKit built-in PDF') || hasNavigatorPlugin('Edge PDF Viewer');
 
         return supported;
     }

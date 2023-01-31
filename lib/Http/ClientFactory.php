@@ -20,6 +20,9 @@ use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
 use Pimcore\Config;
 
+/**
+ * @internal
+ */
 class ClientFactory
 {
     /**
@@ -35,6 +38,11 @@ class ClientFactory
         $this->config = $config;
     }
 
+    /**
+     * @param array $config
+     *
+     * @return Client
+     */
     public function createClient(array $config = [])
     {
         $guzzleConfig = [
@@ -54,7 +62,7 @@ class ClientFactory
                 $protocol = 'http';
             }
 
-            $proxyUri = $protocol . '://' . $authorization . $this->config['httpclient']['proxy_host'] ?? '' . ':' . $this->config['httpclient']['proxy_port'] ?? '';
+            $proxyUri = $protocol . '://' . $authorization . ($this->config['httpclient']['proxy_host'] ?? '') . ':' . ($this->config['httpclient']['proxy_port'] ?? '');
 
             $guzzleConfig[RequestOptions::PROXY] = $proxyUri;
         }
@@ -64,13 +72,5 @@ class ClientFactory
         $client = new Client($guzzleConfig);
 
         return $client;
-    }
-
-    /**
-     * @deprecated Use the ClientFactory service instead of the static method, to be remove in Pimcore 10
-     */
-    public static function createHttpClient()
-    {
-        return \Pimcore::getContainer()->get(ClientFactory::class)->createClient();
     }
 }

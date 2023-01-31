@@ -39,7 +39,7 @@ class CodeInjectorTest extends TestCase
      */
     private $codePart = '<!-- INJECTED -->';
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -80,6 +80,7 @@ class CodeInjectorTest extends TestCase
 
     /**
      * @group dom
+     *
      * @dataProvider injectDOMProvider
      */
     public function testInjectDOM(string $selector, string $position, string $source, string $expected)

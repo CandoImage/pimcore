@@ -25,53 +25,70 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     use Model\DataObject\Traits\SimpleComparisonTrait;
     use Extension\ColumnType;
     use Extension\QueryColumnType;
-    use DataObject\ClassDefinition\NullablePhpdocReturnTypeTrait;
     use DataObject\Traits\SimpleNormalizerTrait;
 
     /**
      * Static type of this element
+     *
+     * @internal
      *
      * @var string
      */
     public $fieldtype = 'slider';
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
-    public $width;
+    public $width = 0;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
-    public $height;
+    public $height = 0;
 
     /**
-     * @var float
+     * @internal
+     *
+     * @var float|null
      */
     public $minValue;
 
     /**
-     * @var float
+     * @internal
+     *
+     * @var float|null
      */
     public $maxValue;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $vertical;
+    public $vertical = false;
 
     /**
-     * @var float
+     * @internal
+     *
+     * @var float|null
      */
     public $increment;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
     public $decimalPrecision;
 
     /**
      * Type for the column to query
+     *
+     * @internal
      *
      * @var string
      */
@@ -80,19 +97,14 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     /**
      * Type for the column
      *
+     * @internal
+     *
      * @var string
      */
     public $columnType = 'double';
 
     /**
-     * Type for the generated phpdoc
-     *
-     * @var string
-     */
-    public $phpdocType = 'float';
-
-    /**
-     * @return int
+     * @return string|int
      */
     public function getWidth()
     {
@@ -100,19 +112,22 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @param int $width
+     * @param string|int $width
      *
      * @return $this
      */
     public function setWidth($width)
     {
-        $this->width = $this->getAsIntegerCast($width);
+        if (is_numeric($width)) {
+            $width = (int)$width;
+        }
+        $this->width = $width;
 
         return $this;
     }
 
     /**
-     * @return int
+     * @return string|int
      */
     public function getHeight()
     {
@@ -120,13 +135,16 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @param int $height
+     * @param string|int $height
      *
      * @return $this
      */
     public function setHeight($height)
     {
-        $this->height = $this->getAsIntegerCast($height);
+        if (is_numeric($height)) {
+            $height = (int)$height;
+        }
+        $this->height = $height;
 
         return $this;
     }
@@ -140,7 +158,7 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @param float $minValue
+     * @param float|null $minValue
      *
      * @return $this
      */
@@ -152,7 +170,7 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @return float
+     * @return float|null
      */
     public function getMaxValue()
     {
@@ -160,11 +178,9 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @param string|int|null $maxValue
+     * @param float|null $maxValue
      *
      * @return $this
-     *
-     * @internal param float $minValue
      */
     public function setMaxValue($maxValue)
     {
@@ -202,7 +218,7 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @return float
+     * @return float|null
      */
     public function getIncrement()
     {
@@ -210,7 +226,7 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @param float $increment
+     * @param float|null $increment
      *
      * @return $this
      */
@@ -222,7 +238,7 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getDecimalPrecision()
     {
@@ -230,7 +246,7 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * @param int $decimalPrecision
+     * @param int|null $decimalPrecision
      *
      * @return $this
      */
@@ -346,29 +362,21 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
-        if (!$omitMandatoryCheck and $this->getMandatory() and $data === null) {
-            throw new Model\Element\ValidationException('Empty mandatory field [ '.$this->getName().' ] '.strval($data));
+        if (!$omitMandatoryCheck && $this->getMandatory() && $data === null) {
+            throw new Model\Element\ValidationException('Empty mandatory field [ '.$this->getName().' ] '.(string)$data);
         }
 
-        if (!empty($data) and !is_numeric($data)) {
+        if (!empty($data) && !is_numeric($data)) {
             throw new Model\Element\ValidationException('invalid slider data');
         }
     }
 
-    /** True if change is allowed in edit mode.
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return bool
+    /**
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
@@ -387,6 +395,9 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
         $this->decimalPrecision = $masterDefinition->decimalPrecision;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function isFilterable(): bool
     {
         return true;
@@ -407,5 +418,37 @@ class Slider extends Data implements ResourcePersistenceAwareInterface, QueryRes
         }
 
         return false;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getParameterTypeDeclaration(): ?string
+    {
+        return '?float';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?float';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
+    {
+        return 'float|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return 'float|null';
     }
 }

@@ -15,8 +15,12 @@
 
 namespace Pimcore\Bundle\AdminBundle\Security\Authentication\Token;
 
-use Symfony\Component\Security\Guard\Token\PostAuthenticationGuardToken;
+use Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken;
 
-class TwoFactorRequiredToken extends PostAuthenticationGuardToken
+/**
+ * @internal
+ *
+ */
+class TwoFactorRequiredToken extends PostAuthenticationToken
 {
 }

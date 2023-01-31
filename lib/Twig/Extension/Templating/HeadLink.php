@@ -121,9 +121,12 @@ class HeadLink extends CacheBusterAware
      * Returns current object instance. Optionally, allows passing array of
      * values to build link.
      *
+     * @param array|null $attributes
+     * @param string $placement
+     *
      * @return HeadLink
      */
-    public function __invoke(array $attributes = null, $placement = Container::APPEND)
+    public function __invoke(?array $attributes = null, $placement = Container::APPEND)
     {
         if (null !== $attributes) {
             $item = $this->createData($attributes);
@@ -231,7 +234,7 @@ class HeadLink extends CacheBusterAware
     /**
      * append()
      *
-     * @param  array $value
+     * @param  \stdClass $value
      *
      * @return void
      */
@@ -252,6 +255,7 @@ class HeadLink extends CacheBusterAware
      *
      * @return void
      */
+    #[\ReturnTypeWillChange]
     public function offsetSet($index, $value)
     {
         if (!$this->_isValid($value)) {
@@ -264,7 +268,7 @@ class HeadLink extends CacheBusterAware
     /**
      * prepend()
      *
-     * @param array $value
+     * @param \stdClass $value
      */
     public function prepend($value)
     {
@@ -278,7 +282,7 @@ class HeadLink extends CacheBusterAware
     /**
      * set()
      *
-     * @param array $value
+     * @param \stdClass $value
      */
     public function set($value)
     {
@@ -334,7 +338,7 @@ class HeadLink extends CacheBusterAware
     /**
      * Render link elements as string
      *
-     * @param  string|int $indent
+     * @param  null|string|int $indent
      *
      * @return string
      */
@@ -374,7 +378,7 @@ class HeadLink extends CacheBusterAware
             $event = new GenericEvent($this, [
                 'item' => $item,
             ]);
-            \Pimcore::getEventDispatcher()->dispatch(FrontendEvents::VIEW_HELPER_HEAD_LINK, $event);
+            \Pimcore::getEventDispatcher()->dispatch($event, FrontendEvents::VIEW_HELPER_HEAD_LINK);
 
             $source = (string)($item->href ?? '');
             $itemAttributes = isset($item->extras) ? $item->extras : [];
@@ -526,5 +530,3 @@ class HeadLink extends CacheBusterAware
         return $attributes;
     }
 }
-
-class_alias(HeadLink::class, 'Pimcore\Templating\Helper\HeadLink');

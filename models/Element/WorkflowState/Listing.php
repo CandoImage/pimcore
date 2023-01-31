@@ -20,26 +20,14 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\Element\WorkflowState\Listing\Dao getDao()
  * @method Model\Element\WorkflowState[] load()
- * @method Model\Element\WorkflowState current()
+ * @method Model\Element\WorkflowState|false current()
  */
 class Listing extends Model\Listing\AbstractListing
 {
     /**
-     * @var Model\Element\WorkflowState[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $workflowStates = null;
-
-    public function __construct()
-    {
-        $this->workflowStates = & $this->data;
-    }
-
-    /**
      * @param Model\Element\WorkflowState[]|null $workflowStates
      *
-     * @return static
+     * @return $this
      */
     public function setWorkflowStates($workflowStates)
     {

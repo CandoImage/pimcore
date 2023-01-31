@@ -63,5 +63,3 @@ interface StatusInterface
      */
     public function getData();
 }
-
-class_alias(StatusInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\PaymentManager\IStatus');

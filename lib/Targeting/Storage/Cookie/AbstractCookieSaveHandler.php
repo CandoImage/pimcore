@@ -54,7 +54,7 @@ abstract class AbstractCookieSaveHandler implements CookieSaveHandlerInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function load(Request $request, string $scope, string $name): array
     {
@@ -65,7 +65,7 @@ abstract class AbstractCookieSaveHandler implements CookieSaveHandlerInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function save(Response $response, string $scope, string $name, $expire, $data)
     {
@@ -74,11 +74,7 @@ abstract class AbstractCookieSaveHandler implements CookieSaveHandlerInterface
         $response->headers->setCookie(new Cookie(
             $name,
             $value,
-            $expire,
-            '/',
-            null,
-            false,
-            true
+            $expire
         ));
     }
 

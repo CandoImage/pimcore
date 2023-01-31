@@ -16,7 +16,7 @@ pimcore.object.fieldcollections.field = Class.create(pimcore.object.classes.klas
 
     allowedInType: 'fieldcollection',
     disallowedDataTypes: ["reverseObjectRelation", "user", "fieldcollections", "localizedfields", "objectbricks",
-        "objectsMetadata"],
+        "advancedManyToManyObjectRelation"],
 
     uploadRoute: 'pimcore_admin_dataobject_class_importfieldcollection',
     exportRoute: 'pimcore_admin_dataobject_class_exportfieldcollection',
@@ -71,6 +71,7 @@ pimcore.object.fieldcollections.field = Class.create(pimcore.object.classes.klas
         this.rootPanel = new Ext.form.FormPanel({
             title: '<b>' + t("general_settings") + '</b>',
             bodyStyle: 'padding: 10px; border-top: 1px solid #606060 !important;',
+            autoScroll: true,
             defaults: {
                 labelWidth: 200
             },
@@ -160,7 +161,7 @@ pimcore.object.fieldcollections.field = Class.create(pimcore.object.classes.klas
                 if (res.message) {
                     pimcore.helpers.showNotification(t("error"), res.message, "error");
                 } else {
-                    throw "save was not successful, see log files in /var/logs";
+                    throw "save was not successful, see log files in /var/log";
                 }
             }
         } catch (e) {

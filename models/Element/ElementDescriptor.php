@@ -15,7 +15,10 @@
 
 namespace Pimcore\Model\Element;
 
-class ElementDescriptor
+/**
+ * @internal
+ */
+final class ElementDescriptor
 {
     /**
      * @var string
@@ -87,6 +90,3 @@ class ElementDescriptor
         return $this->getType() . '_' . $this->getId();
     }
 }
-
-//TODO: remove in Pimcore 10
-class_alias(ElementDescriptor::class, 'Pimcore\Model\Version\ElementDescriptor');

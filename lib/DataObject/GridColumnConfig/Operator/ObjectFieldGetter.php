@@ -18,14 +18,24 @@ namespace Pimcore\DataObject\GridColumnConfig\Operator;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\Element\ElementInterface;
 
-class ObjectFieldGetter extends AbstractOperator
+/**
+ * @internal
+ */
+final class ObjectFieldGetter extends AbstractOperator
 {
-    /** @var string */
+    /**
+     * @var string
+     */
     private $attribute;
 
-    /** @var string */
+    /**
+     * @var string
+     */
     private $forwardAttribute;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -34,6 +44,9 @@ class ObjectFieldGetter extends AbstractOperator
         $this->forwardAttribute = $config->forwardAttribute ?? '';
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();
@@ -78,7 +91,11 @@ class ObjectFieldGetter extends AbstractOperator
                     if ($o instanceof Concrete) {
                         if ($this->attribute && method_exists($o, $getter)) {
                             $targetValue = $o->$getter();
-                            $newValues[] = $targetValue;
+                            if (is_array($targetValue)) {
+                                $newValues = array_merge($newValues, $targetValue);
+                            } else {
+                                $newValues[] = $targetValue;
+                            }
                         }
                     }
                 }

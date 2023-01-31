@@ -21,6 +21,9 @@ use Pimcore\Model\DataObject;
 use Pimcore\Model\DataObject\ClassDefinition\CustomLayout;
 use Symfony\Component\Console\Input\InputOption;
 
+/**
+ * @internal
+ */
 class CustomLayoutCommand extends AbstractStructureImportCommand
 {
     protected function configure()
@@ -79,14 +82,14 @@ class CustomLayoutCommand extends AbstractStructureImportCommand
     /**
      * @param string $name
      *
-     * @return AbstractModel
+     * @return AbstractModel|null
      */
     protected function createDefinition($name)
     {
         $className = $this->input->getOption('class-name');
         if ($className) {
             $class = DataObject\ClassDefinition::getByName($className);
-            if ($class != null) {
+            if ($class) {
                 return CustomLayout::create(
                     [
                         'classId' => $class->getId(),
@@ -100,14 +103,14 @@ class CustomLayoutCommand extends AbstractStructureImportCommand
     }
 
     /**
-     * @param AbstractModel|CustomLayout|null $customLayout
+     * @param AbstractModel|null $customLayout
      * @param string|null $json
      *
      * @return bool
      */
     protected function import(AbstractModel $customLayout = null, $json = null)
     {
-        if ($customLayout == null) {
+        if (!$customLayout instanceof CustomLayout) {
             return false;
         }
 

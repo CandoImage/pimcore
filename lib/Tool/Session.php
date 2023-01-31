@@ -22,7 +22,7 @@ use Pimcore\Bundle\AdminBundle\Session\Handler\AdminSessionHandlerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 
-class Session
+final class Session
 {
     /**
      * @var AdminSessionHandlerInterface
@@ -113,11 +113,16 @@ class Session
      *
      * @param string $namespace
      *
-     * @return AttributeBagInterface
+     * @return AttributeBagInterface|null
      */
-    public static function get(string $namespace = 'pimcore_admin'): AttributeBagInterface
+    public static function get(string $namespace = 'pimcore_admin')
     {
-        return static::getHandler()->loadAttributeBag($namespace);
+        $bag = static::getHandler()->loadAttributeBag($namespace);
+        if ($bag instanceof AttributeBagInterface) {
+            return $bag;
+        }
+
+        return null;
     }
 
     /**

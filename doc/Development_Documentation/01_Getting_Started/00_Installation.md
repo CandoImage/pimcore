@@ -29,15 +29,15 @@ COMPOSER_MEMORY_LIMIT=-1 composer create-project pimcore/skeleton my-project
 COMPOSER_MEMORY_LIMIT=-1 composer create-project pimcore/demo my-project
 ```
 
-Point the document root of your vhost to the newly created `/web` folder (eg. `/your/project/web`).
+Point the document root of your vhost to the newly created `/public` folder (eg. `/your/project/public`).
 Keep in mind, that Pimcore needs to be installed **outside** of the **document root**.
 Specific configurations and optimizations for your web server are available here:
 [Apache](../23_Installation_and_Upgrade/03_System_Setup_and_Hosting/01_Apache_Configuration.md),
 [Nginx](../23_Installation_and_Upgrade/03_System_Setup_and_Hosting/02_Nginx_Configuration.md)
 
-Pimcore requires write access to the following directories (relative to your project root): `/var`, `/web/var` ([Details](../23_Installation_and_Upgrade/03_System_Setup_and_Hosting/03_File_Permissions.md))
+Pimcore requires write access to the following directories (relative to your project root): `/var`, `/public/var` ([Details](../23_Installation_and_Upgrade/03_System_Setup_and_Hosting/03_File_Permissions.md))
 
-If you're running the installation using a [custom environment name](../21_Deployment/03_Multi_Environment.md), ensure you already have the right config files in place, e.g. `app/config/config_[env_name].yml`. 
+If you're running the installation using a [custom environment name](../21_Deployment/03_Configuration_Environments.md), ensure you already have the right config files in place, e.g. `config/packages/[env_name]/config.yaml`. 
 
 ## 3. Create Database
 
@@ -63,14 +63,27 @@ After the installer has finished, you can open the admin interface: `https://you
 
 ##### Debugging installation issues
 
-The installer writes a log in `var/logs` which contains any errors encountered during the installation. Please
+The installer writes a log in `var/log` which contains any errors encountered during the installation. Please
 have a look at the logs as a starting point when debugging installation issues.
 
 
 ## 5. Maintenance Cron Job
 
+Maintenance tasks are handled with Symfony Messenger. The `pimcore:maintenance` command will add the maintenance
+messages to the bus and runs them afterwards immediately from the queue. However it's recommended to setup independent
+workers that process the queues, by running `bin/console messenger:consume pimcore_core pimcore_maintenance pimcore_image_optimize` (using e.g.
+`Supervisor`) and adding `--async` option to the `pimcore:maintenance` command that stops the maintenance command to process
+the queue directly.
+
 ```bash
-*/5 * * * * /your/project/bin/console maintenance
+# this command needs to be executed via cron or similar task scheduler
+# it fills the message queue with the necessary tasks, which are then processed by messenger:consume
+*/5 * * * * /your/project/bin/console pimcore:maintenance --async
+
+# it's recommended to run the following command using a process control system like Supervisor
+# please follow the Symfony Messenger guide for a best practice production setup: 
+# https://symfony.com/doc/current/messenger.html#deploying-to-production
+*/5 * * * * /your/project/bin/console messenger:consume pimcore_core pimcore_maintenance pimcore_image_optimize --time-limit=300
 ```
 
 Keep in mind, that the cron job has to run as the same user as the web interface to avoid permission issues (eg. `www-data`).

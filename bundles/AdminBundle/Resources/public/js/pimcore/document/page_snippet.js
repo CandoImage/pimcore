@@ -65,7 +65,16 @@ pimcore.document.page_snippet = Class.create(pimcore.document.document, {
 
         this.tab.on("afterrender", function (tabId) {
             this.tabPanel.setActiveItem(tabId);
-            pimcore.plugin.broker.fireEvent("postOpenDocument", this, this.data.type);
+
+            const postOpenDocument = new CustomEvent(pimcore.events.postOpenDocument, {
+                detail: {
+                    document: this,
+                    type: this.data.type
+                }
+            });
+
+            document.dispatchEvent(postOpenDocument);
+
         }.bind(this, tabId));
 
         this.removeLoadingPanel();
@@ -111,7 +120,7 @@ pimcore.document.page_snippet = Class.create(pimcore.document.document, {
                 iconCls: "pimcore_icon_save_white",
                 cls: "pimcore_save_button",
                 scale: "medium",
-                handler: this.save.bind(this, null),
+                handler: this.save.bind(this, 'version'),
                 menu: [
                     {
                         text: t('save_close'),
@@ -140,9 +149,9 @@ pimcore.document.page_snippet = Class.create(pimcore.document.document, {
                         iconCls: "pimcore_icon_save",
                         handler: this.publishClose.bind(this)
                     },{
-                        text: t('save_only_new_version'),
+                        text: t('save_draft'),
                         iconCls: "pimcore_icon_save",
-                        handler: this.save.bind(this, null),
+                        handler: this.save.bind(this, 'version'),
                         hidden: !this.isAllowed("save") || !this.data.published
                     },
                     {
@@ -291,24 +300,19 @@ pimcore.document.page_snippet = Class.create(pimcore.document.document, {
             pimcore.elementservice.integrateWorkflowManagement('document', this.data.id, this, buttons);
 
 
-            // version notification
-            this.newerVersionNotification = new Ext.Toolbar.TextItem({
-                xtype: 'tbtext',
-                text: '&nbsp;&nbsp;<img src="/bundles/pimcoreadmin/img/flat-color-icons/medium_priority.svg" style="height: 16px;" align="absbottom" />&nbsp;&nbsp;'
-                    + t("this_is_a_newer_not_published_version"),
+            this.draftVersionNotification = new Ext.Button({
+                text: t('draft'),
+                iconCls: "pimcore_icon_delete pimcore_material_icon",
                 scale: "medium",
-                hidden: true
+                hidden: true,
+                handler: this.deleteDraft.bind(this)
             });
 
-            buttons.push(this.newerVersionNotification);
+            buttons.push(this.draftVersionNotification);
 
-            // check for newer version than the published
-            if (this.data.versions.length > 0) {
-                if (this.data.documentFromVersion) {
-                    this.newerVersionNotification.show();
-                }
+            if (this.data.draft && (this.data.draft.isAutoSave || this.isAllowed("save"))) {
+                this.draftVersionNotification.show();
             }
-
 
             this.toolbar = new Ext.Toolbar({
                 id: "document_toolbar_" + this.id,
@@ -370,6 +374,7 @@ pimcore.document.page_snippet = Class.create(pimcore.document.document, {
         return {
             id: this.data.id,
             path: this.data.path + this.data.key,
+            public_url: this.data.url,
             parentid: this.data.parentId,
             type: this.data.type,
             modificationdate: this.data.modificationDate,
@@ -391,6 +396,9 @@ pimcore.document.page_snippet = Class.create(pimcore.document.document, {
             {
                 name: "path",
                 value: metainfo.path
+            }, {
+                name: "public_url",
+                value: metainfo.public_url
             }, {
                 name: "parentid",
                 value: metainfo.parentid
@@ -458,7 +466,7 @@ pimcore.document.page_snippet = Class.create(pimcore.document.document, {
     },
 
     save: function ($super, task, only, callback, successCallback) {
-        if (task !== "publish") {
+        if (task !== "publish" && task !== "autoSave") {
             this.validateRequiredEditables(true);
         }
 

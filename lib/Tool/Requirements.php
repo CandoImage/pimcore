@@ -19,8 +19,12 @@ use Pimcore\Db\ConnectionInterface;
 use Pimcore\File;
 use Pimcore\Image;
 use Pimcore\Tool\Requirements\Check;
+use Symfony\Component\Process\Process;
 
-class Requirements
+/**
+ * @internal
+ */
+final class Requirements
 {
     /**
      * @return Check[]
@@ -30,7 +34,7 @@ class Requirements
         $checks = [];
 
         // filesystem checks
-        foreach ([PIMCORE_PUBLIC_VAR, PIMCORE_PRIVATE_VAR] as $varDir) {
+        foreach ([PIMCORE_PRIVATE_VAR] as $varDir) {
             $varWritable = true;
 
             try {
@@ -63,16 +67,16 @@ class Requirements
     }
 
     /**
-     * @param ConnectionInterface $db
+     * @param ConnectionInterface|\Doctrine\DBAL\Connection $db
      *
      * @return Check[]
      */
-    public static function checkMysql(ConnectionInterface $db)
+    public static function checkMysql(ConnectionInterface|\Doctrine\DBAL\Connection $db)
     {
         $checks = [];
 
         // storage engines
-        $engines = $db->fetchCol('SHOW ENGINES;');
+        $engines = $db->fetchFirstColumn('SHOW ENGINES;');
 
         // innodb
         $checks[] = new Check([
@@ -87,26 +91,26 @@ class Requirements
         ]);
 
         // check database charset =>  utf-8 encoding
-        $result = $db->fetchRow('SHOW VARIABLES LIKE "character\_set\_database"');
+        $result = $db->fetchAssociative("SHOW VARIABLES LIKE 'character\_set\_database'");
         $checks[] = new Check([
             'name' => 'Database Charset utf8mb4',
             'state' => ($result && (strtolower($result['Value']) == 'utf8mb4')) ? Check::STATE_OK : Check::STATE_ERROR,
         ]);
 
         // empty values are provided by MariaDB => 10.3
-        $largePrefix = $db->fetchRow("SHOW GLOBAL VARIABLES LIKE 'innodb\_large\_prefix';");
+        $largePrefix = $db->fetchAssociative("SHOW GLOBAL VARIABLES LIKE 'innodb\_large\_prefix';");
         $checks[] = new Check([
             'name' => 'innodb_large_prefix = ON ',
             'state' => ($largePrefix && !in_arrayi(strtolower((string) $largePrefix['Value']), ['on', '1', ''])) ? Check::STATE_ERROR : Check::STATE_OK,
         ]);
 
-        $fileFormat = $db->fetchRow("SHOW GLOBAL VARIABLES LIKE 'innodb\_file\_format';");
+        $fileFormat = $db->fetchAssociative("SHOW GLOBAL VARIABLES LIKE 'innodb\_file\_format';");
         $checks[] = new Check([
             'name' => 'innodb_file_format = Barracuda',
             'state' => ($fileFormat && (!empty($fileFormat['Value']) && strtolower($fileFormat['Value']) != 'barracuda')) ? Check::STATE_ERROR : Check::STATE_OK,
         ]);
 
-        $fileFilePerTable = $db->fetchRow("SHOW GLOBAL VARIABLES LIKE 'innodb\_file\_per\_table';");
+        $fileFilePerTable = $db->fetchAssociative("SHOW GLOBAL VARIABLES LIKE 'innodb\_file\_per\_table';");
         $checks[] = new Check([
             'name' => 'innodb_file_per_table = ON',
             'state' => ($fileFilePerTable && !in_arrayi(strtolower((string) $fileFilePerTable['Value']), ['on', '1'])) ? Check::STATE_ERROR : Check::STATE_OK,
@@ -116,7 +120,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('CREATE TABLE __pimcore_req_check (
+            $db->executeQuery('CREATE TABLE __pimcore_req_check (
                   id int(11) NOT NULL AUTO_INCREMENT,
                   field varchar(190) DEFAULT NULL,
                   PRIMARY KEY (id)
@@ -134,7 +138,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('ALTER TABLE __pimcore_req_check ADD COLUMN alter_field varchar(190) NULL DEFAULT NULL');
+            $db->executeQuery('ALTER TABLE __pimcore_req_check ADD COLUMN alter_field varchar(190) NULL DEFAULT NULL');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -148,20 +152,8 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('ALTER TABLE __pimcore_req_check
-                  CHANGE COLUMN id id int(11) NOT NULL,
-                  CHANGE COLUMN field field varchar(190) NULL DEFAULT NULL,
-                  CHANGE COLUMN alter_field alter_field varchar(190) NULL DEFAULT NULL,
-                  ADD KEY field (field),
-                  DROP PRIMARY KEY ,
-                 DEFAULT CHARSET=utf8mb4');
-
-            $db->query('ALTER TABLE __pimcore_req_check
-                  CHANGE COLUMN id id int(11) NOT NULL AUTO_INCREMENT,
-                  CHANGE COLUMN field field varchar(190) NULL DEFAULT NULL,
-                  CHANGE COLUMN alter_field alter_field varchar(190) NULL DEFAULT NULL,
-                  ADD PRIMARY KEY (id) ,
-                 DEFAULT CHARSET=utf8mb4');
+            $db->executeQuery('CREATE INDEX field_alter_field ON __pimcore_req_check (field, alter_field);');
+            $db->executeQuery('DROP INDEX field_alter_field ON __pimcore_req_check;');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -175,7 +167,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('ALTER TABLE __pimcore_req_check ADD FULLTEXT INDEX `fulltextFieldIndex` (`field`)');
+            $db->executeQuery('ALTER TABLE __pimcore_req_check ADD FULLTEXT INDEX `fulltextFieldIndex` (`field`)');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -206,7 +198,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->updateWhere('__pimcore_req_check', [
+            $db->executeQuery('UPDATE __pimcore_req_check SET field = :field, alter_field = :alter_field', [
                 'field' => uniqid(),
                 'alter_field' => uniqid(),
             ]);
@@ -223,7 +215,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->fetchAll('SELECT * FROM __pimcore_req_check');
+            $db->fetchAllAssociative('SELECT * FROM __pimcore_req_check');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -237,7 +229,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('CREATE OR REPLACE VIEW __pimcore_req_check_view AS SELECT * FROM __pimcore_req_check');
+            $db->executeQuery('CREATE OR REPLACE VIEW __pimcore_req_check_view AS SELECT * FROM __pimcore_req_check');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -251,7 +243,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->fetchAll('SELECT * FROM __pimcore_req_check_view');
+            $db->fetchAllAssociative('SELECT * FROM __pimcore_req_check_view');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -265,7 +257,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->deleteWhere('__pimcore_req_check');
+            $db->executeQuery('DELETE FROM __pimcore_req_check');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -279,7 +271,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('SHOW CREATE VIEW __pimcore_req_check_view');
+            $db->executeQuery('SHOW CREATE VIEW __pimcore_req_check_view');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -293,7 +285,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('SHOW CREATE TABLE __pimcore_req_check');
+            $db->executeQuery('SHOW CREATE TABLE __pimcore_req_check');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -307,7 +299,7 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('DROP VIEW __pimcore_req_check_view');
+            $db->executeQuery('DROP VIEW __pimcore_req_check_view');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
@@ -321,13 +313,32 @@ class Requirements
         $queryCheck = true;
 
         try {
-            $db->query('DROP TABLE __pimcore_req_check');
+            $db->executeQuery('DROP TABLE __pimcore_req_check');
         } catch (\Exception $e) {
             $queryCheck = false;
         }
 
         $checks[] = new Check([
             'name' => 'DROP TABLE',
+            'state' => $queryCheck ? Check::STATE_OK : Check::STATE_ERROR,
+        ]);
+
+        // With RECURSIVE
+        $queryCheck = true;
+
+        try {
+            $db->executeQuery(
+                'WITH RECURSIVE counter AS (
+                    SELECT 1 as n UNION ALL SELECT n + 1 FROM counter WHERE n < 10
+                )
+                SELECT * from counter'
+            );
+        } catch (\Exception $e) {
+            $queryCheck = false;
+        }
+
+        $checks[] = new Check([
+            'name' => 'WITH RECURSIVE',
             'state' => $queryCheck ? Check::STATE_OK : Check::STATE_ERROR,
         ]);
 
@@ -371,16 +382,16 @@ class Requirements
             'state' => $ffmpegBin ? Check::STATE_OK : Check::STATE_WARNING,
         ]);
 
-        // WKHTMLTOIMAGE BIN
+        // Chromium BIN
         try {
-            $wkhtmltopdfBin = (bool) \Pimcore\Image\HtmlToImage::getWkhtmltoimageBinary();
+            $chromiumBin = (bool) \Pimcore\Image\Chromium::getChromiumBinary();
         } catch (\Exception $e) {
-            $wkhtmltopdfBin = false;
+            $chromiumBin = false;
         }
 
         $checks[] = new Check([
-            'name' => 'wkhtmltoimage',
-            'state' => $wkhtmltopdfBin ? Check::STATE_OK : Check::STATE_WARNING,
+            'name' => 'Chromium',
+            'state' => $chromiumBin ? Check::STATE_OK : Check::STATE_WARNING,
         ]);
 
         // ghostscript BIN
@@ -408,7 +419,7 @@ class Requirements
         ]);
 
         // image optimizer
-        foreach (['zopflipng', 'pngcrush', 'jpegoptim', 'pngout', 'advpng', 'cjpeg', 'exiftool'] as $optimizerName) {
+        foreach (['jpegoptim', 'pngquant', 'optipng', 'exiftool'] as $optimizerName) {
             try {
                 $optimizerAvailable = \Pimcore\Tool\Console::getExecutable($optimizerName);
             } catch (\Exception $e) {
@@ -443,17 +454,6 @@ class Requirements
         $checks[] = new Check([
             'name' => 'pdftotext - (part of poppler-utils)',
             'state' => $pdftotextBin ? Check::STATE_OK : Check::STATE_WARNING,
-        ]);
-
-        try {
-            $sqipAvailable = \Pimcore\Tool\Console::getExecutable('sqip');
-        } catch (\Exception $e) {
-            $sqipAvailable = false;
-        }
-
-        $checks[] = new Check([
-            'name' => 'SQIP - SVG Placeholder',
-            'state' => $sqipAvailable ? Check::STATE_OK : Check::STATE_WARNING,
         ]);
 
         try {
@@ -604,7 +604,7 @@ class Requirements
             $checks[] = new Check([
                 'name' => 'locales-all',
                 'link' => 'https://packages.debian.org/en/stable/locales-all',
-                'state' => ($fmt->format(new \DateTime('next tuesday')) == 'Dienstag') ? Check::STATE_OK : Check::STATE_WARNING,
+                'state' => ($fmt->format(new \DateTime('next tuesday', new \DateTimeZone('Europe/Vienna'))) == 'Dienstag') ? Check::STATE_OK : Check::STATE_WARNING,
                 'message' => "It's recommended to have the GNU C Library locale data installed (eg. apt-get install locales-all).",
             ]);
         }
@@ -615,6 +615,31 @@ class Requirements
             'link' => 'http://www.php.net/imagick',
             'state' => class_exists('Imagick') ? Check::STATE_OK : Check::STATE_WARNING,
         ]);
+
+        if (class_exists('Imagick')) {
+            $convertExecutablePath = \Pimcore\Tool\Console::getExecutable('convert');
+            $imageMagickLcmsDelegateInstalledProcess = Process::fromShellCommandline($convertExecutablePath.' -list configure');
+            $imageMagickLcmsDelegateInstalledProcess->run();
+
+            $lcmsInstalled = false;
+            $separator = "\r\n";
+            $line = strtok($imageMagickLcmsDelegateInstalledProcess->getOutput(), $separator);
+
+            while ($line !== false) {
+                if (str_contains($line, 'DELEGATES') && str_contains($line, 'lcms')) {
+                    $lcmsInstalled = true;
+
+                    break;
+                }
+                $line = strtok($separator);
+            }
+
+            $checks[] = new Check([
+                'name' => 'ImageMagick LCMS delegate',
+                'link' => 'https://pimcore.com/docs/pimcore/current/Development_Documentation/Installation_and_Upgrade/System_Requirements.html#page_Recommended-or-Optional-Modules-Extensions',
+                'state' => $lcmsInstalled ? Check::STATE_OK : Check::STATE_WARNING,
+            ]);
+        }
 
         // APCu
         $checks[] = new Check([
@@ -647,13 +672,24 @@ class Requirements
         ]);
 
         // WebP for active image adapter
-        $imageAdapter = Image::getInstance();
+        if (extension_loaded('imagick')) {
+            $imageAdapter = new Image\Adapter\Imagick();
+        } else {
+            $imageAdapter = new Image\Adapter\GD();
+        }
+
         $reflect = new \ReflectionClass($imageAdapter);
         $imageAdapterType = $reflect->getShortName();
         $checks[] = new Check([
             'name' => 'WebP (via ' . $imageAdapterType . ')',
             // we use the force flag here, because during the installer the cache is not available
             'state' => $imageAdapter->supportsFormat('webp', true) ? Check::STATE_OK : Check::STATE_WARNING,
+        ]);
+
+        $checks[] = new Check([
+            'name' => 'AVIF (via ' . $imageAdapterType . ')',
+            // we use the force flag here, because during the installer the cache is not available
+            'state' => $imageAdapter->supportsFormat('avif', true) ? Check::STATE_OK : Check::STATE_WARNING,
         ]);
 
         return $checks;
@@ -691,11 +727,11 @@ class Requirements
     }
 
     /**
-     * @param ConnectionInterface $db
+     * @param ConnectionInterface|\Doctrine\DBAL\Connection $db
      *
      * @return array
      */
-    public static function checkAll(ConnectionInterface $db): array
+    public static function checkAll(ConnectionInterface|\Doctrine\DBAL\Connection $db): array
     {
         return [
             'checksPHP' => static::checkPhp(),

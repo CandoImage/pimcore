@@ -21,27 +21,26 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\TokenManager\TokenMan
 abstract class AbstractVoucherSeries extends \Pimcore\Model\DataObject\Concrete
 {
     /**
-     * @return \Pimcore\Model\DataObject\Fieldcollection
+     * @return \Pimcore\Model\DataObject\Fieldcollection|null
      */
     abstract public function getTokenSettings();
 
     /**
-     * @return bool|TokenManagerInterface
-     *
-     * @throws \Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException
+     * @return TokenManagerInterface|null
      */
     public function getTokenManager()
     {
         $items = $this->getTokenSettings();
-        if ($items && $items->get(0)) {
 
+        if ($items && $items->get(0)) {
             // name of fieldcollection class
+            /** @var AbstractVoucherTokenType $configuration */
             $configuration = $items->get(0);
 
             return Factory::getInstance()->getTokenManager($configuration);
         }
 
-        return false;
+        return null;
     }
 
     /**
@@ -57,7 +56,7 @@ abstract class AbstractVoucherSeries extends \Pimcore\Model\DataObject\Concrete
             GROUP BY length';
 
         try {
-            $lengths = $db->fetchAll($query, [$this->getId()]);
+            $lengths = $db->fetchAllAssociative($query, [$this->getId()]);
 
             $result = [];
             foreach ($lengths as $lengthEntry) {

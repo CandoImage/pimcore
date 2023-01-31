@@ -19,57 +19,47 @@ use ForceUTF8\Encoding;
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
 use Pimcore\Bundle\AdminBundle\HttpFoundation\JsonResponse;
 use Pimcore\Cache\Symfony\CacheClearer;
-use Pimcore\Controller\EventedControllerInterface;
+use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Extension\Bundle\Exception\BundleNotFoundException;
 use Pimcore\Extension\Bundle\PimcoreBundleInterface;
-use Pimcore\Extension\Bundle\PimcoreBundleManager;
 use Pimcore\Extension\Document\Areabrick\AreabrickInterface;
 use Pimcore\Extension\Document\Areabrick\AreabrickManagerInterface;
+use Pimcore\Logger;
 use Pimcore\Routing\RouteReferenceInterface;
 use Pimcore\Tool\AssetsInstaller;
 use SensioLabs\AnsiConverter\AnsiToHtmlConverter;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Routing\Annotation\Route;
 
-class ExtensionManagerController extends AdminController implements EventedControllerInterface
+/**
+ * @deprecated will be removed in Pimcore 11
+ *
+ * @internal
+ */
+class ExtensionManagerController extends AdminController implements KernelControllerEventInterface
 {
-    /**
-     * @var PimcoreBundleManager
-     */
-    private $bundleManager;
-
     /**
      * @var AreabrickManagerInterface
      */
     private $areabrickManager;
 
     public function __construct(
-        PimcoreBundleManager $bundleManager,
         AreabrickManagerInterface $areabrickManager
     ) {
-        $this->bundleManager = $bundleManager;
         $this->areabrickManager = $areabrickManager;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelControllerEvent(ControllerEvent $event)
     {
         $this->checkPermission('plugins');
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function onKernelResponse(FilterResponseEvent $event)
-    {
-        // noop
     }
 
     /**
@@ -129,7 +119,7 @@ class ExtensionManagerController extends AdminController implements EventedContr
             $updates[$id] = $options;
         }
 
-        $this->bundleManager->setStates($updates);
+        $this->getBundleManager()->setStates($updates);
 
         return $this->adminJson([
             'extensions' => $this->getBundleList(array_keys($updates)),
@@ -164,7 +154,7 @@ class ExtensionManagerController extends AdminController implements EventedContr
         ];
 
         if ($type === 'bundle') {
-            $this->bundleManager->setState($id, ['enabled' => $enable]);
+            $this->getBundleManager()->setState($id, ['enabled' => $enable]);
             $reload = true;
 
             $message = $this->installAssets($assetsInstaller, $enable);
@@ -258,17 +248,17 @@ class ExtensionManagerController extends AdminController implements EventedContr
     private function handleInstallation(Request $request, $install = true)
     {
         try {
-            $bundle = $this->bundleManager->getActiveBundle($request->get('id'), false);
+            $bundle = $this->getBundleManager()->getActiveBundle($request->get('id'), false);
 
             if ($install) {
-                $this->bundleManager->install($bundle);
+                $this->getBundleManager()->install($bundle);
             } else {
-                $this->bundleManager->uninstall($bundle);
+                $this->getBundleManager()->uninstall($bundle);
             }
 
             $data = [
                 'success' => true,
-                'reload' => $this->bundleManager->needsReloadAfterInstall($bundle),
+                'reload' => $this->getBundleManager()->needsReloadAfterInstall($bundle),
             ];
 
             if (!empty($message = $this->getInstallerOutput($bundle))) {
@@ -296,7 +286,7 @@ class ExtensionManagerController extends AdminController implements EventedContr
      */
     private function getBundleList(array $filter = [])
     {
-        $bm = $this->bundleManager;
+        $bm = $this->getBundleManager();
 
         $results = [];
         foreach ($bm->getEnabledBundleNames() as $className) {
@@ -305,7 +295,7 @@ class ExtensionManagerController extends AdminController implements EventedContr
 
                 $results[$bm->getBundleIdentifier($bundle)] = $this->buildBundleInfo($bundle, true, $bm->isInstalled($bundle));
             } catch (\Throwable $e) {
-                $this->get('monolog.logger.pimcore')->error($e);
+                Logger::error((string) $e);
             }
         }
 
@@ -363,11 +353,11 @@ class ExtensionManagerController extends AdminController implements EventedContr
         try {
             /** @var PimcoreBundleInterface $bundle */
             $bundle = new $bundleName();
-            $bundle->setContainer($this->container);
+            $bundle->setContainer(\Pimcore::getContainer());
 
             return $bundle;
         } catch (\Exception $e) {
-            $this->get('monolog.logger.pimcore')->error('Failed to build instance of bundle {bundle}: {error}', [
+            Logger::error('Failed to build instance of bundle {bundle}: {error}', [
                 'bundle' => $bundleName,
                 'error' => $e->getMessage(),
             ]);
@@ -385,7 +375,7 @@ class ExtensionManagerController extends AdminController implements EventedContr
      */
     private function buildBundleInfo(PimcoreBundleInterface $bundle, $enabled = false, $installed = false)
     {
-        $bm = $this->bundleManager;
+        $bm = $this->getBundleManager();
 
         $state = $bm->getState($bundle);
 
@@ -436,16 +426,14 @@ class ExtensionManagerController extends AdminController implements EventedContr
     {
         if ($iframePath = $bundle->getAdminIframePath()) {
             if ($iframePath instanceof RouteReferenceInterface) {
-                return $this->get('router')->generate(
+                return $this->generateUrl(
                     $iframePath->getRoute(),
                     $iframePath->getParameters(),
                     $iframePath->getType()
                 );
             }
 
-            if (!empty($iframePath)) {
-                return $iframePath;
-            }
+            return $iframePath;
         }
 
         return null;
@@ -486,17 +474,17 @@ class ExtensionManagerController extends AdminController implements EventedContr
 
     private function getInstallerOutput(PimcoreBundleInterface $bundle, bool $decorated = false)
     {
-        if (!$this->bundleManager->isEnabled($bundle)) {
+        if (!$this->getBundleManager()->isEnabled($bundle)) {
             return null;
         }
 
-        $installer = $this->bundleManager->getInstaller($bundle);
+        $installer = $this->getBundleManager()->getInstaller($bundle);
         if (null !== $installer) {
-            $output = $installer->getOutputWriter()->getOutput();
-            if (!empty($output)) {
+            $output = $installer->getOutput();
+            if ($output instanceof BufferedOutput) {
                 $converter = new AnsiToHtmlConverter(null);
 
-                $converted = Encoding::fixUTF8($output);
+                $converted = Encoding::fixUTF8($output->fetch());
                 $converted = $converter->convert($converted);
 
                 if (!$decorated) {
@@ -506,5 +494,7 @@ class ExtensionManagerController extends AdminController implements EventedContr
                 return $converted;
             }
         }
+
+        return null;
     }
 }

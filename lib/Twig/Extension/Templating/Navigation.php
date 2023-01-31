@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace Pimcore\Twig\Extension\Templating;
 
-use Pimcore\Model\Document;
 use Pimcore\Navigation\Builder;
 use Pimcore\Navigation\Container;
 use Pimcore\Navigation\Renderer\Breadcrumbs;
@@ -28,7 +27,6 @@ use Pimcore\Twig\Extension\Templating\Navigation\Exception\InvalidRendererExcept
 use Pimcore\Twig\Extension\Templating\Navigation\Exception\RendererNotFoundException;
 use Pimcore\Twig\Extension\Templating\Traits\HelperCharsetTrait;
 use Psr\Container\ContainerInterface;
-use Symfony\Component\OptionsResolver\OptionsResolver;
 use Twig\Extension\RuntimeExtensionInterface;
 
 /**
@@ -61,45 +59,8 @@ class Navigation implements RuntimeExtensionInterface
     }
 
     /**
-     * Builds a navigation container by passing arguments
-     *
-     * @deprecated
-     *
-     * @param Document $activeDocument
-     * @param Document|null $navigationRootDocument
-     * @param string|null $htmlMenuPrefix
-     * @param callable|null $pageCallback
-     * @param bool|string $cache
-     * @param int|null $maxDepth
-     * @param int|null $cacheLifetime
-     *
-     * @return Container
-     *
-     * @throws \Exception
-     */
-    public function buildNavigation(
-        Document $activeDocument,
-        Document $navigationRootDocument = null,
-        string $htmlMenuPrefix = null,
-        callable $pageCallback = null,
-        $cache = true,
-        $maxDepth = null,
-        $cacheLifetime = null
-    ): Container {
-        return $this->builder->getNavigation(
-            $activeDocument,
-            $navigationRootDocument,
-            $htmlMenuPrefix,
-            $pageCallback,
-            $cache,
-            $maxDepth,
-            $cacheLifetime
-        );
-    }
-
-    /**
      * Builds a navigation container by passing params
-     * Possible config params are: 'root', 'htmlMenuPrefix', 'pageCallback', 'cache', 'maxDepth', 'active'
+     * Possible config params are: 'root', 'htmlMenuPrefix', 'pageCallback', 'cache', 'cacheLifetime', 'maxDepth', 'active', 'markActiveTrail'
      *
      * @param array $params
      *
@@ -109,28 +70,7 @@ class Navigation implements RuntimeExtensionInterface
      */
     public function build(array $params): Container
     {
-        $optionsResolver = new OptionsResolver();
-        $optionsResolver->setDefaults([
-           'root' => null,
-           'htmlMenuPrefix' => null,
-           'pageCallback' => null,
-           'cache' => true,
-           'cacheLifetime' => null,
-           'maxDepth' => null,
-           'active' => null,
-        ]);
-
-        $options = $optionsResolver->resolve($params);
-
-        return $this->builder->getNavigation(
-            $options['active'],
-            $options['root'],
-            $options['htmlMenuPrefix'],
-            $options['pageCallback'],
-            $options['cache'],
-            $options['maxDepth'],
-            $options['cacheLifetime']
-        );
+        return $this->builder->getNavigation($params);
     }
 
     /**
@@ -195,5 +135,3 @@ class Navigation implements RuntimeExtensionInterface
         return $this->getRenderer($method);
     }
 }
-
-class_alias(Navigation::class, 'Pimcore\Templating\Helper\Navigation');

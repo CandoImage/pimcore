@@ -21,12 +21,12 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\EnvironmentInterface;
 class TargetGroup implements ConditionInterface
 {
     /**
-     * @var int
+     * @var int|null
      */
     protected $targetGroupId;
 
     /**
-     * @var \Pimcore\Model\Tool\Targeting\TargetGroup
+     * @var \Pimcore\Model\Tool\Targeting\TargetGroup|null
      */
     protected $targetGroup;
 
@@ -44,7 +44,7 @@ class TargetGroup implements ConditionInterface
     {
         $visitorInfo = $environment->getVisitorInfo();
 
-        if ($visitorInfo && $this->getTargetGroup()) {
+        if ($visitorInfo) {
             if ($visitorInfo->hasTargetGroupAssignment($this->getTargetGroup())) {
                 if ($visitorInfo->getTargetGroupAssignment($this->getTargetGroup())->getCount() > $this->getThreshold()) {
                     return true;
@@ -57,12 +57,17 @@ class TargetGroup implements ConditionInterface
 
     /**
      * @return array
+     *
+     * @internal
      */
     public function __sleep()
     {
         return ['targetGroupId', 'threshold'];
     }
 
+    /**
+     * @internal
+     */
     public function __wakeup()
     {
         if ($this->targetGroupId) {
@@ -140,11 +145,7 @@ class TargetGroup implements ConditionInterface
     public function setTargetGroup(\Pimcore\Model\Tool\Targeting\TargetGroup $targetGroup)
     {
         $this->targetGroup = $targetGroup;
-        if ($this->targetGroup) {
-            $this->targetGroupId = $targetGroup->getId();
-        } else {
-            $this->targetGroupId = null;
-        }
+        $this->targetGroupId = $targetGroup->getId();
     }
 
     /**

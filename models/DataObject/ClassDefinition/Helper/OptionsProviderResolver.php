@@ -18,6 +18,9 @@ namespace Pimcore\Model\DataObject\ClassDefinition\Helper;
 use Pimcore\Model\DataObject\ClassDefinition\DynamicOptionsProvider\MultiSelectOptionsProviderInterface;
 use Pimcore\Model\DataObject\ClassDefinition\DynamicOptionsProvider\SelectOptionsProviderInterface;
 
+/**
+ * @internal
+ */
 class OptionsProviderResolver extends ClassResolver
 {
     const MODE_SELECT = 1;
@@ -26,6 +29,12 @@ class OptionsProviderResolver extends ClassResolver
 
     public static $providerCache = [];
 
+    /**
+     * @param string|null $providerClass
+     * @param int $mode
+     *
+     * @return SelectOptionsProviderInterface|MultiSelectOptionsProviderInterface|null
+     */
     public static function resolveProvider($providerClass, $mode)
     {
         return self::resolve($providerClass, function ($provider) use ($mode) {

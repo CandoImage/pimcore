@@ -15,9 +15,12 @@
 
 namespace Pimcore\Model\Document\Printcontainer;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model\Document;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Document\Printcontainer $model
  */
 class Dao extends Document\PrintAbstract\Dao
@@ -29,6 +32,6 @@ class Dao extends Document\PrintAbstract\Dao
     {
         $path = $this->model->getFullPath();
 
-        return $this->db->fetchOne('SELECT modificationDate FROM documents WHERE path LIKE ? ORDER BY modificationDate DESC LIMIT 0,1', [$this->db->escapeLike($path) . '%']);
+        return $this->db->fetchOne('SELECT modificationDate FROM documents WHERE path LIKE ? ORDER BY modificationDate DESC LIMIT 0,1', [Helper::escapeLike($path) . '%']);
     }
 }

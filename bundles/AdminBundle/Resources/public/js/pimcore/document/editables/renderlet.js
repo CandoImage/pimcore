@@ -11,57 +11,50 @@
  * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
-pimcore.registerNS("pimcore.document.editables.renderlet");
+pimcore.registerNS('pimcore.document.editables.renderlet');
 pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
 
     defaultHeight: 100,
 
-    initialize: function(id, name, config, data, inherited) {
-        this.id = id;
-        this.name = name;
-        this.config = this.parseConfig(config);
-
+    initialize: function($super, id, name, config, data, inherited) {
+        $super(id, name, config, data, inherited);
 
         //TODO maybe there is a nicer way, the Panel doesn't like this
         this.controller = config.controller;
         delete(config.controller);
 
-        this.data = {};
-        if (data) {
-            this.data = data;
-        }
+        this.data = data ?? {};
 
         // height management
-        this.defaultHeight = 100;
         if (this.config.defaultHeight) {
             this.defaultHeight = this.config.defaultHeight;
         }
-        if (!this.config.height) {
-            this.config.height = this.defaultHeight;
+
+        if (this.config.height) {
+            this.initalHeightSet = true;
+        }
+        else {
+            this.initalHeightSet = false;
+            this.config.height = this.data.id ? 'auto' : this.defaultHeight;
         }
 
-        this.config.name = id + "_editable";
+        this.config.name = id + '_editable';
         this.config.border = false;
-        this.config.bodyStyle = "min-height: 40px;";
+        this.config.bodyStyle = 'min-height: 40px;';
     },
 
     render: function() {
         this.setupWrapper();
 
         this.element = new Ext.Panel(this.config);
-        this.element.on("render", function (el) {
-
+        this.element.on('render', function (el) {
             // register at global DnD manager
             dndManager.addDropTarget(el.getEl(), this.onNodeOver.bind(this), this.onNodeDrop.bind(this));
 
-            this.getBody().setStyle({
-                overflow: "auto"
-            });
+            this.getBody().insertHtml('beforeEnd','<div class="pimcore_editable_droptarget"></div>');
+            this.getBody().addCls('pimcore_editable_snippet_empty');
 
-            this.getBody().insertHtml("beforeEnd",'<div class="pimcore_tag_droptarget pimcore_editable_droptarget"></div>');
-            this.getBody().addCls("pimcore_tag_snippet_empty pimcore_editable_snippet_empty");
-
-            el.getEl().on("contextmenu", this.onContextMenu.bind(this));
+            el.getEl().on('contextmenu', this.onContextMenu.bind(this));
 
         }.bind(this));
 
@@ -73,7 +66,6 @@ pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
     },
 
     onNodeDrop: function (target, dd, e, data) {
-
         if(!pimcore.helpers.dragAndDropValidateSingleItem(data)) {
             return false;
         }
@@ -139,17 +131,22 @@ pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
         return Ext.dd.DropZone.prototype.dropAllowed;
     },
 
+    getBodyWrap: function () {
+        var bodyId = this.element.getEl().query('.' + Ext.baseCSSPrefix + 'panel-bodyWrap')[0].getAttribute('id');
+        return Ext.get(bodyId);
+    },
+
     getBody: function () {
         // get the id from the body element of the panel because there is no method to set body's html
         // (only in configure)
-        var bodyId = this.element.getEl().query("." + Ext.baseCSSPrefix + "panel-body")[0].getAttribute("id");
+        var bodyId = this.element.getEl().query('.' + Ext.baseCSSPrefix + 'panel-body')[0].getAttribute('id');
         return Ext.get(bodyId);
     },
 
     updateContent: function () {
         var self = this;
 
-        this.getBody().removeCls("pimcore_tag_snippet_empty pimcore_editable_snippet_empty");
+        this.getBody().removeCls('pimcore_editable_snippet_empty');
         this.getBody().dom.innerHTML = '<br />&nbsp;&nbsp;Loading ...';
 
         var params = this.data;
@@ -159,7 +156,7 @@ pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
         try {
             // add the id of the current document, so that the renderlet knows in which document it is embedded
             // this information is then grabbed in Pimcore_Controller_Action_Frontend::init() to set the correct locale
-            params["pimcore_parentDocument"] = window.editWindow.document.id;
+            params['pimcore_parentDocument'] = window.editWindow.document.id;
         } catch (e) {
         }
 
@@ -169,12 +166,12 @@ pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
 
         var setContent = function(content) {
             self.getBody().dom.innerHTML = content;
-            self.getBody().insertHtml("beforeEnd",'<div class="pimcore_tag_droptarget pimcore_editable_droptarget"></div>');
+            self.getBody().insertHtml('beforeEnd','<div class="pimcore_editable_droptarget"></div>');
             self.updateDimensions();
         };
 
         Ext.Ajax.request({
-            method: "get",
+            method: 'get',
             url: Routing.generate('pimcore_admin_document_renderlet_renderlet'),
             success: function (response) {
                 setContent(response.responseText);
@@ -202,40 +199,50 @@ pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
     },
 
     updateDimensions: function () {
+        if(this.initalHeightSet){
+            if(this.config.height !== 'auto'){
+                this.getBodyWrap().setStyle({
+                    overflowY: 'auto',
+                });
+            }
+        }
+        else{
+            this.element.setStyle({
+                height: this.data.id ? 'auto' : this.defaultHeight + 'px',
+            });
+            this.getBodyWrap().setStyle({
+                height: this.data.id ? 'auto' : '100%',
+            });
+        }
         this.getBody().setStyle({
-            height: "auto"
-        });
+            height: this.data.id ? 'auto' : this.config.title ? 'calc(100% - 49px)' : '100%',
+        })
     },
 
     onContextMenu: function (e) {
-
         var menu = new Ext.menu.Menu();
 
-        if(this.data["id"]) {
+        if(this.data['id']) {
             menu.add(new Ext.menu.Item({
                 text: t('empty'),
-                iconCls: "pimcore_icon_delete",
+                iconCls: 'pimcore_icon_delete',
                 handler: function () {
-                    var height = this.config.height;
-                    if (!height) {
-                        height = this.defaultHeight;
-                    }
                     this.data = {};
                     this.getBody().update('');
-                    this.getBody().insertHtml("beforeEnd",'<div class="pimcore_tag_droptarget pimcore_editable_droptarget"></div>');
-                    this.getBody().addCls("pimcore_tag_snippet_empty pimcore_editable_snippet_empty");
-                    this.getBody().setHeight(height + "px");
+                    this.getBody().insertHtml('beforeEnd','<div class="pimcore_editable_droptarget"></div>');
+                    this.getBody().addCls('pimcore_editable_snippet_empty');
 
                     if (this.config.reload) {
                         this.reloadDocument();
                     }
 
+                    this.updateDimensions();
                 }.bind(this)
             }));
 
             menu.add(new Ext.menu.Item({
                 text: t('open'),
-                iconCls: "pimcore_icon_open",
+                iconCls: 'pimcore_icon_open',
                 handler: function () {
                     if(this.data.id) {
                         pimcore.helpers.openElement(this.data.id, this.data.type, this.data.subtype);
@@ -243,10 +250,10 @@ pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
                 }.bind(this)
             }));
 
-            if (pimcore.elementservice.showLocateInTreeButton("document")) {
+            if (pimcore.elementservice.showLocateInTreeButton('document')) {
                 menu.add(new Ext.menu.Item({
                     text: t('show_in_tree'),
-                    iconCls: "pimcore_icon_show_in_tree",
+                    iconCls: 'pimcore_icon_show_in_tree',
                     handler: function (item) {
                         item.parentMenu.destroy();
                         pimcore.treenodelocator.showInTree(this.data.id, this.data.type);
@@ -257,7 +264,7 @@ pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
 
         menu.add(new Ext.menu.Item({
             text: t('search'),
-            iconCls: "pimcore_icon_search",
+            iconCls: 'pimcore_icon_search',
             handler: function (item) {
                 item.parentMenu.destroy();
 
@@ -307,6 +314,6 @@ pimcore.document.editables.renderlet = Class.create(pimcore.document.editable, {
     },
 
     getType: function () {
-        return "renderlet";
+        return 'renderlet';
     }
 });

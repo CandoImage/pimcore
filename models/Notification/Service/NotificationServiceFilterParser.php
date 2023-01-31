@@ -20,7 +20,7 @@ namespace Pimcore\Model\Notification\Service;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Class ExtJSFilterParser
+ * @internal
  */
 class NotificationServiceFilterParser
 {
@@ -110,11 +110,11 @@ class NotificationServiceFilterParser
     {
         $result = null;
         $property = $this->getDbProperty($item);
-        $value = $item[self::KEY_VALUE];
+        $value = $item[self::KEY_VALUE] ?? '';
 
         switch ($item[self::KEY_OPERATOR]) {
             case self::OPERATOR_LIKE:
-                $result = ["{$property} LIKE ?", ["%{$value}%"]];
+                $result = ["{$property} LIKE ?", "%{$value}%"];
 
                 break;
         }

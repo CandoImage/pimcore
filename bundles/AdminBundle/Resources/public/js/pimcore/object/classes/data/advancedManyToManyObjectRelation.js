@@ -60,17 +60,28 @@ pimcore.object.classes.data.advancedManyToManyObjectRelation = Class.create(pimc
         this.specificPanel.removeAll();
         this.specificPanel.add([
             {
-                xtype: "numberfield",
+                xtype: "textfield",
                 fieldLabel: t("width"),
                 name: "width",
                 value: this.datax.width
             },
             {
-                xtype: "numberfield",
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('width_explanation')
+            },
+            {
+                xtype: "textfield",
                 fieldLabel: t("height"),
                 name: "height",
                 value: this.datax.height
-            },{
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('height_explanation')
+            },
+            {
                 xtype: "numberfield",
                 fieldLabel: t("maximum_items"),
                 name: "maxItems",
@@ -159,6 +170,13 @@ pimcore.object.classes.data.advancedManyToManyObjectRelation = Class.create(pimc
 
         this.specificPanel.add({
             xtype: "checkbox",
+            boxLabel: t("enable_text_selection"),
+            name: "enableTextSelection",
+            value: this.datax.enableTextSelection
+        });
+
+        this.specificPanel.add({
+            xtype: "checkbox",
             boxLabel: t("enable_batch_edit_columns"),
             name: "enableBatchEdit",
             value: this.datax.enableBatchEdit
@@ -169,6 +187,13 @@ pimcore.object.classes.data.advancedManyToManyObjectRelation = Class.create(pimc
             boxLabel: t("allow_multiple_assignments"),
             name: "allowMultipleAssignments",
             value: this.datax.allowMultipleAssignments
+        });
+
+        this.specificPanel.add({
+            xtype: "checkbox",
+            boxLabel: t("allow_to_create_new_object"),
+            name: "allowToCreateNewObject",
+            value: this.datax.allowToCreateNewObject
         });
 
         if(this.context == 'class') {
@@ -227,7 +252,7 @@ pimcore.object.classes.data.advancedManyToManyObjectRelation = Class.create(pimc
 
                 if (value.length > 1 && regresult == value
                     && in_array(value.toLowerCase(), ["id","key","path","type","index","classname",
-                    "creationdate","userowner","value","class","list","fullpath","childs","values","cachetag",
+                    "creationdate","userowner","value","class","list","fullpath","childs","children","values","cachetag",
                     "cachetags","parent","published","valuefromparent","userpermissions","dependencies",
                     "modificationdate","usermodification","byid","bypath","data","versions","properties",
                     "permissions","permissionsforuser","childamount","apipluginbroker","resource",
@@ -352,13 +377,18 @@ pimcore.object.classes.data.advancedManyToManyObjectRelation = Class.create(pimc
         if(this.grids) {
             var cols = [];
             this.stores.cols.each(function(rec) {
+                delete rec.data.id;
                 cols.push(rec.data);
                 rec.commit();
             });
             this.datax.columns = cols;
         }
-
         return this.datax;
+    },
+
+    applyData: function ($super){
+        $super();
+        return this.getData();
     },
 
     applySpecialData: function(source) {
@@ -379,6 +409,7 @@ pimcore.object.classes.data.advancedManyToManyObjectRelation = Class.create(pimc
                     classes: source.datax.classes,
                     enableBatchEdit: source.datax.enableBatchEdit,
                     allowMultipleAssignments: source.datax.allowMultipleAssignments,
+                    allowToCreateNewObject: source.datax.allowToCreateNewObject,
                     optimizedAdminLoading: source.datax.optimizedAdminLoading,
                     pathFormatterClass: source.datax.pathFormatterClass
                 });
@@ -386,6 +417,3 @@ pimcore.object.classes.data.advancedManyToManyObjectRelation = Class.create(pimc
     }
 
 });
-
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.classes.data.objectsMetadata = pimcore.object.classes.data.advancedManyToManyObjectRelation;

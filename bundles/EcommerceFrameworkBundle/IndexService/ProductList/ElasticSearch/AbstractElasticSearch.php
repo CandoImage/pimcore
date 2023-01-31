@@ -55,7 +55,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
     protected $tenantName;
 
     /**
-     * @var ElasticSearch
+     * @var ElasticSearchConfigInterface
      */
     protected $tenantConfig;
 
@@ -80,7 +80,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
     protected $order;
 
     /**
-     * @var string
+     * @var string|array
      */
     protected $orderKey;
 
@@ -95,7 +95,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
     protected $offset = 0;
 
     /**
-     * @var AbstractCategory
+     * @var AbstractCategory|null
      */
     protected $category;
 
@@ -105,29 +105,29 @@ abstract class AbstractElasticSearch implements ProductListInterface
     protected $inProductList;
 
     /**
-     * @var string[][]
+     * @var array
      */
     protected $filterConditions = [];
 
     /**
-     * @var string[][]
+     * @var array
      */
     protected $queryConditions = [];
 
     /**
-     * @var string[][]
+     * @var array
      */
     protected $relationConditions = [];
 
     /**
-     * @var float
+     * @var float|null
      */
-    protected $conditionPriceFrom = null;
+    protected $conditionPriceFrom;
 
     /**
-     * @var float
+     * @var float|null
      */
-    protected $conditionPriceTo = null;
+    protected $conditionPriceTo;
 
     /**
      * @var array
@@ -212,11 +212,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
         return $this;
     }
 
-    /**
-     * Returns all products valid for this search
-     *
-     * @return IndexableInterface[]
-     */
+    /** @inheritDoc */
     public function getProducts()
     {
         if ($this->products === null) {
@@ -253,7 +249,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
      * Fieldname is optional but highly recommended - needed for resetting condition based on fieldname
      * and exclude functionality in group by results
      *
-     * @param string $condition
+     * @param array|string $condition
      * @param string $fieldname - must be set for elastic search
      */
     public function addCondition($condition, $fieldname = '')
@@ -408,7 +404,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
     }
 
     /**
-     * @return string
+     * @return string|array
      */
     public function getOrderKey()
     {
@@ -479,7 +475,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
     }
 
     /**
-     * @return AbstractCategory
+     * @return AbstractCategory|null
      */
     public function getCategory()
     {
@@ -626,7 +622,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
         $result = $this->sendRequest($params);
 
         $objectRaws = [];
-        if ($result['hits']) {
+        if ($result['hits'] ?? null) {
             $this->totalCount = $result['hits']['total'];
             foreach ($result['hits']['hits'] as $hit) {
                 $objectRaws[] = $hit['_id'];
@@ -874,7 +870,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
      *
      * @param int $elementId
      *
-     * @return array|IndexableInterface
+     * @return \Pimcore\Bundle\EcommerceFrameworkBundle\Model\DefaultMockup|null
      */
     protected function loadElementById($elementId)
     {
@@ -1042,7 +1038,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
             $this->doLoadGroupByValues();
         }
 
-        $results = $this->preparedGroupByValuesResults[$fieldname];
+        $results = $this->preparedGroupByValuesResults[$fieldname] ?? null;
         if ($results) {
             if ($countValues) {
                 return $results;
@@ -1109,7 +1105,6 @@ abstract class AbstractElasticSearch implements ProductListInterface
         }
 
         foreach ($this->preparedGroupByValues as $fieldname => $config) {
-
             //exclude all attributes that are already filtered
             $shortFieldname = $this->getTenantConfig()->getReverseMappedFieldName($fieldname);
 
@@ -1256,7 +1251,7 @@ abstract class AbstractElasticSearch implements ProductListInterface
     protected function convertBucketValues(array $bucket)
     {
         $data = [
-            'value' => $bucket['key'],
+            'value' => $bucket['key'] ?? null,
             'count' => $bucket['doc_count'],
         ];
 
@@ -1355,17 +1350,10 @@ abstract class AbstractElasticSearch implements ProductListInterface
      */
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Count elements of an object
-     *
-     * @link http://php.net/manual/en/countable.count.php
-     *
-     * @return int The custom count as an integer.
-     * </p>
-     * <p>
-     * The return value is cast to an integer.
+     * @return int
      */
-    public function count()
+    #[\ReturnTypeWillChange]
+    public function count()// : int
     {
         $this->getProducts();
 
@@ -1373,19 +1361,14 @@ abstract class AbstractElasticSearch implements ProductListInterface
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Return the current element
-     *
-     * @link http://php.net/manual/en/iterator.current.php
-     *
-     * @return mixed Can return any type.
+     * @return IndexableInterface|false
      */
-    public function current()
+    #[\ReturnTypeWillChange]
+    public function current()// : IndexableInterface|false
     {
         $this->getProducts();
-        $var = current($this->products);
 
-        return $var;
+        return current($this->products);
     }
 
     /**
@@ -1405,78 +1388,43 @@ abstract class AbstractElasticSearch implements ProductListInterface
     }
 
     /**
-     * Return a fully configured Paginator Adapter from this method.
-     *
-     * @deprecated will be removed in Pimcore 10
-     *
-     * @return self
+     * @return int|null
      */
-    public function getPaginatorAdapter()
-    {
-        return $this;
-    }
-
-    /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Return the key of the current element
-     *
-     * @link http://php.net/manual/en/iterator.key.php
-     *
-     * @return scalar scalar on success, integer
-     * 0 on failure.
-     */
-    public function key()
+    #[\ReturnTypeWillChange]
+    public function key()// : int|null
     {
         $this->getProducts();
-        $var = key($this->products);
 
-        return $var;
+        return key($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Move forward to next element
-     *
-     * @link http://php.net/manual/en/iterator.next.php
-     *
-     * @return void Any returned value is ignored.
+     * @return void
      */
-    public function next()
+    #[\ReturnTypeWillChange]
+    public function next()// : void
     {
         $this->getProducts();
-        $var = next($this->products);
-
-        return $var;
+        next($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Rewind the Iterator to the first element
-     *
-     * @link http://php.net/manual/en/iterator.rewind.php
-     *
-     * @return void Any returned value is ignored.
+     * @return void
      */
-    public function rewind()
+    #[\ReturnTypeWillChange]
+    public function rewind()// : void
     {
         $this->getProducts();
         reset($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Checks if current position is valid
-     *
-     * @link http://php.net/manual/en/iterator.valid.php
-     *
-     * @return bool The return value will be casted to boolean and then evaluated.
-     * Returns true on success or false on failure.
+     * @return bool
      */
-    public function valid()
+    #[\ReturnTypeWillChange]
+    public function valid()// : bool
     {
-        $var = $this->current() !== false;
-
-        return $var;
+        return $this->current() !== false;
     }
 
     /**

@@ -16,16 +16,14 @@ $orderList->setOrder( 'order.orderDate desc' );
 $orderList->setLimit( 10, 0 );
 
 // iterate
-foreach($orderList as $order)
-{
-    /* @var \Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderListItemInterface $order */
+/** @var \Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderListItemInterface $order */
+foreach($orderList as $order) {
     echo $order->getOrdernumber();
 }
 
 
-// ALTERNATE: use knp paginator service
-/** @var PaginatorInterface $paginator */
-$paginator->paginate(
+// ALTERNATE: use knp paginator service: PaginatorInterface $paginator
+$paginator = $paginator->paginate(
     $orderList,
     $request->get('page', 1),
     10

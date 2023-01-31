@@ -26,7 +26,7 @@ pimcore.object.versions = Class.create({
             if (!Ext.ClassManager.get(modelName)) {
                 Ext.define(modelName, {
                     extend: 'Ext.data.Model',
-                    fields: ['id', 'date', 'scheduled', 'note', {
+                    fields: ['id', { name: "date", type: 'date', dateFormat: 'timestamp' }, 'scheduled', 'note', {
                         name: 'name', convert: function (v, rec) {
                             if (rec.data) {
                                 if (rec.data.user) {
@@ -76,7 +76,7 @@ pimcore.object.versions = Class.create({
 
             var grid = Ext.create('Ext.grid.Panel', {
                 store: this.store,
-                plugins: [this.cellEditing],
+                plugins: [this.cellEditing, 'gridfilters'],
                 columns: [
                     {
                         text: t("published"),
@@ -84,24 +84,28 @@ pimcore.object.versions = Class.create({
                         sortable: false,
                         dataIndex: 'id',
                         renderer: function (d, metaData, cellValues) {
-                            var d = cellValues.get('date');
+                            var d = Ext.Date.format(cellValues.get('date'), "timestamp");
                             var versionCount = cellValues.get('versionCount');
                             var index = cellValues.get('index');
-                            if (this.object.data.general.o_published && index === 0 && d == this.object.data.general.versionDate && versionCount == this.object.data.general.versionCount) {
-                                metaData.tdCls = "pimcore_icon_publish";
+                            if (index === 0 && d == this.object.data.general.versionDate && versionCount == this.object.data.general.versionCount) {
+                                if(this.object.data.general.o_published) {
+                                    metaData.tdCls = "pimcore_icon_publish";
+                                } else {
+                                    metaData.tdCls = "pimcore_icon_sql";
+                                    metaData.tdAttr = 'data-qtip="' + t('version_currently_saved_in_database') + '"';
+                                }
                             }
                             return "";
                         }.bind(this),
                         editable: false
                     },
                     {
-                        text: t("date"), width: 150, sortable: true, dataIndex: 'date', renderer: function (d) {
-                            var date = new Date(d * 1000);
-                            return Ext.Date.format(date, "Y-m-d H:i:s");
+                        text: t("date"), width: 150, sortable: true, dataIndex: 'date', filter: 'date', renderer: function (d) {
+                            return Ext.Date.format(d, "Y-m-d H:i:s");
                         }
                     },
                     {text: "ID", sortable: true, dataIndex: 'id', editable: false, width: 60},
-                    {text: t("user"), sortable: true, dataIndex: 'name'},
+                    {text: t("user"), sortable: true, dataIndex: 'name', filter: 'list'},
                     {
                         text: t("scheduled"),
                         width: 130,
@@ -115,7 +119,14 @@ pimcore.object.versions = Class.create({
                         },
                         editable: false
                     },
-                    {text: t("note"), sortable: true, dataIndex: 'note', editor: new Ext.form.TextField(), renderer: Ext.util.Format.htmlEncode}
+                    {text: t("note"), sortable: true, dataIndex: 'note', filter: 'string', editor: new Ext.form.TextField(), renderer: Ext.util.Format.htmlEncode},
+                    {
+                        xtype: "checkcolumn",
+                        text: t("auto_save"),
+                        disabled : true,
+                        dataIndex: "autoSave",
+                        width: 50
+                    }
                 ],
                 stripeRows: true,
                 width: 450,

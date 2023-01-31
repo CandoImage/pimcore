@@ -20,17 +20,22 @@ namespace Pimcore\Twig\Node;
 use Twig\Compiler;
 use Twig\Node\Node;
 
+/**
+ * @internal
+ *
+ * @deprecated
+ */
 class GlossaryNode extends Node
 {
     public function compile(Compiler $compiler)
     {
         $compiler->addDebugInfo($this);
         $compiler
-            ->write('$this->env->getExtension(\'Pimcore\Twig\Extension\GlossaryExtension\')->getGlossaryHelper()->start();')
+            ->write('$this->env->getExtension(\'Pimcore\Twig\Extension\GlossaryExtension\')->start();')
             ->raw("\n")
             ->subcompile($this->getNode('body'))
             ->raw("\n")
-            ->write('$this->env->getExtension(\'Pimcore\Twig\Extension\GlossaryExtension\')->getGlossaryHelper()->stop();')
+            ->write('$this->env->getExtension(\'Pimcore\Twig\Extension\GlossaryExtension\')->stop();')
             ->raw("\n")
         ;
     }

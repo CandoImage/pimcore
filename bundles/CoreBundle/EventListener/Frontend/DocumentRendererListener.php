@@ -16,28 +16,24 @@
 namespace Pimcore\Bundle\CoreBundle\EventListener\Frontend;
 
 use Pimcore\Event\DocumentEvents;
-use Pimcore\Templating\Helper\Placeholder\ContainerService;
+use Pimcore\Twig\Extension\Templating\Placeholder\ContainerService;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
  * Handles block state for sub requests (saves parent state and restores it after request completes)
+ *
+ * @internal
  */
 class DocumentRendererListener implements EventSubscriberInterface
 {
-    /**
-     * @var ContainerService
-     */
-    protected $containerService;
-
-    public function __construct(ContainerService $containerService)
+    public function __construct(protected ContainerService $containerService)
     {
-        $this->containerService = $containerService;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             DocumentEvents::RENDERER_PRE_RENDER => 'onPreRender',

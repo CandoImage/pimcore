@@ -79,21 +79,6 @@ pimcore.settings.web2print = Class.create({
                 defaults: {width: 450},
                 items: [
                     {
-                        fieldLabel: t("web2print_version"),
-                        xtype: "combo",
-                        width: 600,
-                        editable: false,
-                        name: "pdfreactorVersion",
-                        value: this.getValue("pdfreactorVersion"),
-                        store: [
-                            ["8.0", "8.0"],
-                            ["8.1", "8.1"],
-                            ["9.0", "9.0"],
-                            ["10.0", "10.0"]
-                        ],
-                        mode: "local",
-                        triggerAction: "all"
-                    },{
                         fieldLabel: t("web2print_protocol"),
                         xtype: "combo",
                         width: 600,
@@ -208,6 +193,54 @@ pimcore.settings.web2print = Class.create({
                 ]
             });
 
+            this.headlessChromeSettings = Ext.create("Ext.form.FieldSet", {
+                title: t('web2print_headlesschrome_settings'),
+                collapsible: true,
+                collapsed: false,
+                autoHeight: true,
+                hidden: this.getValue("generalTool") != 'headlesschrome',
+                defaultType: 'textfield',
+                defaults: {width: 450},
+                items: [
+                    {
+                        xtype: 'textarea',
+                        width: 850,
+                        height: 200,
+                        fieldLabel: t("web2print_headlesschrome_settings"),
+                        name: 'headlessChromeSettings',
+                        value: this.getValue("headlessChromeSettings")
+                    },{
+                        xtype: "displayfield",
+                        fieldLabel: t("web2print_headlesschrome_documentation"),
+                        name: 'documentation',
+                        width: 600,
+                        value: t('web2print_headlesschrome_options_documentation'),
+                        autoEl:{
+                            tag: 'a',
+                            target: '_blank',
+                            href: "https://github.com/spiritix/php-chrome-html2pdf#options",
+                        }
+                    },{
+                        xtype: "displayfield",
+                        fieldLabel: t("web2print_headlesschrome_documentation_additions"),
+                        name: 'additions',
+                        width: 850,
+                        value: t('web2print_headlesschrome_documentation_additions_text'),
+                    },{
+                        xtype: "displayfield",
+                        fieldLabel: t("web2print_headlesschrome_json_converter"),
+                        name: 'json_converter',
+                        width: 600,
+                        value: t('web2print_headlesschrome_json_converter_link'),
+                        autoEl:{
+                            tag: 'a',
+                            target: '_blank',
+                            href: "https://jsonformatter.org/",
+                        }
+                    }
+                ]
+            });
+
             this.layout = Ext.create('Ext.form.Panel', {
                 bodyStyle: 'padding:20px 5px 20px 5px;',
                 border: false,
@@ -228,7 +261,8 @@ pimcore.settings.web2print = Class.create({
                     {
                         text: t("save"),
                         handler: this.save.bind(this),
-                        iconCls: "pimcore_icon_apply"
+                        iconCls: "pimcore_icon_apply",
+                        disabled: !pimcore.settings['web2print-writeable']
                     }
                 ],
                 items: [
@@ -260,7 +294,8 @@ pimcore.settings.web2print = Class.create({
                                 value: this.getValue("generalTool"),
                                 store: [
                                     ["pdfreactor", "PDFreactor"],
-                                    ["wkhtmltopdf", "WkHtmlToPdf"]
+                                    ["wkhtmltopdf", "WkHtmlToPdf (Deprecated)"],
+                                    ["headlesschrome", "Headless Chrome"],
                                 ],
                                 mode: "local",
                                 triggerAction: "all",
@@ -270,9 +305,15 @@ pimcore.settings.web2print = Class.create({
                                         if(combo.getValue() == "pdfreactor") {
                                             this.pdfReactorSettings.show();
                                             this.wkhtmlToPdfSettings.hide();
-                                        } else {
+                                            this.headlessChromeSettings.hide();
+                                        } else if(combo.getValue() == "wkhtmltopdf") {
                                             this.pdfReactorSettings.hide();
                                             this.wkhtmlToPdfSettings.show();
+                                            this.headlessChromeSettings.hide();
+                                        }else{
+                                            this.pdfReactorSettings.hide();
+                                            this.wkhtmlToPdfSettings.hide();
+                                            this.headlessChromeSettings.show();
                                         }
 
                                     }.bind(this)
@@ -299,7 +340,7 @@ pimcore.settings.web2print = Class.create({
                             }
                         ]
                     }
-                    , this.pdfReactorSettings, this.wkhtmlToPdfSettings
+                    , this.pdfReactorSettings, this.wkhtmlToPdfSettings, this.headlessChromeSettings
                 ]
             });
 

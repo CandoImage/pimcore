@@ -21,11 +21,9 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
     initialize: function (data, fieldConfig) {
         this.data = data;
         this.fieldConfig = fieldConfig;
-
     },
 
     getGridColumnConfig: function(field) {
-
         var displayValues = {};
         if (field.layout.options) {
             for (var i = 0; i < field.layout.options.length; i++) {
@@ -37,25 +35,38 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
             getEditor:this.getWindowCellEditor.bind(this, field),
             renderer: function (key, displayValues, value, metaData, record) {
                 try {
-                    if(record.data.inheritedFields && record.data.inheritedFields[key] && record.data.inheritedFields[key].inherited == true) {
+                    if (record.data.inheritedFields && record.data.inheritedFields[key] && record.data.inheritedFields[key].inherited == true) {
                         metaData.tdCls += " grid_value_inherited";
                     }
                 } catch (e) {
                     console.log(e);
                 }
 
-                if (value) {
+                // Use data options as display values if available
+                var dataOptions = this.getOptionsFromData(value);
+                if (dataOptions !== null) {
+                    displayValues = {};
+                    for (var i = 0; i < value.options.length; i++) {
+                        displayValues[value.options[i].value] = value.options[i].key;
+                    }
+                }
+                // Use data value if available
+                var dataValue = this.getValueFromData(value);
+                if (dataValue !== null) {
+                    value = dataValue;
+                }
 
+                if (value) {
                     var singleValues = [];
-                    if(typeof value === 'string') {
+                    if (typeof value === 'string') {
                         singleValues = value.split(',');
                     } else {
                         singleValues = value;
                     }
 
                     var singleDisplayValues = [];
-                    for(var i = 0; i < singleValues.length; i++) {
-                        if(displayValues[singleValues[i]]) {
+                    for (var i = 0; i < singleValues.length; i++) {
+                        if (displayValues[singleValues[i]]) {
                             singleDisplayValues.push(displayValues[singleValues[i]]);
                         } else {
                             singleDisplayValues.push(singleValues[i]);
@@ -70,11 +81,17 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
     },
 
     getGridColumnFilter: function(field) {
+        if (field.layout.dynamicOptions) {
+            return {
+                type: 'string',
+                dataIndex: field.key
+            };
+        }
 
         var storeData = this.prepareStoreDataAndFilterLabels(field.layout);
 
         var store = Ext.create('Ext.data.JsonStore', {
-            fields: ['id', 'text'],
+            fields: [{name: 'id', type: 'string'}, 'text'],
             data: storeData
         });
 
@@ -88,25 +105,20 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
     },
 
     prepareStoreDataAndFilterLabels: function(fieldConfig) {
+        var options = fieldConfig.options;
 
-        var storeData = [];
-        var restrictTo = null;
-
-        if (fieldConfig.restrictTo) {
-            restrictTo = fieldConfig.restrictTo.split(",");
+        // Use data options if available
+        var dataOptions = this.getOptionsFromData();
+        if (dataOptions !== null) {
+            options = dataOptions;
         }
 
-        if (fieldConfig.options) {
-            for (var i = 0; i < fieldConfig.options.length; i++) {
-                var value = fieldConfig.options[i].value;
-                if (restrictTo) {
-                    if (!in_array(value, restrictTo)) {
-                        continue;
-                    }
-                }
-
-                var label = t(fieldConfig.options[i].key);
-                if(label.indexOf('<') >= 0) {
+        var storeData = [];
+        if (options) {
+            for (var i = 0; i < options.length; i++) {
+                var value = options[i].value;
+                var label = t(options[i].key);
+                if (label.indexOf('<') >= 0) {
                     label = replace_html_event_attributes(strip_tags(label, "div,span,b,strong,em,i,small,sup,sub2"));
                 }
                 storeData.push({id: value, text: label});
@@ -114,11 +126,9 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
         }
 
         return storeData;
-
     },
 
     getLayoutEdit: function () {
-
         // generate store
         var validValues = [];
         var hasHTMLContent = false;
@@ -131,7 +141,7 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
         }
 
         var store = Ext.create('Ext.data.Store', {
-            fields: ['id', 'text'],
+            fields: [{name: 'id', type: 'string'}, 'text'],
             data: storeData
         });
 
@@ -142,7 +152,7 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
             editable: false,
             fieldLabel: this.fieldConfig.title,
             store: store,
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             valueField: 'id',
             labelWidth: this.fieldConfig.labelWidth ? this.fieldConfig.labelWidth : 100,
             listeners: {
@@ -167,7 +177,13 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
             options.width = 300;
         }
 
-        options.width += options.labelWidth;
+        if (this.fieldConfig.labelAlign) {
+            options.labelAlign = this.fieldConfig.labelAlign;
+        }
+
+        if (!this.fieldConfig.labelAlign || 'left' === this.fieldConfig.labelAlign) {
+            options.width = this.sumWidths(options.width, options.labelWidth);
+        }
 
         if (this.fieldConfig.height) {
             options.height = this.fieldConfig.height;
@@ -177,6 +193,12 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
 
         if (typeof this.data == "string" || typeof this.data == "number") {
             options.value = this.data;
+        } else {
+            // Use data value if available
+            var dataValue = this.getValueFromData();
+            if (dataValue !== null) {
+                options.value = dataValue;
+            }
         }
 
         if (this.fieldConfig.renderType == "tags") {
@@ -193,6 +215,28 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
         return this.component;
     },
 
+    getOptionsFromData: function (data) {
+        var data = data || this.data;
+        if (this.doesDataContainObject(data) && data.hasOwnProperty('options') && Ext.isArray(data.options)) {
+            return data.options;
+        }
+
+        return null;
+    },
+
+    getValueFromData: function (data) {
+        var data = data || this.data;
+        if (this.doesDataContainObject(data) && data.hasOwnProperty('value')) {
+            return data.value;
+        }
+
+        return null;
+    },
+
+    doesDataContainObject: function (data) {
+        var data = data || this.data;
+        return typeof data === 'object' && data !== null;
+    },
 
     getLayoutShow: function () {
 
@@ -212,6 +256,13 @@ pimcore.object.tags.multiselect = Class.create(pimcore.object.tags.abstract, {
         }
 
         let res = [];
+
+        // Use data value if available
+        var dataValue = this.getValueFromData();
+        if (dataValue !== null) {
+            return dataValue;
+        }
+
         if (this.data) {
             res = [this.data];
         }

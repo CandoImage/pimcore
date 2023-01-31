@@ -20,7 +20,10 @@ use Pimcore\Maintenance\TaskInterface;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Psr\Log\LoggerInterface;
 
-final class CleanupFieldcollectionTablesTask implements TaskInterface
+/**
+ * @internal
+ */
+class CleanupFieldcollectionTablesTask implements TaskInterface
 {
     /**
      * @var LoggerInterface
@@ -51,7 +54,7 @@ final class CleanupFieldcollectionTablesTask implements TaskInterface
         foreach ($tasks as $task) {
             $prefix = $task['prefix'];
             $pattern = $task['pattern'];
-            $tableNames = $db->fetchAll("SHOW TABLES LIKE '" . $pattern . "'");
+            $tableNames = $db->fetchAllAssociative("SHOW TABLES LIKE '" . $pattern . "'");
 
             foreach ($tableNames as $tableName) {
                 $tableName = current($tableName);
@@ -77,7 +80,7 @@ final class CleanupFieldcollectionTablesTask implements TaskInterface
                     $classId = substr($classId, strlen('localized_'));
                 }
 
-                $classDefinition = ClassDefinition::getById($classId);
+                $classDefinition = ClassDefinition::getByIdIgnoreCase($classId);
                 if (!$classDefinition) {
                     $this->logger->error("Classdefinition '" . $classId . "' not found. Please check table " . $tableName);
 
@@ -85,7 +88,7 @@ final class CleanupFieldcollectionTablesTask implements TaskInterface
                 }
 
                 $fieldsQuery = 'SELECT fieldname FROM ' . $tableName . ' GROUP BY fieldname';
-                $fieldNames = $db->fetchCol($fieldsQuery);
+                $fieldNames = $db->fetchFirstColumn($fieldsQuery);
 
                 foreach ($fieldNames as $fieldName) {
                     $fieldDef = $classDefinition->getFieldDefinition($fieldName);
@@ -98,7 +101,7 @@ final class CleanupFieldcollectionTablesTask implements TaskInterface
 
                     if (!$fieldDef) {
                         $this->logger->info("Field '" . $fieldName . "' of class '" . $classId . "' does not exist anymore. Cleaning " . $tableName);
-                        $db->deleteWhere($tableName, 'fieldname = ' . $db->quote($fieldName));
+                        $db->delete($tableName, ['fieldname' => $fieldName]);
                     }
                 }
             }

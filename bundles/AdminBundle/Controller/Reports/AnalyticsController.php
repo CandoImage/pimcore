@@ -15,25 +15,27 @@
 
 namespace Pimcore\Bundle\AdminBundle\Controller\Reports;
 
+use Google\Service\Analytics;
 use Pimcore\Analytics\Google\Config\SiteConfigProvider;
-use Pimcore\Controller\EventedControllerInterface;
+use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Google;
 use Pimcore\Model\Document;
 use Pimcore\Model\Site;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * @Route("/analytics")
+ *
+ * @internal
  */
-class AnalyticsController extends ReportsControllerBase implements EventedControllerInterface
+class AnalyticsController extends ReportsControllerBase implements KernelControllerEventInterface
 {
     /**
-     * @var \Google_Service_Analytics
+     * @var Analytics
      */
     protected $service;
 
@@ -127,20 +129,23 @@ class AnalyticsController extends ReportsControllerBase implements EventedContro
     /**
      * @param Request $request
      *
-     * @return mixed|string
+     * @return string
      */
     protected function getFilterPath(Request $request)
     {
         if ($request->get('type') == 'document' && $request->get('id')) {
-            $doc = Document::getById($request->get('id'));
+            $doc = Document::getById((int) $request->get('id'));
+            if (!$doc) {
+                throw $this->createNotFoundException();
+            }
             $path = $doc->getFullPath();
 
             if ($doc instanceof Document\Page && $doc->getPrettyUrl()) {
                 $path = $doc->getPrettyUrl();
             }
 
-            if ($request->get('site')) {
-                $site = Site::getById($request->get('site'));
+            if ($siteId = $request->get('site')) {
+                $site = Site::getById((int) $siteId);
                 $path = preg_replace('@^' . preg_quote($site->getRootPath(), '@') . '/@', '/', $path);
             }
 
@@ -502,12 +507,11 @@ class AnalyticsController extends ReportsControllerBase implements EventedContro
     }
 
     /**
-     * @param FilterControllerEvent $event
+     * {@inheritdoc}
      */
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelControllerEvent(ControllerEvent $event)
     {
-        $isMasterRequest = $event->isMasterRequest();
-        if (!$isMasterRequest) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
@@ -516,14 +520,6 @@ class AnalyticsController extends ReportsControllerBase implements EventedContro
             die('Google Analytics is not configured');
         }
 
-        $this->service = new \Google_Service_Analytics($client);
-    }
-
-    /**
-     * @param FilterResponseEvent $event
-     */
-    public function onKernelResponse(FilterResponseEvent $event)
-    {
-        // nothing to do
+        $this->service = new Analytics($client);
     }
 }

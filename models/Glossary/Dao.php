@@ -16,8 +16,11 @@
 namespace Pimcore\Model\Glossary;
 
 use Pimcore\Model;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Glossary $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -26,6 +29,8 @@ class Dao extends Model\Dao\AbstractDao
      * Get the data for the object from database for the given id, or from the ID which is set in the object
      *
      * @param int|null $id
+     *
+     * @throws NotFoundException
      */
     public function getById($id = null)
     {
@@ -33,10 +38,10 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow('SELECT * FROM glossary WHERE id = ?', $this->model->getId());
+        $data = $this->db->fetchAssociative('SELECT * FROM glossary WHERE id = ?', [$this->model->getId()]);
 
-        if (!$data['id']) {
-            throw new \Exception(sprintf('Unable to load glossary item with ID `%s`', $this->model->getId()));
+        if (!$data) {
+            throw new NotFoundException(sprintf('Unable to load glossary item with ID `%s`', $this->model->getId()));
         }
 
         $this->assignVariablesToModel($data);
@@ -96,6 +101,6 @@ class Dao extends Model\Dao\AbstractDao
 
         $this->db->insert('glossary', []);
 
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 }

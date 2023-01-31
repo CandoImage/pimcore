@@ -38,7 +38,7 @@ abstract class AbstractDefinitionHelper extends Module
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function _beforeSuite($settings = [])
     {
@@ -48,14 +48,14 @@ abstract class AbstractDefinitionHelper extends Module
             } else {
                 $this->debug(sprintf(
                     '[%s] Not initializing model definitions as DB is not connected',
-                        strtoupper((new \ReflectionClass($this))->getShortName())
+                    strtoupper((new \ReflectionClass($this))->getShortName())
                 ));
             }
         }
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function _afterSuite()
     {
@@ -68,19 +68,24 @@ abstract class AbstractDefinitionHelper extends Module
      * @param string $type
      * @param string|null $name
      * @param bool $mandatory
-     * @param bool $index
+     * @param int $index
      * @param bool $visibleInGridView
      * @param bool $visibleInSearchResult
      *
      * @return Data
      */
-    public function createDataChild($type, $name = null, $mandatory = false, $index = true, $visibleInGridView = true, $visibleInSearchResult = true)
+    public function createDataChild($type, $name = null, $mandatory = false, $index = 0, $visibleInGridView = true, $visibleInSearchResult = true)
     {
         if (!$name) {
             $name = $type;
         }
-        $classname = 'Pimcore\\Model\\DataObject\\ClassDefinition\Data\\' . ucfirst($type);
-        /** @var $child Data */
+
+        if (strpos($type, 'indexField') === 0) {
+            $classname = 'Pimcore\\Bundle\\EcommerceFrameworkBundle\\CoreExtensions\\ClassDefinition\\' . ucfirst($type);
+        } else {
+            $classname = 'Pimcore\\Model\\DataObject\\ClassDefinition\Data\\' . ucfirst($type);
+        }
+        /** @var Data $child */
         $child = new $classname();
         $child->setName($name);
         $child->setTitle($name);

@@ -22,52 +22,70 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\Element\Note\Dao getDao()
  */
-class Note extends Model\AbstractModel
+final class Note extends Model\AbstractModel
 {
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $id;
+    protected $id;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $type;
+    protected $type;
 
     /**
+     * @internal
+     *
      * @var int
      */
-    public $cid;
+    protected $cid;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $ctype;
+    protected $ctype;
 
     /**
+     * @internal
+     *
      * @var int
      */
-    public $date;
+    protected $date;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
-    public $user;
+    protected $user;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $title;
+    protected $title;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $description;
+    protected $description;
 
     /**
+     * @internal
+     *
      * @var array
      */
-    public $data = [];
+    protected $data = [];
 
     /**
      * @static
@@ -83,7 +101,7 @@ class Note extends Model\AbstractModel
             $note->getDao()->getById($id);
 
             return $note;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -92,6 +110,8 @@ class Note extends Model\AbstractModel
      * @param string $name
      * @param string $type
      * @param mixed $data
+     *
+     * @return $this
      */
     public function addData($name, $type, $data)
     {
@@ -99,6 +119,8 @@ class Note extends Model\AbstractModel
             'type' => $type,
             'data' => $data,
         ];
+
+        return $this;
     }
 
     /**
@@ -109,14 +131,16 @@ class Note extends Model\AbstractModel
     public function setElement(ElementInterface $element)
     {
         $this->setCid($element->getId());
-        $this->setCtype(Service::getType($element));
+        $this->setCtype(Service::getElementType($element));
 
         return $this;
     }
 
+    /**
+     * @throws \Exception
+     */
     public function save()
     {
-
         // check if there's a valid user
         if (!$this->getUser()) {
             // try to use the logged in user
@@ -131,7 +155,7 @@ class Note extends Model\AbstractModel
         $this->getDao()->save();
 
         if (!$isUpdate) {
-            \Pimcore::getEventDispatcher()->dispatch(ElementEvents::POST_ADD, new ElementEvent($this));
+            \Pimcore::getEventDispatcher()->dispatch(new ElementEvent($this), ElementEvents::POST_ADD);
         }
     }
 
@@ -248,7 +272,7 @@ class Note extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {
@@ -308,7 +332,7 @@ class Note extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getUser()
     {

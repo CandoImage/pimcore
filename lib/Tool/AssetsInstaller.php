@@ -22,19 +22,19 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
 /**
- * Runs the assets:install command with the settings configured in composer.json
+ * @internal
  *
- * @package Pimcore\Tool
+ * Runs the assets:install command with the settings configured in composer.json
  */
 class AssetsInstaller
 {
     /**
-     * @var \Closure
+     * @var \Closure|null
      */
     private $runCallback;
 
     /**
-     * @var string
+     * @var string|null
      */
     private $composerJsonSetting;
 
@@ -84,7 +84,7 @@ class AssetsInstaller
 
         $arguments = array_merge($arguments, $preparedOptions);
 
-        $arguments[] = 'web';
+        $arguments[] = PIMCORE_WEB_ROOT;
 
         $process = new Process($arguments);
         $process->setWorkingDirectory(PIMCORE_PROJECT_ROOT);
@@ -109,7 +109,7 @@ class AssetsInstaller
     }
 
     /**
-     * @param \Closure $runCallback
+     * @param \Closure|null $runCallback
      */
     public function setRunCallback(\Closure $runCallback = null)
     {
@@ -162,14 +162,10 @@ class AssetsInstaller
             $contents = file_get_contents($file);
 
             if (!empty($contents)) {
-                try {
-                    $json = json_decode($contents, true);
+                $json = json_decode($contents, true);
 
-                    if (JSON_ERROR_NONE === json_last_error() && $json && isset($json['extra']) && isset($json['extra']['symfony-assets-install'])) {
-                        $this->composerJsonSetting = $json['extra']['symfony-assets-install'];
-                    }
-                } catch (\Exception $e) {
-                    // noop
+                if (JSON_ERROR_NONE === json_last_error() && $json && isset($json['extra']) && isset($json['extra']['symfony-assets-install'])) {
+                    $this->composerJsonSetting = $json['extra']['symfony-assets-install'];
                 }
             }
         }

@@ -16,8 +16,9 @@
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\CartManager;
 
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartCheckoutData\Dao;
-use Pimcore\Cache\Runtime;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Logger;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
  * @method Dao getDao()
@@ -34,13 +35,13 @@ class CartCheckoutData extends AbstractCartCheckoutData
         $cacheKey = CartCheckoutData\Dao::TABLE_NAME . '_' . $key . '_' . $cartId;
 
         try {
-            $checkoutDataItem = Runtime::get($cacheKey);
+            $checkoutDataItem = RuntimeCache::get($cacheKey);
         } catch (\Exception $e) {
             try {
                 $checkoutDataItem = new self();
                 $checkoutDataItem->getDao()->getByKeyCartId($key, $cartId);
-                Runtime::set($cacheKey, $checkoutDataItem);
-            } catch (\Exception $ex) {
+                RuntimeCache::set($cacheKey, $checkoutDataItem);
+            } catch (NotFoundException $ex) {
                 Logger::debug($ex->getMessage());
 
                 return null;

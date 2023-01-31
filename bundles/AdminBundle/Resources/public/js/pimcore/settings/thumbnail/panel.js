@@ -93,7 +93,8 @@ pimcore.settings.thumbnail.panel = Class.create({
                         {
                             text: t("add"),
                             iconCls: "pimcore_icon_add",
-                            handler: this.addField.bind(this)
+                            handler: this.addField.bind(this),
+                            disabled: !pimcore.settings['image-thumbnails-writeable']
                         }
                     ]
                 }
@@ -177,7 +178,8 @@ pimcore.settings.thumbnail.panel = Class.create({
         menu.add(new Ext.menu.Item({
             text: t('delete'),
             iconCls: "pimcore_icon_delete",
-            handler: this.deleteField.bind(this, tree, record)
+            handler: this.deleteField.bind(this, tree, record),
+            disabled: !record.data.writeable
         }));
 
 
@@ -231,16 +233,18 @@ pimcore.settings.thumbnail.panel = Class.create({
     },
 
     deleteField: function (tree, record) {
-        Ext.Ajax.request({
-            url: Routing.generate('pimcore_admin_settings_thumbnaildelete'),
-            method: 'DELETE',
-            params: {
-                name: record.data.id
-            }
-        });
+        pimcore.helpers.deleteConfirm(t('thumbnail'), record.data.text, function () {
+            Ext.Ajax.request({
+                url: Routing.generate('pimcore_admin_settings_thumbnaildelete'),
+                method: 'DELETE',
+                params: {
+                    name: record.data.id
+                }
+            });
 
-        this.getEditPanel().removeAll();
-        record.remove();
+            this.getEditPanel().removeAll();
+            record.remove();
+        }.bind(this));
     }
 });
 

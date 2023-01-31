@@ -17,6 +17,9 @@ namespace Pimcore\Bundle\AdminBundle\Security\Exception;
 
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
+/**
+ * @internal
+ */
 class BruteforceProtectionException extends AccessDeniedHttpException
 {
 }

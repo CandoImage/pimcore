@@ -17,16 +17,18 @@ namespace Pimcore\Bundle\AdminBundle\EventListener;
 
 use Pimcore\Bundle\AdminBundle\Security\User\TokenStorageUserResolver;
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\PimcoreContextAwareTrait;
-use Pimcore\Config;
 use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Pimcore\Model\User;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
+/**
+ * @internal
+ */
 class UserPerspectiveListener implements EventSubscriberInterface, LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -46,20 +48,20 @@ class UserPerspectiveListener implements EventSubscriberInterface, LoggerAwareIn
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             KernelEvents::REQUEST => 'onKernelRequest',
         ];
     }
 
-    public function onKernelRequest(GetResponseEvent $event)
+    public function onKernelRequest(RequestEvent $event)
     {
         $request = $event->getRequest();
 
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
@@ -83,9 +85,9 @@ class UserPerspectiveListener implements EventSubscriberInterface, LoggerAwareIn
 
         if ($requestedPerspective) {
             if ($requestedPerspective !== $user->getActivePerspective()) {
-                $existingPerspectives = array_keys(Config::getPerspectivesConfig()->toArray());
+                $existingPerspectives = array_keys(\Pimcore\Perspective\Config::get()->toArray());
                 if (!in_array($requestedPerspective, $existingPerspectives)) {
-                    $this->logger->warning('Requested perspective {perspective} for {user} is not does not exist.', [
+                    $this->logger->warning('Requested perspective {perspective} for {user} does not exist.', [
                         'user' => $user->getName(),
                         'perspective' => $requestedPerspective,
                     ]);
@@ -103,7 +105,7 @@ class UserPerspectiveListener implements EventSubscriberInterface, LoggerAwareIn
                 ? $user->getActivePerspective()
                 : $user->getFirstAllowedPerspective();
 
-            if (null !== $previouslyRequested) {
+            if ($previouslyRequested) {
                 $this->logger->warning('User {user} is not allowed requested perspective {requestedPerspective}. Falling back to {perspective}.', [
                     'user' => $user->getName(),
                     'requestedPerspective' => $previouslyRequested,

@@ -16,6 +16,7 @@
 namespace Pimcore\Bundle\CoreBundle\EventListener\Frontend;
 
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\PimcoreContextAwareTrait;
+use Pimcore\Bundle\CoreBundle\EventListener\Traits\StaticPageContextAwareTrait;
 use Pimcore\Cache;
 use Pimcore\Cache\FullPage\SessionStatus;
 use Pimcore\Config;
@@ -26,32 +27,18 @@ use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Pimcore\Logger;
 use Pimcore\Targeting\VisitorInfoStorageInterface;
 use Pimcore\Tool;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 use Symfony\Component\HttpKernel\Event\KernelEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class FullPageCacheListener
 {
     use PimcoreContextAwareTrait;
-
-    /**
-     * @var VisitorInfoStorageInterface
-     */
-    private $visitorInfoStorage;
-
-    /**
-     * @var SessionStatus
-     */
-    private $sessionStatus;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $eventDispatcher;
+    use StaticPageContextAwareTrait;
 
     /**
      * @var bool
@@ -83,21 +70,12 @@ class FullPageCacheListener
      */
     protected $defaultCacheKey;
 
-    /**
-     * @var Config
-     */
-    protected $config;
-
     public function __construct(
-        VisitorInfoStorageInterface $visitorInfoStorage,
-        SessionStatus $sessionStatus,
-        EventDispatcherInterface $eventDispatcher,
-        Config $config
+        private VisitorInfoStorageInterface $visitorInfoStorage,
+        private SessionStatus $sessionStatus,
+        private EventDispatcherInterface $eventDispatcher,
+        protected Config $config
     ) {
-        $this->visitorInfoStorage = $visitorInfoStorage;
-        $this->sessionStatus = $sessionStatus;
-        $this->eventDispatcher = $eventDispatcher;
-        $this->config = $config;
     }
 
     /**
@@ -165,9 +143,9 @@ class FullPageCacheListener
     }
 
     /**
-     * @param GetResponseEvent $event
+     * @param RequestEvent $event
      */
-    public function onKernelRequest(GetResponseEvent $event)
+    public function onKernelRequest(RequestEvent $event)
     {
         if (!$this->isEnabled()) {
             return;
@@ -175,7 +153,7 @@ class FullPageCacheListener
 
         $request = $event->getRequest();
 
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
@@ -189,6 +167,13 @@ class FullPageCacheListener
 
         $requestUri = $request->getRequestUri();
         $excludePatterns = [];
+
+        // disable the output-cache if the client sends an authorization header
+        if ($request->headers->has('authorization')) {
+            $this->disable('authorization header in use');
+
+            return;
+        }
 
         // only enable GET method
         if (!$request->isMethodCacheable()) {
@@ -233,13 +218,11 @@ class FullPageCacheListener
 
                 if (!empty($conf['exclude_patterns'])) {
                     $confExcludePatterns = explode(',', $conf['exclude_patterns']);
-                    if (!empty($confExcludePatterns)) {
-                        $excludePatterns = $confExcludePatterns;
-                    }
+                    $excludePatterns = $confExcludePatterns;
                 }
 
                 if (!empty($conf['exclude_cookie'])) {
-                    $cookies = explode(',', strval($conf['exclude_cookie']));
+                    $cookies = explode(',', (string)$conf['exclude_cookie']);
 
                     foreach ($cookies as $cookie) {
                         if (!empty($cookie) && isset($_COOKIE[trim($cookie)])) {
@@ -248,6 +231,12 @@ class FullPageCacheListener
                             return;
                         }
                     }
+                }
+
+                if ($this->sessionStatus->isDisabledBySession($request)) {
+                    $this->disable('Session in use');
+
+                    return;
                 }
 
                 // output-cache is always disabled when logged in at the admin ui
@@ -262,9 +251,9 @@ class FullPageCacheListener
                 return;
             }
         } catch (\Exception $e) {
-            Logger::error($e);
+            Logger::error((string) $e);
 
-            $this->disable('ERROR: Exception (see log files in /var/logs)');
+            $this->disable('ERROR: Exception (see log files in /var/log)');
 
             return;
         }
@@ -275,13 +264,6 @@ class FullPageCacheListener
 
                 return;
             }
-        }
-
-        // check if targeting matched anything and disable cache
-        if ($this->disabledByTargeting()) {
-            $this->disable('Targeting matched rules/target groups');
-
-            return;
         }
 
         $deviceDetector = Tool\DeviceDetector::getInstance();
@@ -295,10 +277,6 @@ class FullPageCacheListener
             if (is_array($tags)) {
                 $appendKey = '_' . implode('_', $tags);
             }
-        }
-
-        if (Tool\Frontend::hasWebpSupport()) {
-            $appendKey .= 'webp';
         }
 
         if ($request->isXmlHttpRequest()) {
@@ -327,7 +305,7 @@ class FullPageCacheListener
             $response = $cacheItem;
             $response->headers->set('X-Pimcore-Output-Cache-Tag', $cacheKey, true);
             $cacheItemDate = strtotime($response->headers->get('X-Pimcore-Cache-Date'));
-            $response->headers->set('Age', (time() - $cacheItemDate));
+            $response->headers->set('Age', (string) (time() - $cacheItemDate));
 
             $event->setResponse($response);
             $this->stopResponsePropagation = true;
@@ -345,11 +323,11 @@ class FullPageCacheListener
     }
 
     /**
-     * @param FilterResponseEvent $event
+     * @param ResponseEvent $event
      */
-    public function onKernelResponse(FilterResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event)
     {
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
@@ -362,13 +340,21 @@ class FullPageCacheListener
             return;
         }
 
-        $response = $event->getResponse();
-        if (!$response) {
-            return;
+        if ($this->matchesStaticPageContext($request)) {
+            $this->disable('Response can\'t be cached for static pages');
         }
+
+        $response = $event->getResponse();
 
         if (!$this->responseCanBeCached($response)) {
             $this->disable('Response can\'t be cached');
+        }
+
+        // check if targeting matched anything and disable cache
+        if ($this->disabledByTargeting()) {
+            $this->disable('Targeting matched rules/target groups');
+
+            return;
         }
 
         if ($this->enabled && $this->sessionStatus->isDisabledBySession($request)) {
@@ -388,11 +374,11 @@ class FullPageCacheListener
                     // add expire header
                     $date = new \DateTime('now');
                     $date->add(new \DateInterval('PT' . $this->lifetime . 'S'));
-                    $response->headers->set('Expires', $date->format(\DateTime::RFC1123), true);
+                    $response->headers->set('Expires', $date->format(\DateTimeInterface::RFC1123), true);
                 }
 
                 $now = new \DateTime('now');
-                $response->headers->set('X-Pimcore-Cache-Date', $now->format(\DateTime::ISO8601));
+                $response->headers->set('X-Pimcore-Cache-Date', $now->format(\DateTimeInterface::ISO8601));
 
                 $cacheKey = $this->defaultCacheKey;
                 $deviceDetector = Tool\DeviceDetector::getInstance();
@@ -401,7 +387,7 @@ class FullPageCacheListener
                 }
 
                 $event = new PrepareResponseEvent($request, $response);
-                $this->eventDispatcher->dispatch(FullPageCacheEvents::PREPARE_RESPONSE, $event);
+                $this->eventDispatcher->dispatch($event, FullPageCacheEvents::PREPARE_RESPONSE);
 
                 $cacheItem = $event->getResponse();
 
@@ -412,7 +398,7 @@ class FullPageCacheListener
 
                 Cache::save($cacheItem, $cacheKey, $tags, $this->lifetime, 1000, true);
             } catch (\Exception $e) {
-                Logger::error($e);
+                Logger::error((string) $e);
 
                 return;
             }
@@ -438,7 +424,7 @@ class FullPageCacheListener
 
         // fire an event to allow full customozations
         $event = new CacheResponseEvent($response, $cache);
-        $this->eventDispatcher->dispatch(FullPageCacheEvents::CACHE_RESPONSE, $event);
+        $this->eventDispatcher->dispatch($event, FullPageCacheEvents::CACHE_RESPONSE);
 
         return $event->getCache();
     }

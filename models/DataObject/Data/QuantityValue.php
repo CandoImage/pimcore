@@ -15,84 +15,31 @@
 
 namespace Pimcore\Model\DataObject\Data;
 
-use Pimcore\Model\DataObject\OwnerAwareFieldInterface;
+use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Model\DataObject\QuantityValue\Unit;
 use Pimcore\Model\DataObject\Traits\ObjectVarTrait;
-use Pimcore\Model\DataObject\Traits\OwnerAwareFieldTrait;
 
-class QuantityValue implements OwnerAwareFieldInterface
+class QuantityValue extends AbstractQuantityValue
 {
-    use OwnerAwareFieldTrait;
     use ObjectVarTrait;
 
     /**
-     * @var float
+     * @var float|int|null
      */
     protected $value;
 
     /**
-     * @var string
+     * @param float|int|null $value
+     * @param Unit|string|null $unit
      */
-    protected $unitId;
-
-    /**
-     * @var \Pimcore\Model\DataObject\QuantityValue\Unit|null
-     */
-    protected $unit;
-
-    /**
-     * QuantityValue constructor.
-     *
-     * @param float|null $value
-     * @param int|Unit|null $unitId
-     */
-    public function __construct($value = null, $unitId = null)
+    public function __construct($value = null, $unit = null)
     {
         $this->value = $value;
-        $this->unitId = $unitId;
-        $this->unit = null;
-
-        if ($unitId instanceof Unit) {
-            $this->unit = $unitId;
-            $this->unitId = $this->unit->getId();
-        } elseif ($unitId) {
-            $this->unit = Unit::getById($this->unitId);
-        }
-        $this->markMeDirty();
+        parent::__construct($unit);
     }
 
     /**
-     * @param string $unitId
-     */
-    public function setUnitId($unitId)
-    {
-        $this->unitId = $unitId;
-        $this->unit = null;
-        $this->markMeDirty();
-    }
-
-    /**
-     * @return string
-     */
-    public function getUnitId()
-    {
-        return $this->unitId;
-    }
-
-    /**
-     * @return Unit
-     */
-    public function getUnit()
-    {
-        if (empty($this->unit)) {
-            $this->unit = Unit::getById($this->unitId);
-        }
-
-        return $this->unit;
-    }
-
-    /**
-     * @param float $value
+     * @param float|int|null $value
      */
     public function setValue($value)
     {
@@ -101,7 +48,7 @@ class QuantityValue implements OwnerAwareFieldInterface
     }
 
     /**
-     * @return float
+     * @return float|int|null
      */
     public function getValue()
     {
@@ -117,7 +64,7 @@ class QuantityValue implements OwnerAwareFieldInterface
     {
         $value = $this->getValue();
         if (is_numeric($value)) {
-            $locale = \Pimcore::getContainer()->get('pimcore.locale')->findLocale();
+            $locale = \Pimcore::getContainer()->get(LocaleServiceInterface::class)->findLocale();
 
             if ($locale) {
                 $formatter = new \NumberFormatter($locale, \NumberFormatter::DECIMAL);
@@ -126,9 +73,10 @@ class QuantityValue implements OwnerAwareFieldInterface
         }
 
         if ($this->getUnit() instanceof Unit) {
-            $value .= ' ' . $this->getUnit()->getAbbreviation();
+            $translator = \Pimcore::getContainer()->get('translator');
+            $value .= ' ' . $translator->trans($this->getUnit()->getAbbreviation(), [], 'admin');
         }
 
-        return $value ? $value : '';
+        return $value ? (string)$value : '';
     }
 }

@@ -17,6 +17,7 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\FilterService;
 
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory;
+use Pimcore\Model\DataObject\Fieldcollection\Data\OrderByFields;
 
 /**
  * Helper service class for setting up a product list utilizing the filter service
@@ -42,26 +43,22 @@ class ListHelper
     ) {
         $orderByOptions = [];
         $orderKeysAsc = explode(',', $filterDefinition->getOrderByAsc());
-        if (!empty($orderKeysAsc)) {
-            foreach ($orderKeysAsc as $orderByEntry) {
-                if (!empty($orderByEntry)) {
-                    $orderByOptions[$orderByEntry]['asc'] = true;
-                }
+        foreach ($orderKeysAsc as $orderByEntry) {
+            if (!empty($orderByEntry)) {
+                $orderByOptions[$orderByEntry]['asc'] = true;
             }
         }
 
         $orderKeysDesc = explode(',', $filterDefinition->getOrderByDesc());
-        if (!empty($orderKeysDesc)) {
-            foreach ($orderKeysDesc as $orderByEntry) {
-                if (!empty($orderByEntry)) {
-                    $orderByOptions[$orderByEntry]['desc'] = true;
-                }
+        foreach ($orderKeysDesc as $orderByEntry) {
+            if (!empty($orderByEntry)) {
+                $orderByOptions[$orderByEntry]['desc'] = true;
             }
         }
 
         $offset = 0;
 
-        $pageLimit = isset($params['perPage']) ? intval($params['perPage']) : null;
+        $pageLimit = isset($params['perPage']) ? (int)$params['perPage'] : null;
         if (!$pageLimit) {
             $pageLimit = $filterDefinition->getPageLimit();
         }
@@ -74,7 +71,7 @@ class ListHelper
         }
 
         if (isset($params['page'])) {
-            $params['currentPage'] = intval($params['page']);
+            $params['currentPage'] = (int)$params['page'];
             $offset = $pageLimit * ($params['page'] - 1);
         }
         if ($filterDefinition->getAjaxReload()) {
@@ -117,6 +114,7 @@ class ListHelper
             $orderByCollection = $filterDefinition->getDefaultOrderBy();
             $orderByList = [];
             if ($orderByCollection) {
+                /** @var OrderByFields $orderBy */
                 foreach ($orderByCollection as $orderBy) {
                     if ($orderBy->getField()) {
                         $orderByList[] = [$orderBy->getField(), $orderBy->getDirection()];
@@ -173,7 +171,10 @@ class ListHelper
         if (!empty($conditions)) {
             foreach ($conditions as $c) {
                 if ($c instanceof \Pimcore\Model\DataObject\Fieldcollection\Data\FilterCategory) {
-                    return $c->getPreSelect();
+                    $result = $c->getPreSelect();
+                    if ($result instanceof AbstractCategory) {
+                        return $result;
+                    }
                 }
             }
         }

@@ -22,7 +22,10 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-class PimcoreStyle extends SymfonyStyle
+/**
+ * @internal
+ */
+final class PimcoreStyle extends SymfonyStyle
 {
     /**
      * @var InputInterface
@@ -71,7 +74,7 @@ class PimcoreStyle extends SymfonyStyle
      */
     public function simpleSection(string $message, string $underlineChar = '-', string $style = null)
     {
-        $underline = str_repeat($underlineChar, Helper::strlenWithoutDecoration($this->getFormatter(), $message));
+        $underline = str_repeat($underlineChar, Helper::width(Helper::removeDecoration($this->getFormatter(), $message)));
 
         if (null !== $style) {
             $format = '<%s>%s</>';

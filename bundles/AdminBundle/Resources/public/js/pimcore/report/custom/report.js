@@ -205,7 +205,7 @@ pimcore.report.custom.report = Class.create(pimcore.report.abstract, {
                 }]
             });
             this.progressWindow.show();
-            this.createCsv(btn, "", 0);
+            this.createCsv(btn, "", 0, btn.getItemId() === 'exportWithHeaders' ? "1" : "");
         };
 
         topBar.push("->");
@@ -215,7 +215,7 @@ pimcore.report.custom.report = Class.create(pimcore.report.abstract, {
             text: t("export_csv"),
             iconCls: "pimcore_icon_export",
             handler: exportBtnHandler.bind(this),
-            menu:[{
+            menu: [{
                 text: t("export_csv_include_headers"),
                 itemId: 'exportWithHeaders',
                 iconCls: "pimcore_icon_export",
@@ -347,7 +347,7 @@ pimcore.report.custom.report = Class.create(pimcore.report.abstract, {
             for(var i = 0; i < data.yAxis.length; i++) {
                 var yAxis = data.yAxis[i];
                 series.push({
-                    displayName: this.columnLabels[data.yAxis[i]],
+                    title: this.columnLabels[data.yAxis[i]],
                     type: (data.chartType == 'line' ? 'line' : 'bar'),
                     xField: data.xAxis,
                     yField: yAxis,
@@ -358,7 +358,7 @@ pimcore.report.custom.report = Class.create(pimcore.report.abstract, {
                     tooltip: {
                         trackMouse: true,
                         renderer: function (tooltip, record, item) {
-                            tooltip.setHtml(record.get(data.xAxis) + ': ' + record.get(yAxis));
+                            tooltip.setHtml(record.get(data.xAxis) + ': ' + record.get(item.field));
                         }
                     }
                 });
@@ -530,6 +530,14 @@ pimcore.report.custom.report = Class.create(pimcore.report.abstract, {
 
                     this.panel.add(subPanel);
                     this.panel.updateLayout();
+
+                    const postOpenReport = new CustomEvent(pimcore.events.postOpenReport, {
+                        detail: {
+                            grid: this.grid
+                        }
+                    });
+
+                    document.dispatchEvent(postOpenReport);
                 }.bind(this)
             });
         }
@@ -537,9 +545,10 @@ pimcore.report.custom.report = Class.create(pimcore.report.abstract, {
         return this.panel;
     },
 
-    createCsv: function (btn, exportFile, offset) {
+    createCsv: function (btn, exportFile, offset, withHeader) {
         let filterData = this.store.getFilters().items;
         let proxy = this.store.getProxy();
+
         Ext.Ajax.request({
             url: Routing.generate('pimcore_admin_reports_customreport_createcsv'),
             params: {
@@ -547,7 +556,8 @@ pimcore.report.custom.report = Class.create(pimcore.report.abstract, {
                 offset: offset,
                 name: this.config.name,
                 filter: filterData.length > 0 ? encodeURIComponent(proxy.encodeFilters(filterData)) : "",
-                headers: btn.getItemId() === 'exportWithHeaders' ? "1" : "",
+                headers: withHeader,
+                drillDownFilters: JSON.stringify(this.drillDownFilters)
             },
             success: function (response) {
                 response = JSON.parse(response["responseText"]);
@@ -559,10 +569,10 @@ pimcore.report.custom.report = Class.create(pimcore.report.abstract, {
                 }else{
                     this.progressBar.updateProgress(response["progress"],Number.parseFloat(response["progress"]*100).toFixed(0)+"%");
                     if(!this.progressStop){
-                        this.createCsv(btn, response["exportFile"], response["offset"]);
+                        this.createCsv(btn, response["exportFile"], response["offset"], 0);
                     }
                 }
             }.bind(this)
         });
-    },
+    }
 });

@@ -40,9 +40,11 @@ class VisitedPagesCountListener implements EventSubscriberInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
+     *
+     * @return array
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents()// : array
     {
         return [
             TargetingEvents::VISITED_PAGES_COUNT_MATCH => 'onVisitedPagesCountMatch', // triggered from conditions depending on page count

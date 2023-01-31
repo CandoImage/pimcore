@@ -20,15 +20,16 @@ namespace Pimcore\Model\Document\Editable\Loader;
 use Pimcore\Loader\ImplementationLoader\ImplementationLoader;
 use Pimcore\Model\Document\Editable;
 
+/**
+ * @internal
+ */
 class EditableLoader extends ImplementationLoader implements EditableLoaderInterface
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function build(string $name, array $params = []): Editable
     {
         return parent::build($name, $params);
     }
 }
-
-class_alias(EditableLoader::class, 'Pimcore\Model\Document\Tag\Loader\TagLoader');

@@ -50,7 +50,7 @@ pimcore.object.tags.block = Class.create(pimcore.object.tags.abstract, {
             autoHeight: true,
             border: true,
             style: "margin-bottom: 10px",
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             collapsible: this.fieldConfig.collapsible,
             collapsed: this.fieldConfig.collapsed
         };
@@ -324,7 +324,7 @@ pimcore.object.tags.block = Class.create(pimcore.object.tags.abstract, {
             // this is especially for localized fields which get aggregated here into one field definition
             // in the case that there are more than one localized fields in the class definition
             // see also ClassDefinition::extractDataDefinitions();
-            if(typeof this.dataFields[name]["addReferencedField"]){
+            if (typeof this.dataFields[name]['addReferencedField'] === 'function') {
                 this.dataFields[name].addReferencedField(field);
             }
         } else {

@@ -21,11 +21,12 @@ use DeviceDetector\Cache\PSR6Bridge;
 use DeviceDetector\DeviceDetector;
 use DeviceDetector\Parser\Client\Browser;
 use DeviceDetector\Parser\OperatingSystem;
-use Pimcore\Cache\Core\CoreHandlerInterface;
-use Pimcore\Cache\Pool\PimcoreCacheItemPoolInterface;
+
+use Pimcore\Cache\Core\CoreCacheHandler;
 use Pimcore\Targeting\Debug\Util\OverrideAttributeResolver;
 use Pimcore\Targeting\Model\VisitorInfo;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 class Device implements DataProviderInterface
@@ -40,14 +41,14 @@ class Device implements DataProviderInterface
     /**
      * The cache handler caching detected results
      *
-     * @var CoreHandlerInterface
+     * @var CoreCacheHandler
      */
     private $cache;
 
     /**
      * The cache pool which is passed to the DeviceDetector
      *
-     * @var PimcoreCacheItemPoolInterface
+     * @var TagAwareAdapterInterface
      */
     private $cachePool;
 
@@ -56,18 +57,18 @@ class Device implements DataProviderInterface
         $this->logger = $logger;
     }
 
-    public function setCache(CoreHandlerInterface $cache)
+    public function setCache(CoreCacheHandler $cache)
     {
         $this->cache = $cache;
     }
 
-    public function setCachePool(PimcoreCacheItemPoolInterface $cachePool)
+    public function setCachePool(TagAwareAdapterInterface $cachePool)
     {
         $this->cachePool = $cachePool;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function load(VisitorInfo $visitorInfo)
     {
@@ -150,7 +151,7 @@ class Device implements DataProviderInterface
 
             $dd->parse();
         } catch (\Throwable $e) {
-            $this->logger->error($e);
+            $this->logger->error((string) $e);
 
             return null;
         }
@@ -176,14 +177,14 @@ class Device implements DataProviderInterface
             'bot' => $dd->getBot(),
             'is_bot' => $dd->isBot(),
             'os' => $dd->getOs(),
-            'os_family' => $osFamily !== false ? $osFamily : 'Unknown',
+            'os_family' => $osFamily ?: 'Unknown',
             'client' => $dd->getClient(),
             'device' => [
                 'type' => $dd->getDeviceName(),
-                'brand' => $dd->getBrand(),
+                'brand' => $dd->getBrandName(),
                 'model' => $dd->getModel(),
             ],
-            'browser_family' => $browserFamily !== false ? $browserFamily : 'Unknown',
+            'browser_family' => $browserFamily ?: 'Unknown',
         ];
 
         return $processed;

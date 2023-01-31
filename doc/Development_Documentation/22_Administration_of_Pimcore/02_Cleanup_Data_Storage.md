@@ -38,7 +38,7 @@ rm -r var/versions/asset
 ```
 
 ## Logging Data
-All logging information is located in `var/logs/`. Pimcore rotates & compresses and cleans up the logs automatically: 
+All logging information is located in `var/log/`. Pimcore rotates & compresses and cleans up the logs automatically: 
 Rotate: when the file is bigger than 200MB  
 Compress: immediately after rotating (gzip)  
 Delete: After 30 days 
@@ -50,13 +50,13 @@ maintenance command: `./bin/console pimcore:maintenance -J logmaintenance`
 ## Temporary Files
 Pimcore stores temporary files in 2 different locations, depending on whether they are public accessible or not.   
 **Private temporary directory**: `var/tmp/`  
-Used for uploads, imports, exports, page, previews, ... 
-**Public temporary directory**: `web/var/tmp/`  
+Used for uploads, imports, exports, page, previews, ...  
+**Public temporary directory**: `public/var/tmp/`  
 Used for image/video/document thumbnails used in the web-application. 
   
  
 All temporary files can be deleted at any time.   
-**WARNING: Deleting all files in `web/var/tmp/` can have a huge impact on performance until all needed thumbnails are generated again.**
+**WARNING: Deleting all files in `public/var/tmp/` can have a huge impact on performance until all needed thumbnails are generated again.**
 
 ## Recycle Bin
 Deleting items in Pimcore moves them to the recycle bin first. The recycle bin works quite similar to the versioning, 

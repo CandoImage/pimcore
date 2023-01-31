@@ -18,6 +18,7 @@ namespace Pimcore\Workflow\MarkingStore;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Workflow\Manager;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
+use Symfony\Component\PropertyAccess\PropertyPathInterface;
 use Symfony\Component\Workflow\Exception\LogicException;
 use Symfony\Component\Workflow\Marking;
 use Symfony\Component\Workflow\MarkingStore\MarkingStoreInterface;
@@ -58,11 +59,13 @@ class DataObjectSplittedStateMarkingStore implements MarkingStoreInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
+     *
+     * @return Marking
      *
      * @throws LogicException
      */
-    public function getMarking($subject)
+    public function getMarking($subject)// : Marking
     {
         $this->checkIfSubjectIsValid($subject);
 
@@ -90,12 +93,12 @@ class DataObjectSplittedStateMarkingStore implements MarkingStoreInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      *
      * @throws LogicException
      * @throws \Exception
      */
-    public function setMarking($subject, Marking $marking)
+    public function setMarking($subject, Marking $marking, array $context = [])
     {
         $subject = $this->checkIfSubjectIsValid($subject);
         $places = array_keys($marking->getPlaces());
@@ -133,6 +136,12 @@ class DataObjectSplittedStateMarkingStore implements MarkingStoreInterface
         return $places;
     }
 
+    /**
+     *
+     * @param string|PropertyPathInterface $property
+     * @param mixed $places
+     *
+     */
     private function setProperty(Concrete $subject, $property, $places)
     {
         $fd = $subject->getClass()->getFieldDefinition($property);

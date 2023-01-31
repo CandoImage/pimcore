@@ -24,22 +24,24 @@ use Pimcore\Model\Element;
 /**
  * @method \Pimcore\Model\Document\Editable\Dao getDao()
  */
-class Relations extends Model\Document\Editable implements \Iterator
+class Relations extends Model\Document\Editable implements \Iterator, IdRewriterInterface, EditmodeDataInterface, LazyLoadingInterface
 {
     /**
-     * @var array
-     */
-    public $elements = [];
-
-    /**
-     * @var array
-     */
-    public $elementIds = [];
-
-    /**
-     * @see EditableInterface::getType
+     * @internal
      *
-     * @return string
+     * @var Element\ElementInterface[]
+     */
+    protected $elements = [];
+
+    /**
+     * @internal
+     *
+     * @var array
+     */
+    protected $elementIds = [];
+
+    /**
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -65,9 +67,15 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * @return array
+     */
+    public function getElementIds()
+    {
+        return $this->elementIds;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -77,7 +85,7 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function getDataForResource()
     {
@@ -85,11 +93,9 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * Converts the data so it's suitable for the editmode
-     *
-     * @return array
+     * {@inheritdoc}
      */
-    public function getDataEditmode()
+    public function getDataEditmode() /** : mixed */
     {
         $this->setElements();
         $return = [];
@@ -97,9 +103,9 @@ class Relations extends Model\Document\Editable implements \Iterator
         if (is_array($this->elements) && count($this->elements) > 0) {
             foreach ($this->elements as $element) {
                 if ($element instanceof DataObject\Concrete) {
-                    $return[] = [$element->getId(), $element->getRealFullPath(), 'object', $element->getClassName()];
+                    $return[] = [$element->getId(), $element->getRealFullPath(), DataObject::OBJECT_TYPE_OBJECT, $element->getClassName()];
                 } elseif ($element instanceof DataObject\AbstractObject) {
-                    $return[] = [$element->getId(), $element->getRealFullPath(), 'object', 'folder'];
+                    $return[] = [$element->getId(), $element->getRealFullPath(), DataObject::OBJECT_TYPE_OBJECT, DataObject::OBJECT_TYPE_FOLDER];
                 } elseif ($element instanceof Asset) {
                     $return[] = [$element->getId(), $element->getRealFullPath(), 'asset', $element->getType()];
                 } elseif ($element instanceof Document) {
@@ -112,9 +118,7 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -131,11 +135,7 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -147,11 +147,7 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -186,7 +182,7 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -196,7 +192,7 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function resolveDependencies()
     {
@@ -221,19 +217,9 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * Rewrites id from source to target, $idMapping contains
-     * array(
-     *  "document" => array(
-     *      SOURCE_ID => TARGET_ID,
-     *      SOURCE_ID => TARGET_ID
-     *  ),
-     *  "object" => array(...),
-     *  "asset" => array(...)
-     * )
-     *
-     * @param array $idMapping
+     * { @inheritdoc }
      */
-    public function rewriteIds($idMapping)
+    public function rewriteIds($idMapping) /** : void */
     {
         // reset existing elements store
         $this->elements = [];
@@ -251,78 +237,7 @@ class Relations extends Model\Document\Editable implements \Iterator
     }
 
     /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $wsData = $wsElement->value;
-        if (is_array($wsData)) {
-            $result = [];
-            foreach ($wsData as $data) {
-                $data = $this->sanitizeWebserviceData($data);
-                if ($data->id !== null) {
-                    $resultItem = [];
-                    $resultItem['type'] = $data->type;
-
-                    if (!is_numeric($data->id)) {
-                        throw new \Exception('cannot get values from web service import - id is not valid');
-                    }
-
-                    if ($idMapper) {
-                        $data->id = $idMapper->getMappedId($data->type, $data->id);
-                    }
-                    $resultItem['id'] = $data->id;
-
-                    if ($data->type == 'asset') {
-                        $element = Asset::getById($data->id);
-                        if (!$element instanceof Asset) {
-                            if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                                $idMapper->recordMappingFailure('document', $this->getDocumentId(), $data->type, $data->id);
-                            } else {
-                                throw new \Exception('cannot get values from web service import - referenced asset with id [ ' . $data->id . ' ] is unknown');
-                            }
-                        }
-                    } elseif ($data->type == 'document') {
-                        $element = Document::getById($data->id);
-                        if (!$element instanceof Document) {
-                            if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                                $idMapper->recordMappingFailure('document', $this->getDocumentId(), $data->type, $data->id);
-                            } else {
-                                throw new \Exception('cannot get values from web service import - referenced document with id [ ' . $data->id . ' ] is unknown');
-                            }
-                        }
-                    } elseif ($data->type == 'object') {
-                        $element = DataObject\AbstractObject::getById($data->id);
-                        if (!$element instanceof DataObject\AbstractObject) {
-                            if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                                $idMapper->recordMappingFailure('document', $this->getDocumentId(), $data->type, $data->id);
-                            } else {
-                                throw new \Exception('cannot get values from web service import - referenced object with id [ ' . $data->id . ' ] is unknown');
-                            }
-                        }
-                    } else {
-                        if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                            $idMapper->recordMappingFailure('document', $this->getDocumentId(), $data->type, $data->id);
-                        } else {
-                            throw new \Exception('cannot get values from web service import - type is not valid');
-                        }
-                    }
-                    $result[] = $resultItem;
-                }
-            }
-            $this->elementIds = $result;
-        }
-    }
-
-    /**
-     * @return array
+     * {@inheritdoc}
      */
     public function __sleep()
     {
@@ -338,7 +253,10 @@ class Relations extends Model\Document\Editable implements \Iterator
         return $finalVars;
     }
 
-    public function load()
+    /**
+     * {@inheritdoc}
+     */
+    public function load() /** : void */
     {
         $this->setElements();
     }
@@ -346,49 +264,54 @@ class Relations extends Model\Document\Editable implements \Iterator
     /**
      * Methods for Iterator
      */
-    public function rewind()
+
+    /**
+     * @return void
+     */
+    #[\ReturnTypeWillChange]
+    public function rewind()// : void
     {
         $this->setElements();
         reset($this->elements);
     }
 
     /**
-     * @return mixed
+     * @return Element\ElementInterface|false
      */
-    public function current()
+    #[\ReturnTypeWillChange]
+    public function current()// : Element\ElementInterface|false
     {
         $this->setElements();
-        $var = current($this->elements);
 
-        return $var;
+        return current($this->elements);
     }
 
     /**
-     * @return mixed
+     * @return int|null
      */
-    public function key()
+    #[\ReturnTypeWillChange]
+    public function key()// : int|null
     {
         $this->setElements();
-        $var = key($this->elements);
 
-        return $var;
+        return key($this->elements);
     }
 
     /**
-     * @return mixed
+     * @return void
      */
-    public function next()
+    #[\ReturnTypeWillChange]
+    public function next()// : void
     {
         $this->setElements();
-        $var = next($this->elements);
-
-        return $var;
+        next($this->elements);
     }
 
     /**
      * @return bool
      */
-    public function valid()
+    #[\ReturnTypeWillChange]
+    public function valid()// : bool
     {
         $this->setElements();
 
@@ -399,39 +322,6 @@ class Relations extends Model\Document\Editable implements \Iterator
             }
         }
 
-        $var = $this->current() !== false;
-
-        return $var;
-    }
-
-    /**
-     * Returns the current tag's data for web service export
-     *
-     * @deprecated
-     *
-     * @param Model\Document\PageSnippet|null $document
-     * @param array $params
-     *
-     * @return array|null
-     */
-    public function getForWebserviceExport($document = null, $params = [])
-    {
-        $elements = $this->getElements();
-        if (is_array($elements)) {
-            $result = [];
-            foreach ($elements as $element) {
-                $result[] = [
-                    'type' => Element\Service::getType($element),
-                    'id' => $element->getId(),
-                ];
-            }
-
-            return $result;
-        }
-
-        return null;
+        return $this->current() !== false;
     }
 }
-
-class_alias(Relations::class, 'Pimcore\Model\Document\Tag\Multihref');
-class_alias(Relations::class, 'Pimcore\Model\Document\Tag\Relations');

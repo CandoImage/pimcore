@@ -17,6 +17,9 @@ namespace Pimcore\Model\Asset\WebDAV;
 
 use Pimcore\Model\Asset;
 
+/**
+ * @internal
+ */
 class Service
 {
     /**
@@ -28,7 +31,7 @@ class Service
     }
 
     /**
-     * @return array|mixed
+     * @return array
      */
     public static function getDeleteLog()
     {
@@ -45,6 +48,8 @@ class Service
                         $tmpLog[$path] = $data;
                     }
                 }
+
+                $log = $tmpLog;
             }
         }
 
@@ -56,7 +61,6 @@ class Service
      */
     public static function saveDeleteLog($log)
     {
-
         // cleanup old entries
         $tmpLog = [];
         foreach ($log as $path => $data) {

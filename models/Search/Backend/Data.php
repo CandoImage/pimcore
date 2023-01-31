@@ -15,9 +15,11 @@
 
 namespace Pimcore\Model\Search\Backend;
 
+use Doctrine\DBAL\Exception\DeadlockException;
 use ForceUTF8\Encoding;
 use Pimcore\Event\Model\SearchBackendEvent;
 use Pimcore\Event\SearchBackendEvents;
+use Pimcore\Event\Traits\RecursionBlockingEventDispatchHelperTrait;
 use Pimcore\Loader\ImplementationLoader\Exception\UnsupportedException;
 use Pimcore\Logger;
 use Pimcore\Model\Asset;
@@ -27,88 +29,96 @@ use Pimcore\Model\Element;
 use Pimcore\Model\Search\Backend\Data\Dao;
 
 /**
+ * @internal
+ *
  * @method Dao getDao()
  */
 class Data extends \Pimcore\Model\AbstractModel
 {
+    use RecursionBlockingEventDispatchHelperTrait;
+
     // if a word occures more often than this number it will get stripped to keep the search_backend_data table from getting too big
     const MAX_WORD_OCCURENCES = 3;
 
     /**
-     * @var Data\Id
+     * @var Data\Id|null
      */
-    public $id;
+    protected ?Data\Id $id = null;
+
+    protected ?string $key = null;
+
+    protected ?int $index = null;
 
     /**
      * @var string
      */
-    public $fullPath;
+    protected $fullPath;
 
     /**
      * document | object | asset
      *
      * @var string
      */
-    public $maintype;
+    protected $maintype;
 
     /**
      * webresource type (e.g. page, snippet ...)
      *
      * @var string
      */
-    public $type;
+    protected $type;
 
     /**
      * currently only relevant for objects where it portrays the class name
      *
      * @var string
      */
-    public $subtype;
+    protected $subtype;
 
     /**
      * published or not
      *
      * @var bool
      */
-    public $published;
+    protected $published;
 
     /**
      * timestamp of creation date
      *
-     * @var int
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
      * timestamp of modification date
      *
-     * @var int
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
      * User-ID of the owner
      *
      * @var int
      */
-    public $userOwner;
+    protected $userOwner;
 
     /**
      * User-ID of the user last modified the element
      *
-     * @var int
+     * @var int|null
      */
-    public $userModification;
+    protected $userModification;
 
     /**
      * @var string|null
      */
-    public $data;
+    protected $data;
 
     /**
      * @var string
      */
-    public $properties;
+    protected $properties;
 
     /**
      * @param Element\ElementInterface $element
@@ -121,21 +131,45 @@ class Data extends \Pimcore\Model\AbstractModel
     }
 
     /**
-     * @return Data\Id
+     * @return Data\Id|null
      */
-    public function getId()
+    public function getId(): ?Data\Id
     {
         return $this->id;
     }
 
     /**
-     * @param Data\Id $id
+     * @param Data\Id|null $id
      *
      * @return $this
      */
-    public function setId($id)
+    public function setId(?Data\Id $id)
     {
         $this->id = $id;
+
+        return $this;
+    }
+
+    public function getKey(): ?string
+    {
+        return $this->key;
+    }
+
+    public function setKey(?string $key): static
+    {
+        $this->key = $key;
+
+        return $this;
+    }
+
+    public function getIndex(): ?int
+    {
+        return $this->index;
+    }
+
+    public function setIndex(?int $index): static
+    {
+        $this->index = $index;
 
         return $this;
     }
@@ -201,7 +235,7 @@ class Data extends \Pimcore\Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -221,7 +255,7 @@ class Data extends \Pimcore\Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
@@ -241,7 +275,7 @@ class Data extends \Pimcore\Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getUserModification()
     {
@@ -297,7 +331,7 @@ class Data extends \Pimcore\Model\AbstractModel
     }
 
     /**
-     * @param int $published
+     * @param bool $published
      *
      * @return $this
      */
@@ -353,11 +387,12 @@ class Data extends \Pimcore\Model\AbstractModel
      *
      * @return $this
      */
-    public function setDataFromElement($element)
+    public function setDataFromElement(Element\ElementInterface $element)
     {
         $this->data = null;
 
         $this->id = new Data\Id($element);
+        $this->key = $element->getKey();
         $this->fullPath = $element->getRealFullPath();
         $this->creationDate = $element->getCreationDate();
         $this->modificationDate = $element->getModificationDate();
@@ -367,8 +402,12 @@ class Data extends \Pimcore\Model\AbstractModel
         $this->type = $element->getType();
         if ($element instanceof DataObject\Concrete) {
             $this->subtype = $element->getClassName();
+            $this->index = $element->getIndex();
         } else {
             $this->subtype = $this->type;
+            if ($element instanceof Document) {
+                $this->index = $element->getIndex();
+            }
         }
 
         $this->properties = '';
@@ -376,7 +415,7 @@ class Data extends \Pimcore\Model\AbstractModel
         if (is_array($properties)) {
             foreach ($properties as $nextProperty) {
                 $pData = (string) $nextProperty->getData();
-                if ($nextProperty->getName() == 'bool') {
+                if ($nextProperty->getName() === 'bool') {
                     $pData = $pData ? 'true' : 'false';
                 }
 
@@ -384,7 +423,7 @@ class Data extends \Pimcore\Model\AbstractModel
             }
         }
 
-        $this->data = $element->getKey();
+        $this->data = '';
 
         if ($element instanceof Document) {
             if ($element instanceof Document\Folder) {
@@ -443,7 +482,7 @@ class Data extends \Pimcore\Model\AbstractModel
                             $this->data .= ' ' . $contentText;
                         }
                     } catch (\Exception $e) {
-                        Logger::error($e);
+                        Logger::error((string) $e);
                     }
                 }
             } elseif ($element instanceof Asset\Text) {
@@ -455,7 +494,7 @@ class Data extends \Pimcore\Model\AbstractModel
                         $this->data .= ' ' . $contentText;
                     }
                 } catch (\Exception $e) {
-                    Logger::error($e);
+                    Logger::error((string) $e);
                 }
             } elseif ($element instanceof Asset\Image) {
                 try {
@@ -468,7 +507,7 @@ class Data extends \Pimcore\Model\AbstractModel
                         }
                     }
                 } catch (\Exception $e) {
-                    Logger::error($e);
+                    Logger::error((string) $e);
                 }
             }
 
@@ -496,7 +535,7 @@ class Data extends \Pimcore\Model\AbstractModel
 
         $pathWords = str_replace([ '-', '_', '/', '.', '(', ')'], ' ', $this->getFullPath());
         $this->data .= ' ' . $pathWords;
-        $this->data = 'ID: ' . $element->getId() . "  \nPath: " . $this->getFullPath() . "  \n"  . $this->cleanupData($this->data);
+        $this->data = 'ID: ' . $element->getId() . "  \nPath: " . $this->getKey() . "  \n"  . $this->cleanupData($this->data);
 
         return $this;
     }
@@ -508,16 +547,13 @@ class Data extends \Pimcore\Model\AbstractModel
      */
     protected function cleanupData($data)
     {
-        $data = strip_tags($data);
+        $data = preg_replace('/(<\?.*?(\?>|$)|<[^<]+>)/s', '', $data);
 
         $data = html_entity_decode($data, ENT_QUOTES, 'UTF-8');
 
         // we don't remove ".", otherwise it would be impossible to search for email addresses
         $data = str_replace([',', ':', ';', "'", '"'], ' ', $data);
-        $data = str_replace("\r\n", ' ', $data);
-        $data = str_replace("\n", ' ', $data);
-        $data = str_replace("\r", ' ', $data);
-        $data = str_replace("\t", '', $data);
+        $data = str_replace(["\r\n", "\n", "\r", "\t"], ' ', $data);
         $data = preg_replace('#[ ]+#', ' ', $data);
 
         $minWordLength = $this->getDao()->getMinWordLengthForFulltextIndex();
@@ -548,9 +584,9 @@ class Data extends \Pimcore\Model\AbstractModel
     /**
      * @param Element\ElementInterface $element
      *
-     * @return Data
+     * @return self
      */
-    public static function getForElement($element)
+    public static function getForElement(Element\ElementInterface $element): self
     {
         $data = new self();
         $data->getDao()->getForElement($element);
@@ -569,31 +605,41 @@ class Data extends \Pimcore\Model\AbstractModel
     public function save()
     {
         if ($this->id instanceof Data\Id) {
-            \Pimcore::getEventDispatcher()->dispatch(SearchBackendEvents::PRE_SAVE, new SearchBackendEvent($this));
+            $this->dispatchEvent(new SearchBackendEvent($this), SearchBackendEvents::PRE_SAVE);
 
             $maxRetries = 5;
             for ($retries = 0; $retries < $maxRetries; $retries++) {
+                $this->beginTransaction();
+
                 try {
                     $this->getDao()->save();
-                    // successfully completed, so we cancel the loop here -> no restart required
-                    break;
+
+                    $this->commit();
+
+                    break; // transaction was successfully completed, so we cancel the loop here -> no restart required
                 } catch (\Exception $e) {
-                    // we try to start saving $maxRetries times again (deadlocks, ...)
-                    if ($retries < ($maxRetries - 1)) {
+                    try {
+                        $this->rollBack();
+                    } catch (\Exception $er) {
+                        // PDO adapter throws exceptions if rollback fails
+                        Logger::error((string) $er);
+                    }
+
+                    // we try to start the transaction $maxRetries times again (deadlocks, ...)
+                    if ($e instanceof DeadlockException && $retries < ($maxRetries - 1)) {
                         $run = $retries + 1;
-                        $waitTime = rand(1, 5) * 100000;
+                        $waitTime = rand(1, 5) * 100000; // microseconds
                         Logger::warn('Unable to finish transaction (' . $run . ". run) because of the following reason '" . $e->getMessage() . "'. --> Retrying in " . $waitTime . ' microseconds ... (' . ($run + 1) . ' of ' . $maxRetries . ')');
 
-                        // wait specified time until we restart
-                        usleep($waitTime);
+                        usleep($waitTime); // wait specified time until we restart the transaction
                     } else {
-                        // if we fail after $maxRetries retries, we throw out the exception
+                        // if the transaction still fail after $maxRetries retries, we throw out the exception
                         throw $e;
                     }
                 }
             }
 
-            \Pimcore::getEventDispatcher()->dispatch(SearchBackendEvents::POST_SAVE, new SearchBackendEvent($this));
+            $this->dispatchEvent(new SearchBackendEvent($this), SearchBackendEvents::POST_SAVE);
         } else {
             throw new \Exception('Search\\Backend\\Data cannot be saved - no id set!');
         }

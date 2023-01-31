@@ -84,9 +84,9 @@ SQL;
                 $query = sprintf($query, OnlineShopOrderItem::classId(), OnlineShopOrder::classId(), $rule->getId());
                 $conn = \Pimcore\Db::getConnection();
 
-                self::$cache[$rule->getId()] = $conn->fetchRow($query);
+                self::$cache[$rule->getId()] = $conn->fetchAssociative($query);
             } catch (\Exception $e) {
-                Logger::error($e);
+                Logger::error((string) $e);
             }
         }
 

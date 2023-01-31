@@ -15,13 +15,18 @@
 
 namespace Pimcore\Model\Document;
 
+use Pimcore\Config;
 use Pimcore\Document\Renderer\DocumentRenderer;
 use Pimcore\Document\Renderer\DocumentRendererInterface;
 use Pimcore\Event\DocumentEvents;
 use Pimcore\Event\Model\DocumentEvent;
 use Pimcore\File;
+use Pimcore\Image\Chromium;
+use Pimcore\Image\HtmlToImage;
 use Pimcore\Model;
 use Pimcore\Model\Document;
+use Pimcore\Model\Document\Editable\IdRewriterInterface;
+use Pimcore\Model\Document\Editable\LazyLoadingInterface;
 use Pimcore\Model\Element;
 use Pimcore\Tool;
 use Pimcore\Tool\Serialize;
@@ -29,7 +34,7 @@ use Symfony\Component\HttpFoundation\Request;
 
 /**
  * @method \Pimcore\Model\Document\Service\Dao getDao()
- * @method array getTranslations(Document $document, string $task = 'open')
+ * @method int[] getTranslations(Document $document, string $task = 'open')
  * @method addTranslation(Document $document, Document $translation, $language = null)
  * @method removeTranslation(Document $document)
  * @method int getTranslationSourceId(Document $document)
@@ -98,7 +103,7 @@ class Service extends Model\Element\Service
      *
      * @throws \Exception
      */
-    public static function saveRecursive($document, $collectGarbageAfterIteration = 25, &$saved = 0)
+    private static function saveRecursive($document, $collectGarbageAfterIteration = 25, &$saved = 0)
     {
         if ($document instanceof Document) {
             $document->save();
@@ -132,7 +137,6 @@ class Service extends Model\Element\Service
      */
     public function copyRecursive($target, $source)
     {
-
         // avoid recursion
         if (!$this->_copyRecursiveIds) {
             $this->_copyRecursiveIds = [];
@@ -147,18 +151,25 @@ class Service extends Model\Element\Service
 
         $source->getProperties();
 
+        // triggers actions before document cloning
+        $event = new DocumentEvent($source, [
+            'target_element' => $target,
+        ]);
+        \Pimcore::getEventDispatcher()->dispatch($event, DocumentEvents::PRE_COPY);
+        $target = $event->getArgument('target_element');
+
         /** @var Document $new */
         $new = Element\Service::cloneMe($source);
         $new->setId(null);
         $new->setChildren(null);
-        $new->setKey(Element\Service::getSaveCopyName('document', $new->getKey(), $target));
+        $new->setKey(Element\Service::getSafeCopyName($new->getKey(), $target));
         $new->setParentId($target->getId());
         $new->setUserOwner($this->_user ? $this->_user->getId() : 0);
         $new->setUserModification($this->_user ? $this->_user->getId() : 0);
         $new->setDao(null);
-        $new->setLocked(false);
+        $new->setLocked(null);
         $new->setCreationDate(time());
-        if (method_exists($new, 'setPrettyUrl')) {
+        if ($new instanceof Page) {
             $new->setPrettyUrl(null);
         }
 
@@ -174,9 +185,10 @@ class Service extends Model\Element\Service
         $this->updateChildren($target, $new);
 
         // triggers actions after the complete document cloning
-        \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::POST_COPY, new DocumentEvent($new, [
+        $event = new DocumentEvent($new, [
             'base_element' => $source, // the element used to make a copy
-        ]));
+        ]);
+        \Pimcore::getEventDispatcher()->dispatch($event, DocumentEvents::POST_COPY);
 
         return $new;
     }
@@ -199,18 +211,25 @@ class Service extends Model\Element\Service
 
         $source->getProperties();
 
+        // triggers actions before document cloning
+        $event = new DocumentEvent($source, [
+            'target_element' => $target,
+        ]);
+        \Pimcore::getEventDispatcher()->dispatch($event, DocumentEvents::PRE_COPY);
+        $target = $event->getArgument('target_element');
+
         /**
          * @var Document $new
          */
         $new = Element\Service::cloneMe($source);
         $new->setId(null);
         $new->setChildren(null);
-        $new->setKey(Element\Service::getSaveCopyName('document', $new->getKey(), $target));
+        $new->setKey(Element\Service::getSafeCopyName($new->getKey(), $target));
         $new->setParentId($target->getId());
         $new->setUserOwner($this->_user ? $this->_user->getId() : 0);
         $new->setUserModification($this->_user ? $this->_user->getId() : 0);
         $new->setDao(null);
-        $new->setLocked(false);
+        $new->setLocked(null);
         $new->setCreationDate(time());
 
         if ($resetIndex) {
@@ -218,17 +237,17 @@ class Service extends Model\Element\Service
             $new->setIndex($new->getDao()->getNextIndex());
         }
 
-        if (method_exists($new, 'setPrettyUrl')) {
+        if ($new instanceof Page) {
             $new->setPrettyUrl(null);
         }
 
         if ($enableInheritance && ($new instanceof Document\PageSnippet) && $new->supportsContentMaster()) {
             $new->setEditables([]);
-            $new->setContentMasterDocumentId($source->getId());
+            $new->setContentMasterDocumentId($source->getId(), true);
         }
 
         if ($language) {
-            $new->setProperty('language', 'text', $language, false);
+            $new->setProperty('language', 'text', $language, false, true);
         }
 
         $new->save();
@@ -241,9 +260,10 @@ class Service extends Model\Element\Service
         }
 
         // triggers actions after the complete document cloning
-        \Pimcore::getEventDispatcher()->dispatch(DocumentEvents::POST_COPY, new DocumentEvent($new, [
+        $event = new DocumentEvent($new, [
             'base_element' => $source, // the element used to make a copy
-        ]));
+        ]);
+        \Pimcore::getEventDispatcher()->dispatch($event, DocumentEvents::POST_COPY);
 
         return $new;
     }
@@ -252,13 +272,12 @@ class Service extends Model\Element\Service
      * @param Document $target
      * @param Document $source
      *
-     * @return mixed
+     * @return Document
      *
      * @throws \Exception
      */
     public function copyContents($target, $source)
     {
-
         // check if the type is the same
         if (get_class($source) != get_class($target)) {
             throw new \Exception('Source and target have to be the same type');
@@ -269,7 +288,6 @@ class Service extends Model\Element\Service
             $target->setEditables($source->getEditables());
 
             $target->setTemplate($source->getTemplate());
-            $target->setAction($source->getAction());
             $target->setController($source->getController());
 
             if ($source instanceof Document\Page) {
@@ -286,7 +304,7 @@ class Service extends Model\Element\Service
         }
 
         $target->setUserModification($this->_user ? $this->_user->getId() : 0);
-        $target->setProperties($source->getProperties());
+        $target->setProperties(self::cloneProperties($source->getProperties()));
         $target->save();
 
         return $target;
@@ -296,6 +314,8 @@ class Service extends Model\Element\Service
      * @param Document $document
      *
      * @return array
+     *
+     * @internal
      */
     public static function gridDocumentData($document)
     {
@@ -314,11 +334,11 @@ class Service extends Model\Element\Service
     }
 
     /**
-     * @static
+     * @internal
      *
      * @param Document $doc
      *
-     * @return mixed
+     * @return Document
      */
     public static function loadAllDocumentFields($doc)
     {
@@ -326,7 +346,13 @@ class Service extends Model\Element\Service
 
         if ($doc instanceof Document\PageSnippet) {
             foreach ($doc->getEditables() as $name => $data) {
-                if (method_exists($data, 'load')) {
+                //TODO Pimcore 11: remove method_exists BC layer
+                if ($data instanceof LazyLoadingInterface || method_exists($data, 'load')) {
+                    if (!$data instanceof LazyLoadingInterface) {
+                        trigger_deprecation('pimcore/pimcore', '10.3',
+                            sprintf('Usage of method_exists is deprecated since version 10.3 and will be removed in Pimcore 11.' .
+                                'Implement the %s interface instead.', LazyLoadingInterface::class));
+                    }
                     $data->load();
                 }
             }
@@ -345,6 +371,10 @@ class Service extends Model\Element\Service
      */
     public static function pathExists($path, $type = null)
     {
+        if (!$path) {
+            return false;
+        }
+
         $path = Element\Service::correctPath($path);
 
         try {
@@ -382,6 +412,8 @@ class Service extends Model\Element\Service
      *  "asset" => array(...)
      * )
      *
+     * @internal
+     *
      * @param Document $document
      * @param array $rewriteConfig
      * @param array $params
@@ -390,7 +422,6 @@ class Service extends Model\Element\Service
      */
     public static function rewriteIds($document, $rewriteConfig, $params = [])
     {
-
         // rewriting elements only for snippets and pages
         if ($document instanceof Document\PageSnippet) {
             if (array_key_exists('enableInheritance', $params) && $params['enableInheritance']) {
@@ -400,7 +431,13 @@ class Service extends Model\Element\Service
                 if ($contentMaster instanceof Document\PageSnippet) {
                     $contentMasterEditables = $contentMaster->getEditables();
                     foreach ($contentMasterEditables as $contentMasterEditable) {
-                        if (method_exists($contentMasterEditable, 'rewriteIds')) {
+                        //TODO Pimcore 11: remove method_exists BC layer
+                        if ($contentMasterEditable instanceof IdRewriterInterface || method_exists($contentMasterEditable, 'rewriteIds')) {
+                            if (!$contentMasterEditable instanceof IdRewriterInterface) {
+                                trigger_deprecation('pimcore/pimcore', '10.3',
+                                    sprintf('Usage of method_exists is deprecated since version 10.3 and will be removed in Pimcore 11.' .
+                                        'Implement the %s interface instead.', IdRewriterInterface::class));
+                            }
                             $editable = clone $contentMasterEditable;
                             $editable->rewriteIds($rewriteConfig);
 
@@ -417,7 +454,13 @@ class Service extends Model\Element\Service
             } else {
                 $editables = $document->getEditables();
                 foreach ($editables as &$editable) {
-                    if (method_exists($editable, 'rewriteIds')) {
+                    //TODO Pimcore 11: remove method_exists BC layer
+                    if ($editable instanceof IdRewriterInterface || method_exists($editable, 'rewriteIds')) {
+                        if (!$editable instanceof IdRewriterInterface) {
+                            trigger_deprecation('pimcore/pimcore', '10.3',
+                                sprintf('Usage of method_exists is deprecated since version 10.3 and will be removed in Pimcore 11.' .
+                                    'Implement the %s interface instead.', IdRewriterInterface::class));
+                        }
                         $editable->rewriteIds($rewriteConfig);
                     }
                 }
@@ -445,6 +488,8 @@ class Service extends Model\Element\Service
     }
 
     /**
+     * @internal
+     *
      * @param string $url
      *
      * @return Document|null
@@ -517,11 +562,13 @@ class Service extends Model\Element\Service
     /**
      * Get the nearest document by path. Used to match nearest document for a static route.
      *
+     * @internal
+     *
      * @param string|Request $path
      * @param bool $ignoreHardlinks
      * @param array $types
      *
-     * @return Document|Document\PageSnippet|null
+     * @return Document|null
      */
     public function getNearestDocumentByPath($path, $ignoreHardlinks = false, $types = [])
     {
@@ -543,9 +590,7 @@ class Service extends Model\Element\Service
                 $tmpPaths[] = $pathPart;
 
                 $t = implode('/', $tmpPaths);
-                if (!empty($t)) {
-                    $paths[] = $t;
-                }
+                $paths[] = $t;
             }
 
             $paths = array_reverse($paths);
@@ -600,6 +645,8 @@ class Service extends Model\Element\Service
      * @return bool
      *
      * @throws \Exception
+     *
+     * @internal
      */
     public static function generatePagePreview($id, $request = null, $hostUrl = null)
     {
@@ -608,33 +655,37 @@ class Service extends Model\Element\Service
         /** @var Page $doc */
         $doc = Document::getById($id);
         if (!$hostUrl) {
-            $hostUrl = Tool::getHostUrl(false, $request);
+            $hostUrl = Config::getSystemConfiguration('documents')['preview_url_prefix'];
+            if (empty($hostUrl)) {
+                $hostUrl = Tool::getHostUrl(null, $request);
+            }
         }
 
         $url = $hostUrl . $doc->getRealFullPath();
         $tmpFile = PIMCORE_SYSTEM_TEMP_DIRECTORY . '/screenshot_tmp_' . $doc->getId() . '.png';
         $file = $doc->getPreviewImageFilesystemPath();
 
-        $dir = dirname($file);
-        if (!is_dir($dir)) {
-            File::mkdir($dir);
+        File::mkdir(dirname($file));
+
+        $tool = false;
+        if (Chromium::isSupported()) {
+            $tool = Chromium::class;
+        } elseif (HtmlToImage::isSupported()) {
+            $tool = HtmlToImage::class;
         }
 
-        if (\Pimcore\Image\HtmlToImage::convert($url, $tmpFile)) {
-            $im = \Pimcore\Image::getInstance();
-            $im->load($tmpFile);
-            $im->scaleByWidth(400);
-            $im->save($file, 'jpeg', 85);
+        if ($tool) {
+            /** @var Chromium|HtmlToImage $tool */
+            if ($tool::convert($url, $tmpFile)) {
+                $im = \Pimcore\Image::getInstance();
+                $im->load($tmpFile);
+                $im->scaleByWidth(800);
+                $im->save($file, 'jpeg', 85);
 
-            // HDPi version
-            $im = \Pimcore\Image::getInstance();
-            $im->load($tmpFile);
-            $im->scaleByWidth(800);
-            $im->save($doc->getPreviewImageFilesystemPath(true), 'jpeg', 85);
+                unlink($tmpFile);
 
-            unlink($tmpFile);
-
-            $success = true;
+                $success = true;
+            }
         }
 
         return $success;

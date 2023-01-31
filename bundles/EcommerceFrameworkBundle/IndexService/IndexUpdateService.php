@@ -80,7 +80,7 @@ class IndexUpdateService
     {
         $qb = $this->createBasicStoreTableSelectQuery($storeTableName, $tenantNameFilterList);
         $qb->andWhere('in_preparation_queue = 1');
-        $rows = $qb->execute()->fetchAll();
+        $rows = $qb->execute()->fetchAllAssociative();
 
         $result = [];
 
@@ -135,7 +135,7 @@ class IndexUpdateService
     {
         $qb = $this->createBasicStoreTableSelectQuery($storeTableName, $tenantNameFilterList);
         $qb->andWhere('crc_current != crc_index OR ISNULL(crc_index)');
-        $rows = $qb->execute()->fetchAll();
+        $rows = $qb->execute()->fetchAllAssociative();
 
         $result = [];
         foreach ($rows as $row) {
@@ -206,16 +206,16 @@ class IndexUpdateService
                 $qb = $this->createBasicStoreTableUpdateQuery($storeTableName, $tenantNameList);
 
                 if ($onlyResetUpdateIndex) {
-                    $qb->set('crc_index', 0)
+                    $qb->set('crc_index', '0')
                         ->set('trigger_info', ':triggerInfo')
                     ;
                 } else {
                     $qb
-                        ->set('in_preparation_queue', (int)true)
+                        ->set('in_preparation_queue', '1')
                         ->set('preparation_error', 'null')
-                        ->set('crc_current', 0)
-                        ->set('crc_index', 0)
-                        ->set('preparation_status', 0)
+                        ->set('crc_current', '0')
+                        ->set('crc_index', '0')
+                        ->set('preparation_status', '0')
                         ->set('trigger_info', ':triggerInfo')
                     ;
                 }
@@ -240,7 +240,6 @@ class IndexUpdateService
      */
     protected function createBasicStoreTableSelectQuery(string $storeTableName, array $tenantNameFilterList): QueryBuilder
     {
-        /** @var QueryBuilder $qb */
         $qb = Db::get()->createQueryBuilder();
         $qb
             ->select('o_id as id')
@@ -253,7 +252,7 @@ class IndexUpdateService
             $qb->andWhere(sprintf('tenant in(%s)', implode(',', array_map(function ($str) {
                 return sprintf("'%s'", $str);
             },
-                    $tenantNameFilterList))
+                $tenantNameFilterList))
             ));
         }
 
@@ -275,7 +274,6 @@ class IndexUpdateService
      */
     protected function createBasicStoreTableUpdateQuery(string $storeTableName, array $tenantNameFilterList): QueryBuilder
     {
-        /** @var QueryBuilder $qb */
         $qb = Db::get()->createQueryBuilder();
         $qb->update($storeTableName);
 
@@ -283,7 +281,7 @@ class IndexUpdateService
             $qb->andWhere(sprintf('tenant in(%s)', implode(',', array_map(function ($str) {
                 return sprintf("'%s'", $str);
             },
-                    $tenantNameFilterList))
+                $tenantNameFilterList))
             ));
         }
 

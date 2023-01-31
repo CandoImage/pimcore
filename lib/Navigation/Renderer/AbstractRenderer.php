@@ -52,14 +52,14 @@ abstract class AbstractRenderer implements RendererInterface
     /**
      * The minimum depth a page must have to be included when rendering
      *
-     * @var int
+     * @var int|null
      */
     protected $_minDepth;
 
     /**
      * The maximum depth a page can have to be included when rendering
      *
-     * @var int
+     * @var int|null
      */
     protected $_maxDepth;
 
@@ -104,16 +104,16 @@ abstract class AbstractRenderer implements RendererInterface
     /**
      * Sets the minimum depth a page must have to be included when rendering
      *
-     * @param  int $minDepth
+     * @param int|null $minDepth
      *
-     * @return self  fluent interface
+     * @return $this
      */
     public function setMinDepth($minDepth = null)
     {
-        if (null === $minDepth || is_int($minDepth)) {
-            $this->_minDepth = $minDepth;
-        } else {
+        if (null !== $minDepth) {
             $this->_minDepth = (int) $minDepth;
+        } else {
+            $this->_minDepth = null;
         }
 
         return $this;
@@ -138,17 +138,17 @@ abstract class AbstractRenderer implements RendererInterface
      */
     public function setMaxDepth($maxDepth = null)
     {
-        if (null === $maxDepth || is_int($maxDepth)) {
-            $this->_maxDepth = $maxDepth;
-        } else {
+        if (null !== $maxDepth) {
             $this->_maxDepth = (int) $maxDepth;
+        } else {
+            $this->_maxDepth = null;
         }
 
         return $this;
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getMaxDepth()
     {
@@ -205,8 +205,8 @@ abstract class AbstractRenderer implements RendererInterface
         if (null === $this->_prefixForId) {
             $prefix = get_class($this);
             $this->_prefixForId = str_replace('\\', '-', strtolower(
-                    trim(substr($prefix, strrpos($prefix, '_')), '_')
-                )) . '-';
+                trim(substr($prefix, strrpos($prefix, '_')), '_')
+            )) . '-';
         }
 
         return $this->_prefixForId;
@@ -225,7 +225,7 @@ abstract class AbstractRenderer implements RendererInterface
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function getRenderInvisible()
     {
@@ -233,9 +233,7 @@ abstract class AbstractRenderer implements RendererInterface
     }
 
     /**
-     * @param bool $renderInvisible
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setRenderInvisible(bool $renderInvisible = true)
     {
@@ -266,7 +264,7 @@ abstract class AbstractRenderer implements RendererInterface
         $foundDepth = -1;
         $iterator = new \RecursiveIteratorIterator(
             $container,
-                \RecursiveIteratorIterator::CHILD_FIRST
+            \RecursiveIteratorIterator::CHILD_FIRST
         );
 
         foreach ($iterator as $page) {

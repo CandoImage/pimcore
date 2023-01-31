@@ -26,7 +26,7 @@ class ObjectMetadata extends Model\AbstractModel implements DataObject\OwnerAwar
 {
     use DataObject\Traits\OwnerAwareFieldTrait;
 
-    /** @var DataObject\AbstractObject */
+    /** @var DataObject\AbstractObject|null */
     protected $object;
 
     /**
@@ -52,7 +52,7 @@ class ObjectMetadata extends Model\AbstractModel implements DataObject\OwnerAwar
     /**
      * @param string $fieldname
      * @param array $columns
-     * @param null $object
+     * @param DataObject\Concrete|null $object
      */
     public function __construct($fieldname, $columns = [], $object = null)
     {
@@ -62,11 +62,11 @@ class ObjectMetadata extends Model\AbstractModel implements DataObject\OwnerAwar
     }
 
     /**
-     * @param DataObject\Concrete $object
+     * @param DataObject\Concrete|null $object
      *
      * @return $this
      */
-    public function setObject($object)
+    public function setObject(?DataObject\Concrete $object)
     {
         $this->markMeDirty();
 
@@ -139,11 +139,14 @@ class ObjectMetadata extends Model\AbstractModel implements DataObject\OwnerAwar
      * @param string $position
      * @param int $index
      *
-     * @return mixed
+     * @return ObjectMetadata|null
      */
     public function load(DataObject\Concrete $source, $destinationId, $fieldname, $ownertype, $ownername, $position, $index)
     {
-        return $this->getDao()->load($source, $destinationId, $fieldname, $ownertype, $ownername, $position, $index);
+        $return = $this->getDao()->load($source, $destinationId, $fieldname, $ownertype, $ownername, $position, $index);
+        $this->markMeDirty(false);
+
+        return $return;
     }
 
     /**
@@ -255,7 +258,7 @@ class ObjectMetadata extends Model\AbstractModel implements DataObject\OwnerAwar
      */
     public function getObjectId()
     {
-        return $this->objectId;
+        return (int) $this->objectId;
     }
 
     /**

@@ -21,27 +21,18 @@ use Pimcore\Event\DocumentEvents;
 use Pimcore\Event\Model\Document\EditableNameEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
-class UsageRecorderSubscriber implements EventSubscriberInterface
+/**
+ * @internal
+ */
+final class UsageRecorderSubscriber implements EventSubscriberInterface
 {
-    /**
-     * @var array
-     *
-     * @deprecated since 6.8 and will be removed in Pimcore 10. use $recordedEditableNames instead.
-     */
-    protected $recordedTagNames = [];
-
     /**
      * @var array
      */
     protected $recordedEditableNames = [];
 
-    public function __construct()
-    {
-        $this->recordedTagNames = & $this->recordedEditableNames;
-    }
-
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public static function getSubscribedEvents(): array
     {
@@ -52,35 +43,10 @@ class UsageRecorderSubscriber implements EventSubscriberInterface
 
     /**
      * @param EditableNameEvent $event
-     *
      */
     public function onBuildEditableName(EditableNameEvent $event)
     {
-        if (null === $document = $event->getDocument()) {
-            throw new \RuntimeException('Need a document to migrate editable naming strategy.');
-        }
-
         $this->recordedEditableNames[] = $event->getEditableName();
-    }
-
-    /**
-     * @return array
-     *
-     * @deprecated since 6.8 and will be removed in Pimcore 10. use getRecordedEditableNames() instead.
-     */
-    public function getRecordedTagNames(): array
-    {
-        return $this->getRecordedEditableNames();
-    }
-
-    /**
-     * @param array $recordedTagNames
-     *
-     * @deprecated since 6.8 and will be removed in Pimcore 10. use setRecordedEditableNames() instead.
-     */
-    public function setRecordedTagNames(array $recordedTagNames): void
-    {
-        $this->setRecordedEditableNames($recordedTagNames);
     }
 
     /**
@@ -99,5 +65,3 @@ class UsageRecorderSubscriber implements EventSubscriberInterface
         $this->recordedEditableNames = $recordedEditableNames;
     }
 }
-
-class_alias(UsageRecorderSubscriber::class, 'Pimcore\Document\Tag\UsageRecorderSubscriber');

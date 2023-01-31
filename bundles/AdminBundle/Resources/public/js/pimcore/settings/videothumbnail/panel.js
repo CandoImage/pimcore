@@ -90,7 +90,8 @@ pimcore.settings.videothumbnail.panel = Class.create({
                         {
                             text: t("add"),
                             iconCls: "pimcore_icon_add",
-                            handler: this.addField.bind(this)
+                            handler: this.addField.bind(this),
+                            disabled: !pimcore.settings['video-thumbnails-writeable']
                         }
                     ]
                 }
@@ -174,7 +175,8 @@ pimcore.settings.videothumbnail.panel = Class.create({
         menu.add(new Ext.menu.Item({
             text: t('delete'),
             iconCls: "pimcore_icon_delete",
-            handler: this.deleteField.bind(this, tree, record)
+            handler: this.deleteField.bind(this, tree, record),
+            disabled: !record.data.writeable
         }));
 
         menu.showAt(e.pageX, e.pageY);
@@ -226,16 +228,18 @@ pimcore.settings.videothumbnail.panel = Class.create({
     },
 
     deleteField: function (tree, record) {
-        Ext.Ajax.request({
-            url: Routing.generate('pimcore_admin_settings_videothumbnaildelete'),
-            method: 'DELETE',
-            params: {
-                name: record.data.id
-            }
-        });
+        pimcore.helpers.deleteConfirm(t('thumbnail'), record.data.text, function () {
+            Ext.Ajax.request({
+                url: Routing.generate('pimcore_admin_settings_videothumbnaildelete'),
+                method: 'DELETE',
+                params: {
+                    name: record.data.id
+                }
+            });
 
-        this.getEditPanel().removeAll();
-        record.remove();
+            this.getEditPanel().removeAll();
+            record.remove();
+        }.bind(this));
     }
 });
 

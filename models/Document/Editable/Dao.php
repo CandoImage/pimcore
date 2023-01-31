@@ -15,9 +15,12 @@
 
 namespace Pimcore\Model\Document\Editable;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Document\Editable\Areablock $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -26,7 +29,7 @@ class Dao extends Model\Dao\AbstractDao
     {
         $data = $this->model->getDataForResource();
 
-        if (is_array($data) or is_object($data)) {
+        if (is_array($data) || is_object($data)) {
             $data = \Pimcore\Tool\Serialize::serialize($data);
         }
 
@@ -37,16 +40,14 @@ class Dao extends Model\Dao\AbstractDao
             'type' => $this->model->getType(),
         ];
 
-        $this->db->insertOrUpdate('documents_elements', $element);
+        Helper::insertOrUpdate($this->db, 'documents_editables', $element);
     }
 
     public function delete()
     {
-        $this->db->delete('documents_elements', [
+        $this->db->delete('documents_editables', [
             'documentId' => $this->model->getDocumentId(),
             'name' => $this->model->getName(),
         ]);
     }
 }
-
-class_alias(Dao::class, 'Pimcore\Model\Document\Tag\Dao');

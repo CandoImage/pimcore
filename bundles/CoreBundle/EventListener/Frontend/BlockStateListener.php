@@ -16,17 +16,19 @@
 namespace Pimcore\Bundle\CoreBundle\EventListener\Frontend;
 
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\PimcoreContextAwareTrait;
-use Pimcore\Document\Tag\Block\BlockStateStack;
+use Pimcore\Document\Editable\Block\BlockStateStack;
 use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
  * Handles block state for sub requests (saves parent state and restores it after request completes)
+ *
+ * @internal
  */
 class BlockStateListener implements EventSubscriberInterface, LoggerAwareInterface
 {
@@ -34,22 +36,16 @@ class BlockStateListener implements EventSubscriberInterface, LoggerAwareInterfa
     use PimcoreContextAwareTrait;
 
     /**
-     * @var BlockStateStack
+     * @param BlockStateStack $blockStateStack
      */
-    protected $blockStateStack;
-
-    /**
-     * @param \Pimcore\Document\Tag\Block\BlockStateStack $blockStateStack
-     */
-    public function __construct(BlockStateStack $blockStateStack)
+    public function __construct(protected BlockStateStack $blockStateStack)
     {
-        $this->blockStateStack = $blockStateStack;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             KernelEvents::REQUEST => 'onKernelRequest',
@@ -58,9 +54,9 @@ class BlockStateListener implements EventSubscriberInterface, LoggerAwareInterfa
     }
 
     /**
-     * @param GetResponseEvent $event
+     * @param RequestEvent $event
      */
-    public function onKernelRequest(GetResponseEvent $event)
+    public function onKernelRequest(RequestEvent $event)
     {
         $request = $event->getRequest();
 
@@ -73,7 +69,7 @@ class BlockStateListener implements EventSubscriberInterface, LoggerAwareInterfa
         }
 
         // master request already has a state on the stack
-        if ($event->isMasterRequest()) {
+        if ($event->isMainRequest()) {
             return;
         }
 
@@ -83,9 +79,9 @@ class BlockStateListener implements EventSubscriberInterface, LoggerAwareInterfa
     }
 
     /**
-     * @param FilterResponseEvent $event
+     * @param ResponseEvent $event
      */
-    public function onKernelResponse(FilterResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event)
     {
         $request = $event->getRequest();
 

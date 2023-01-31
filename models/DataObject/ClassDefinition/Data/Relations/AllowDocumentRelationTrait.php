@@ -18,10 +18,15 @@ namespace Pimcore\Model\DataObject\ClassDefinition\Data\Relations;
 use Pimcore\Logger;
 use Pimcore\Model\Document;
 
+/**
+ * @internal
+ */
 trait AllowDocumentRelationTrait
 {
     /**
-     * Checks if an document is an allowed relation
+     * Checks if a document is an allowed relation
+     *
+     * @internal
      *
      * @param Document $document
      *
@@ -29,12 +34,16 @@ trait AllowDocumentRelationTrait
      */
     protected function allowDocumentRelation($document)
     {
+        if (!$document instanceof Document || $document->getId() <= 0) {
+            return false;
+        }
+
         $allowedDocumentTypes = $this->getDocumentTypes();
 
         $allowed = true;
         if (!$this->getDocumentsAllowed()) {
             $allowed = false;
-        } elseif ($this->getDocumentsAllowed() and is_array($allowedDocumentTypes) and count($allowedDocumentTypes) > 0) {
+        } elseif ($this->getDocumentsAllowed() && is_array($allowedDocumentTypes) && count($allowedDocumentTypes) > 0) {
             //check for allowed asset types
             $allowedTypes = [];
             foreach ($allowedDocumentTypes as $t) {

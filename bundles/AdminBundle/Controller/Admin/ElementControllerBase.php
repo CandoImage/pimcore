@@ -31,8 +31,13 @@ use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Element\Service;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-class ElementControllerBase extends AdminController
+/**
+ * @internal
+ */
+abstract class ElementControllerBase extends AdminController
 {
     /**
      * @param ElementInterface $element
@@ -45,6 +50,8 @@ class ElementControllerBase extends AdminController
     }
 
     /**
+     * @Route("/tree-get-root", name="treegetroot", methods={"GET"})
+     *
      * @param Request $request
      *
      * @return JsonResponse
@@ -56,7 +63,7 @@ class ElementControllerBase extends AdminController
 
         $id = 1;
         if ($request->get('id')) {
-            $id = intval($request->get('id'));
+            $id = (int)$request->get('id');
         }
 
         if (in_array($type, $allowedTypes)) {
@@ -71,18 +78,23 @@ class ElementControllerBase extends AdminController
     }
 
     /**
+     * @Route("/delete-info", name="deleteinfo", methods={"GET"})
+     *
      * @param Request $request
+     * @param EventDispatcherInterface $eventDispatcher
      *
      * @return JsonResponse
+     *
+     * @throws \Exception
      */
-    public function deleteInfoAction(Request $request)
+    public function deleteInfoAction(Request $request, EventDispatcherInterface $eventDispatcher)
     {
         $hasDependency = false;
         $errors = false;
         $deleteJobs = [];
         $itemResults = [];
 
-        $totalChilds = 0;
+        $totalChildren = 0;
 
         $ids = $request->get('id');
         $ids = explode(',', $ids);
@@ -90,7 +102,7 @@ class ElementControllerBase extends AdminController
 
         foreach ($ids as $id) {
             try {
-                $element = Service::getElementById($type, $id);
+                $element = Service::getElementById($type, (int) $id);
                 if (!$element) {
                     continue;
                 }
@@ -104,7 +116,7 @@ class ElementControllerBase extends AdminController
                 continue;
             }
 
-            // check for childs
+            // check for children
             if ($element instanceof ElementInterface) {
                 $event = null;
                 $eventName = null;
@@ -121,7 +133,7 @@ class ElementControllerBase extends AdminController
                 }
 
                 if ($event instanceof ElementDeleteInfoEventInterface) {
-                    $this->get('event_dispatcher')->dispatch($eventName, $event);
+                    $eventDispatcher->dispatch($event, $eventName);
 
                     if (!$event->getDeletionAllowed()) {
                         $itemResults[] = [
@@ -153,29 +165,29 @@ class ElementControllerBase extends AdminController
                     ],
                 ]];
 
-                $hasChilds = $element->hasChildren();
+                $hasChildren = $element->hasChildren();
                 if (!$hasDependency) {
-                    $hasDependency = $hasChilds;
+                    $hasDependency = $hasChildren;
                 }
 
-                if ($hasChilds) {
-                    // get amount of childs
+                if ($hasChildren) {
+                    // get amount of children
                     $list = $element::getList(['unpublished' => true]);
                     $pathColumn = ($type === 'object') ? 'o_path' : 'path';
                     $list->setCondition($pathColumn . ' LIKE ?', [$element->getRealFullPath() . '/%']);
-                    $childs = $list->getTotalCount();
-                    $totalChilds += $childs;
+                    $children = $list->getTotalCount();
+                    $totalChildren += $children;
 
-                    if ($childs > 0) {
+                    if ($children > 0) {
                         $deleteObjectsPerRequest = 5;
-                        for ($i = 0, $iMax = ceil($childs / $deleteObjectsPerRequest); $i < $iMax; $i++) {
+                        for ($i = 0, $iMax = ceil($children / $deleteObjectsPerRequest); $i < $iMax; $i++) {
                             $deleteJobs[] = [[
-                                'url' => $this->get('router')->getContext()->getBaseUrl() . '/admin/' . $type . '/delete',
+                                'url' => $request->getBaseUrl() . '/admin/' . $type . '/delete',
                                 'method' => 'DELETE',
                                 'params' => [
                                     'step' => $i,
                                     'amount' => $deleteObjectsPerRequest,
-                                    'type' => 'childs',
+                                    'type' => 'children',
                                     'id' => $element->getId(),
                                 ],
                             ]];
@@ -185,7 +197,7 @@ class ElementControllerBase extends AdminController
 
                 // the element itself is the last one
                 $deleteJobs[] = [[
-                    'url' => $this->get('router')->getContext()->getBaseUrl() . '/admin/' . $type . '/delete',
+                    'url' => $request->getBaseUrl() . '/admin/' . $type . '/delete',
                     'method' => 'DELETE',
                     'params' => [
                         'id' => $element->getId(),
@@ -197,7 +209,7 @@ class ElementControllerBase extends AdminController
         // get the element key in case of just one
         $elementKey = false;
         if (count($ids) === 1) {
-            $element = Service::getElementById($type, $ids[0]);
+            $element = Service::getElementById($type, (int) $ids[0]);
 
             if ($element instanceof ElementInterface) {
                 $elementKey = $element->getKey();
@@ -206,7 +218,7 @@ class ElementControllerBase extends AdminController
 
         return $this->adminJson([
             'hasDependencies' => $hasDependency,
-            'childs' => $totalChilds,
+            'children' => $totalChildren,
             'deletejobs' => $deleteJobs,
             'batchDelete' => count($ids) > 1,
             'elementKey' => $elementKey,

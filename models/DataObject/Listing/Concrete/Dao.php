@@ -16,13 +16,14 @@
 namespace Pimcore\Model\DataObject\Listing\Concrete;
 
 use Doctrine\DBAL\Query\QueryBuilder as DoctrineQueryBuilder;
-use Pimcore\Db\ZendCompatibility\Expression;
-use Pimcore\Db\ZendCompatibility\QueryBuilder as ZendCompatibilityQueryBuilder;
+use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
 use Pimcore\Tool;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Listing\Concrete $model
  */
 class Dao extends Model\DataObject\Listing\Dao
@@ -41,47 +42,6 @@ class Dao extends Model\DataObject\Listing\Dao
      * @var int
      */
     protected $totalCount = 0;
-
-    /**
-     * get select query
-     *
-     * @param array|string|Expression|bool $columns
-     *
-     * @return ZendCompatibilityQueryBuilder
-     *
-     * @throws \Exception
-     *
-     * @deprecated use getQueryBuilder() instead.
-     */
-    public function getQuery($columns = '*')
-    {
-        // init
-        $select = $this->db->select();
-
-        $select->from([$this->getTableName()], $columns);
-
-        // add joins
-        $this->addJoins($select);
-
-        // add condition
-        $this->addConditions($select);
-
-        // group by
-        $this->addGroupBy($select);
-
-        // order
-        $this->addOrder($select);
-
-        // limit
-        $this->addLimit($select);
-
-        if ($this->onCreateQueryCallback) {
-            $closure = $this->onCreateQueryCallback;
-            $closure($select);
-        }
-
-        return $select;
-    }
 
     /**
      * @return int[]
@@ -141,7 +101,7 @@ class Dao extends Model\DataObject\Listing\Dao
         }
 
         if (!$language) {
-            $locale = \Pimcore::getContainer()->get('pimcore.locale')->findLocale();
+            $locale = \Pimcore::getContainer()->get(LocaleServiceInterface::class)->findLocale();
             if (Tool::isValidLanguage((string)$locale)) {
                 $language = (string)$locale;
             }
@@ -162,7 +122,6 @@ class Dao extends Model\DataObject\Listing\Dao
     public function getTableName()
     {
         if (empty($this->tableName)) {
-
             // default
             $this->tableName = 'object_' . $this->model->getClassId();
 
@@ -180,7 +139,7 @@ class Dao extends Model\DataObject\Listing\Dao
                     }
 
                     if (!$language) {
-                        $locale = \Pimcore::getContainer()->get('pimcore.locale')->findLocale();
+                        $locale = \Pimcore::getContainer()->get(LocaleServiceInterface::class)->findLocale();
                         if (Tool::isValidLanguage((string)$locale)) {
                             $language = (string)$locale;
                         }
@@ -202,95 +161,6 @@ class Dao extends Model\DataObject\Listing\Dao
     }
 
     /**
-     * @deprecated
-     *
-     * @param ZendCompatibilityQueryBuilder $select
-     *
-     * @return $this
-     */
-    protected function addJoins(ZendCompatibilityQueryBuilder $select)
-    {
-        // add fielcollection's
-        $fieldCollections = $this->model->getFieldCollections();
-        if (!empty($fieldCollections)) {
-            foreach ($fieldCollections as $fc) {
-
-                // join info
-                $table = 'object_collection_' . $fc['type'] . '_' . $this->model->getClassId();
-                $name = $fc['type'];
-                if (!empty($fc['fieldname'])) {
-                    $name .= '~' . $fc['fieldname'];
-                }
-
-                // set join condition
-                $condition = <<<CONDITION
-1
- AND {$this->db->quoteIdentifier($name)}.o_id = {$this->db->quoteIdentifier($this->getTableName())}.o_id
-CONDITION;
-
-                if (!empty($fc['fieldname'])) {
-                    $condition .= <<<CONDITION
- AND {$this->db->quoteIdentifier($name)}.fieldname = "{$fc['fieldname']}"
-CONDITION;
-                }
-
-                // add join
-                $select->joinLeft(
-                    [$name => $table],
-                    $condition,
-                    ''
-                );
-            }
-        }
-
-        // add brick's
-        $objectbricks = $this->model->getObjectbricks();
-        if (!empty($objectbricks)) {
-            foreach ($objectbricks as $ob) {
-                $brickDefinition = DataObject\Objectbrick\Definition::getByKey($ob);
-                if (!$brickDefinition instanceof DataObject\Objectbrick\Definition) {
-                    continue;
-                }
-
-                // join info
-                $table = 'object_brick_query_' . $ob . '_' . $this->model->getClassId();
-                $name = $ob;
-
-                // add join
-                $select->joinLeft(
-                    [$name => $table],
-                    <<<CONDITION
-1
-AND {$this->db->quoteIdentifier($name)}.o_id = {$this->db->quoteIdentifier($this->getTableName())}.o_id
-CONDITION
-                    ,
-                    ''
-                );
-
-                if ($brickDefinition->getFieldDefinition('localizedfields')) {
-                    $langugage = $this->getLocalizedBrickLanguage();
-                    //TODO wrong pattern
-                    $localizedTable = 'object_brick_localized_query_' . $ob . '_' . $this->model->getClassId() . '_' . $langugage;
-                    $name = $ob . '_localized';
-
-                    // add join
-                    $select->joinLeft(
-                        [$name => $localizedTable],
-                        <<<CONDITION
-1
-AND {$this->db->quoteIdentifier($name)}.ooo_id = {$this->db->quoteIdentifier($this->getTableName())}.o_id
-CONDITION
-                        ,
-                        ''
-                    );
-                }
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @param DoctrineQueryBuilder $queryBuilder
      *
      * @return $this
@@ -303,7 +173,6 @@ CONDITION
         $fieldCollections = $this->model->getFieldCollections();
         if (!empty($fieldCollections)) {
             foreach ($fieldCollections as $fc) {
-
                 // join info
                 $table = 'object_collection_' . $fc['type'] . '_' . $this->model->getClassId();
                 $name = $fc['type'];

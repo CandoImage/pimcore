@@ -116,5 +116,3 @@ interface VoucherServiceInterface
      */
     public function cleanUpStatistics($seriesId = null);
 }
-
-class_alias(VoucherServiceInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\IVoucherService');

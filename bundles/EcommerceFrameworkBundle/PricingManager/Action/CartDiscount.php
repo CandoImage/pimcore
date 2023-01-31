@@ -21,7 +21,7 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\EnvironmentInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Type\Decimal;
 
 // TODO use Decimal for amounts?
-class CartDiscount implements DiscountInterface
+class CartDiscount implements DiscountInterface, CartActionInterface
 {
     /**
      * @var float
@@ -38,16 +38,6 @@ class CartDiscount implements DiscountInterface
      *
      * @return ActionInterface
      */
-    public function executeOnProduct(EnvironmentInterface $environment)
-    {
-        return $this;
-    }
-
-    /**
-     * @param EnvironmentInterface $environment
-     *
-     * @return ActionInterface
-     */
     public function executeOnCart(EnvironmentInterface $environment)
     {
         $priceCalculator = $environment->getCart()->getPriceCalculator();
@@ -55,6 +45,8 @@ class CartDiscount implements DiscountInterface
         $amount = Decimal::create($this->amount);
         if ($amount->isZero()) {
             $amount = $priceCalculator->getSubTotal()->getAmount()->toPercentage($this->getPercent());
+            //round to 2 digits for further calculations to avoid rounding issues at later point
+            $amount = Decimal::fromDecimal($amount->withScale(2));
         }
 
         $amount = $amount->mul(-1);
@@ -99,9 +91,17 @@ class CartDiscount implements DiscountInterface
     {
         $json = json_decode($string);
         if ($json->amount) {
+            if ($json->amount < 0) {
+                throw new \Exception('Only positive numbers and 0 are valid values for absolute discounts');
+            }
+
             $this->setAmount($json->amount);
         }
         if ($json->percent) {
+            if ($json->percent < 0) {
+                throw new \Exception('Only positive numbers and 0 are valid values for % discounts');
+            }
+
             $this->setPercent($json->percent);
         }
 

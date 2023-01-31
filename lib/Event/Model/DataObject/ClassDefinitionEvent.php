@@ -16,7 +16,7 @@
 namespace Pimcore\Event\Model\DataObject;
 
 use Pimcore\Model\DataObject\ClassDefinition;
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 class ClassDefinitionEvent extends Event
 {

@@ -15,20 +15,30 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\FilterService\FilterType;
 
+use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractFilterDefinitionType;
+use Pimcore\Db;
+use Pimcore\Model\DataObject\Fieldcollection\Data\FilterCategoryMultiselect;
+use Pimcore\Model\Element\ElementInterface;
 
 class MultiSelectCategory extends AbstractFilterType
 {
-    public function getFilterFrontend(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter)
+    public function getFilterValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, array $currentFilter): array
     {
         $rawValues = $productList->getGroupByValues($filterDefinition->getField(), true);
         $values = [];
 
+        /** @var array<string, boolean> $availableRelations */
         $availableRelations = [];
-        if ($filterDefinition->getAvailableCategories()) {
+        if (!$filterDefinition instanceof FilterCategoryMultiselect) {
+            throw new InvalidConfigException('invalid configuration');
+        }
+
+        if (method_exists($filterDefinition, 'getAvailableCategories') && $filterDefinition->getAvailableCategories()) {
+            /** @var ElementInterface $rel */
             foreach ($filterDefinition->getAvailableCategories() as $rel) {
-                $availableRelations[$rel->getId()] = true;
+                $availableRelations[(string) $rel->getId()] = true;
             }
         }
 
@@ -46,7 +56,7 @@ class MultiSelectCategory extends AbstractFilterType
             }
         }
 
-        return $this->render($this->getTemplate($filterDefinition), [
+        return [
             'hideFilter' => $filterDefinition->getRequiredFilterField() && empty($currentFilter[$filterDefinition->getRequiredFilterField()]),
             'label' => $filterDefinition->getLabel(),
             'currentValue' => $currentFilter[$filterDefinition->getField()],
@@ -54,7 +64,7 @@ class MultiSelectCategory extends AbstractFilterType
             'fieldname' => $filterDefinition->getField(),
             'metaData' => $filterDefinition->getMetaData(),
             'resultCount' => $productList->count(),
-        ]);
+        ];
     }
 
     public function addCondition(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter, $params, $isPrecondition = false)
@@ -65,13 +75,19 @@ class MultiSelectCategory extends AbstractFilterType
         if ($value == AbstractFilterType::EMPTY_STRING) {
             $value = null;
         } elseif (empty($value) && !$isReload) {
-            $value = $filterDefinition->getPreSelect();
+            $preSelect = false;
+            if (method_exists($filterDefinition, 'getPreSelect')) {
+                $preSelect = $filterDefinition->getPreSelect();
+            }
+
+            $value = $preSelect;
         }
 
         $currentFilter[$filterDefinition->getField()] = $value;
 
         $conditions = [];
         if (!empty($value)) {
+            $db = Db::get();
             foreach ($value as $category) {
                 if (is_object($category)) {
                     $category = $category->getId();
@@ -79,12 +95,17 @@ class MultiSelectCategory extends AbstractFilterType
 
                 $category = '%,' . trim($category) . ',%';
 
-                $conditions[] = $filterDefinition->getField() . ' LIKE ' . $productList->quote($category);
+                $conditions[] = $filterDefinition->getField() . ' LIKE ' . $db->quote($category);
             }
         }
 
         if (count($conditions)) {
-            if ($filterDefinition->getUseAndCondition()) {
+            $useAndCondition = false;
+            if (method_exists($filterDefinition, 'getUseAndCondition')) {
+                $useAndCondition = $filterDefinition->getUseAndCondition();
+            }
+
+            if ($useAndCondition) {
                 $conditions = implode(' AND ', $conditions);
             } else {
                 $conditions = '(' . implode(' OR ', $conditions) . ')';

@@ -19,8 +19,12 @@ use Pimcore\Config;
 use Pimcore\Event\Admin\ElementAdminStyleEvent;
 use Pimcore\Model\Document;
 use Pimcore\Model\Site;
+use Pimcore\Tool\Admin;
 use Pimcore\Tool\Frontend;
 
+/**
+ * @internal
+ */
 trait DocumentTreeConfigTrait
 {
     use AdminStyleTrait;
@@ -43,7 +47,8 @@ trait DocumentTreeConfigTrait
 
         $tmpDocument = [
             'id' => $childDocument->getId(),
-            'idx' => intval($childDocument->getIndex()),
+            'key' => $childDocument->getKey(),
+            'idx' => (int)$childDocument->getIndex(),
             'text' => $childDocument->getKey(),
             'type' => $childDocument->getType(),
             'path' => $childDocument->getRealFullPath(),
@@ -53,34 +58,45 @@ trait DocumentTreeConfigTrait
             'published' => $childDocument->isPublished(),
             'elementType' => 'document',
             'leaf' => true,
-            'permissions' => [
-                'view' => $childDocument->isAllowed('view'),
-                'remove' => $childDocument->isAllowed('delete'),
-                'settings' => $childDocument->isAllowed('settings'),
-                'rename' => $childDocument->isAllowed('rename'),
-                'publish' => $childDocument->isAllowed('publish'),
-                'unpublish' => $childDocument->isAllowed('unpublish'),
-                'create' => $childDocument->isAllowed('create'),
-            ],
         ];
 
+        $permissions =  $childDocument->getUserPermissions($this->getAdminUser());
+
+        $treeNodePermissionTypes = [
+            'view',
+            'remove'=>'delete',
+            'settings',
+            'rename',
+            'publish',
+            'unpublish',
+            'create',
+            'list',
+        ];
+
+        foreach ($treeNodePermissionTypes as $key => $permissionType) {
+            $permissionKey = is_string($key) ? $key : $permissionType;
+            $tmpDocument['permissions'][$permissionKey] = $permissions[$permissionType];
+        }
+
+        $hasChildren = $childDocument->getDao()->hasChildren(null, Admin::getCurrentUser());
+
         // add icon
-        $tmpDocument['expandable'] = $childDocument->hasChildren();
-        $tmpDocument['loaded'] = !$childDocument->hasChildren();
+        $tmpDocument['expandable'] = $hasChildren;
+        $tmpDocument['loaded'] = !$hasChildren;
 
         // set type specific settings
         if ($childDocument->getType() == 'page') {
             $tmpDocument['leaf'] = false;
-            $tmpDocument['expanded'] = !$childDocument->hasChildren();
+            $tmpDocument['expanded'] = !$hasChildren;
 
             // test for a site
             if ($site = Site::getByRootId($childDocument->getId())) {
-                unset($site->rootDocument);
-                $tmpDocument['site'] = $site;
+                $site->setRootDocument(null);
+                $tmpDocument['site'] = $site->getObjectVars();
             }
         } elseif ($childDocument->getType() == 'folder' || $childDocument->getType() == 'link' || $childDocument->getType() == 'hardlink') {
             $tmpDocument['leaf'] = false;
-            $tmpDocument['expanded'] = !$childDocument->hasChildren();
+            $tmpDocument['expanded'] = !$hasChildren;
         } elseif (method_exists($childDocument, 'getTreeNodeConfig')) {
             $tmp = $childDocument->getTreeNodeConfig();
             $tmpDocument = array_merge($tmpDocument, $tmp);
@@ -93,12 +109,7 @@ trait DocumentTreeConfigTrait
             $thumbnailFile = $childDocument->getPreviewImageFilesystemPath();
             // only if the thumbnail exists and isn't out of time
             if (file_exists($thumbnailFile) && filemtime($thumbnailFile) > ($childDocument->getModificationDate() - 20)) {
-                $tmpDocument['thumbnail'] = $this->generateUrl('pimcore_admin_page_display_preview_image', ['id' => $childDocument->getId()]);
-                $thumbnailFileHdpi = $childDocument->getPreviewImageFilesystemPath(true);
-                if (file_exists($thumbnailFileHdpi)) {
-                    $tmpDocument['thumbnailHdpi'] = $this->generateUrl('pimcore_admin_page_display_preview_image',
-                        ['id' => $childDocument->getId(), 'hdpi' => true]);
-                }
+                $tmpDocument['thumbnail'] = $this->generateUrl('pimcore_admin_document_page_display_preview_image', ['id' => $childDocument->getId()]);
             }
         }
 

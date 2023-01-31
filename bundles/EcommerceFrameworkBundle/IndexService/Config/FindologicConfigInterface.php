@@ -23,7 +23,7 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Worker\DefaultFindologi
 interface FindologicConfigInterface extends ConfigInterface
 {
     /**
-     * returns factfinder client parameters defined in the tenant config
+     * returns findologic client parameters defined in the tenant config
      *
      * @param string $setting
      *
@@ -34,7 +34,7 @@ interface FindologicConfigInterface extends ConfigInterface
     /**
      * returns condition for current subtenant
      *
-     * @return string
+     * @return array
      */
     public function getSubTenantCondition();
 
@@ -45,5 +45,3 @@ interface FindologicConfigInterface extends ConfigInterface
      */
     public function getTenantWorker();
 }
-
-class_alias(FindologicConfigInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config\IFindologicConfig');

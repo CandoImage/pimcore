@@ -15,8 +15,14 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class CharCounter extends AbstractOperator
+/**
+ * @internal
+ */
+final class CharCounter extends AbstractOperator
 {
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();

@@ -16,9 +16,10 @@
 namespace Pimcore\Bundle\AdminBundle\Controller\GDPR;
 
 use Pimcore\Bundle\AdminBundle\HttpFoundation\JsonResponse;
+use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Model\Tool\Email\Log;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\Routing\Annotation\Route;
 
 /**
@@ -26,17 +27,16 @@ use Symfony\Component\Routing\Annotation\Route;
  *
  * @Route("/sent-mail")
  *
- * @package GDPRDataExtractorBundle\Controller
+ * @internal
  */
-class SentMailController extends \Pimcore\Bundle\AdminBundle\Controller\AdminController
+class SentMailController extends \Pimcore\Bundle\AdminBundle\Controller\AdminController implements KernelControllerEventInterface
 {
     /**
-     * @param FilterControllerEvent $event
+     * {@inheritdoc}
      */
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelControllerEvent(ControllerEvent $event)
     {
-        $isMasterRequest = $event->isMasterRequest();
-        if (!$isMasterRequest) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
@@ -54,7 +54,10 @@ class SentMailController extends \Pimcore\Bundle\AdminBundle\Controller\AdminCon
     {
         $this->checkPermission('emails');
 
-        $sentMail = Log::getById($request->get('id'));
+        $sentMail = Log::getById((int) $request->get('id'));
+        if (!$sentMail) {
+            throw $this->createNotFoundException();
+        }
 
         $sentMailArray = (array)$sentMail;
         $sentMailArray['htmlBody'] = $sentMail->getHtmlLog();

@@ -18,19 +18,20 @@ declare(strict_types=1);
 namespace Pimcore\Http\Response;
 
 use Pimcore\Http\ResponseHelper;
+use Pimcore\Tool\DomCrawler;
 use Symfony\Component\HttpFoundation\Response;
 
 class CodeInjector
 {
-    const SELECTOR_BODY = 'body';
+    public const SELECTOR_BODY = 'body';
 
-    const SELECTOR_HEAD = 'head';
+    public const SELECTOR_HEAD = 'head';
 
-    const POSITION_BEGINNING = 'beginning';
+    public const POSITION_BEGINNING = 'beginning';
 
-    const POSITION_END = 'end';
+    public const POSITION_END = 'end';
 
-    const REPLACE = 'replace';
+    public const REPLACE = 'replace';
 
     private static $presetSelectors = [
         self::SELECTOR_HEAD,
@@ -48,11 +49,20 @@ class CodeInjector
      */
     private $responseHelper;
 
+    /**
+     * @param ResponseHelper $responseHelper
+     */
     public function __construct(ResponseHelper $responseHelper)
     {
         $this->responseHelper = $responseHelper;
     }
 
+    /**
+     * @param Response $response
+     * @param string $code
+     * @param string $selector
+     * @param string $position
+     */
     public function inject(Response $response, string $code, string $selector = self::SELECTOR_BODY, string $position = self::POSITION_END)
     {
         if (empty($code)) {
@@ -69,6 +79,17 @@ class CodeInjector
         $response->setContent($result);
     }
 
+    /**
+     * @internal
+     *
+     * @param string $html
+     * @param string $code
+     * @param string $selector
+     * @param string $position
+     * @param string $charset
+     *
+     * @return string
+     */
     public function injectIntoHtml(string $html, string $code, string $selector, string $position, string $charset = 'UTF-8'): string
     {
         if (!in_array($position, self::$validPositions)) {
@@ -121,26 +142,22 @@ class CodeInjector
 
     private function injectIntoDomSelector(string $html, string $code, string $selector, string $position, string $charset): string
     {
-        $dom = str_get_html($html);
-        if ($dom) {
-            $element = $dom->find($selector, 0);
-            if ($element) {
-                if (self::REPLACE === $position) {
-                    $element->innertext = $code;
-                } elseif (self::POSITION_BEGINNING === $position) {
-                    $element->innertext = $code . $element->innertext;
-                } elseif (self::POSITION_END === $position) {
-                    $element->innertext = $element->innertext . $code;
-                }
+        $dom = new DomCrawler($html);
+        $element = $dom->filter($selector)->eq(0);
+        if ($element->count() && $node = $element->getNode(0)) {
+            if (self::REPLACE === $position) {
+                $node->textContent = $code;
+            } elseif (self::POSITION_BEGINNING === $position) {
+                $node->textContent = $code . $element->html();
+            } elseif (self::POSITION_END === $position) {
+                $node->textContent = $element->html() . $code;
             }
-
-            $html = $dom->save();
-            $dom->clear();
-            unset($dom);
-
-            return trim($html);
         }
 
-        return $html;
+        $html = html_entity_decode($dom->outerHtml());
+        $dom->clear();
+        unset($dom);
+
+        return trim($html);
     }
 }

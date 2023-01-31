@@ -17,17 +17,17 @@ namespace Pimcore\Document\Adapter;
 
 use Pimcore\File;
 use Pimcore\Logger;
+use Pimcore\Model\Asset;
 use Pimcore\Tool\Console;
-use Symfony\Component\Lock\Factory as LockFactory;
+use Pimcore\Tool\Storage;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Process\Process;
 
+/**
+ * @internal
+ */
 class LibreOffice extends Ghostscript
 {
-    /**
-     * @var string
-     */
-    protected $path;
-
     /**
      * @return bool
      */
@@ -46,9 +46,7 @@ class LibreOffice extends Ghostscript
     }
 
     /**
-     * @param string $fileType
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function isFileTypeSupported($fileType)
     {
@@ -71,86 +69,74 @@ class LibreOffice extends Ghostscript
     }
 
     /**
-     * @param string $path
-     *
-     * @return $this
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function load($path)
+    public function load(Asset\Document $asset)
     {
-        $path = $this->preparePath($path);
-
         // avoid timeouts
         $maxExecTime = (int) ini_get('max_execution_time');
         if ($maxExecTime > 1 && $maxExecTime < 250) {
             set_time_limit(250);
         }
 
-        if (!$this->isFileTypeSupported($path)) {
-            $message = "Couldn't load document " . $path . ' only Microsoft/Libre/Open-Office/PDF documents are currently supported';
+        if (!$this->isFileTypeSupported($asset->getFilename())) {
+            $message = "Couldn't load document " . $asset->getRealFullPath() . ' only Microsoft/Libre/Open-Office/PDF documents are currently supported';
             Logger::error($message);
 
             throw new \Exception($message);
         }
 
+        $this->asset = $asset;
+
         // first we have to create a pdf out of the document (if it isn't already one), so that we can pass it to ghostscript
         // unfortunately there isn't any other way at the moment
-        if (!preg_match("/\.?pdf$/i", $path)) {
-            if (!parent::isFileTypeSupported($path)) {
-                $this->path = $this->getPdf($path);
+        if (!preg_match("/\.?pdf$/i", $asset->getFilename())) {
+            if (!parent::isFileTypeSupported($asset->getFilename())) {
+                $this->getPdf();
             }
-        } else {
-            $this->path = $path;
         }
-
-        parent::load($this->path);
 
         return $this;
     }
 
     /**
-     * @param string|null $path
-     *
-     * @return null|string
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function getPdf($path = null)
+    public function getPdf(?Asset\Document $asset = null)
     {
-        if ($path) {
-            $path = $this->preparePath($path);
-        }
-
-        $pdfPath = null;
-        if (!$path && $this->path) {
-            $path = $this->path;
+        if (!$asset && $this->asset) {
+            $asset = $this->asset;
         }
 
         try {
             // if the document is already an PDF, delegate the call directly to parent::getPdf() (Ghostscript)
-            if (parent::isFileTypeSupported($path)) {
-                return parent::getPdf($path);
+            if (parent::isFileTypeSupported($asset->getFilename())) {
+                return parent::getPdf($asset);
             }
         } catch (\Exception $e) {
             // nothing to do, delegate to libreoffice
         }
 
-        $pdfFile = PIMCORE_TEMPORARY_DIRECTORY . '/document-pdf-cache/document_' . md5($path . filemtime($path)) . '__libreoffice.pdf';
-        if (!is_dir(dirname($pdfFile))) {
-            File::mkdir(dirname($pdfFile));
-        }
+        $storagePath = sprintf(
+            '%s/%s/pdf-thumb__%s__libreoffice-document.png',
+            rtrim($asset->getRealPath(), '/'),
+            $asset->getId(),
+            $asset->getId(),
+        );
+        $storage = Storage::get('asset_cache');
 
         $lock = \Pimcore::getContainer()->get(LockFactory::class)->createLock('soffice');
-        if (!file_exists($pdfFile)) {
+        if (!$storage->fileExists($storagePath)) {
+            $localAssetTmpPath = $asset->getLocalFile();
 
             // a list of all available filters is here:
             // http://cgit.freedesktop.org/libreoffice/core/tree/filter/source/config/fragments/filters
             $cmd = [
                 self::getLibreOfficeCli(),
                 '--headless', '--nologo', '--nofirststartwizard',
+                '-env:UserInstallation=file:///' . ltrim(PIMCORE_SYSTEM_TEMP_DIRECTORY, '/') . '/libreoffice',
                 '--norestore', '--convert-to', 'pdf:writer_web_pdf_Export',
-                '--outdir', PIMCORE_SYSTEM_TEMP_DIRECTORY, $path,
+                '--outdir', PIMCORE_SYSTEM_TEMP_DIRECTORY, $localAssetTmpPath,
             ];
 
             $lock->acquire(true);
@@ -159,8 +145,8 @@ class LibreOffice extends Ghostscript
             $process->setTimeout(240);
             $process->start();
 
-            $tmpFile = PIMCORE_LOG_DIRECTORY . '/libreoffice-pdf-convert.log';
-            $tmpHandle = fopen($tmpFile, 'a');
+            $logFile = PIMCORE_LOG_DIRECTORY . '/libreoffice-pdf-convert.log';
+            $tmpHandle = fopen($logFile, 'a');
             $process->wait(function ($type, $buffer) use ($tmpHandle) {
                 fwrite($tmpHandle, $buffer);
             });
@@ -171,42 +157,45 @@ class LibreOffice extends Ghostscript
 
             Logger::debug('LibreOffice Output was: ' . $out);
 
-            $tmpName = PIMCORE_SYSTEM_TEMP_DIRECTORY . '/' . preg_replace("/\." . File::getFileExtension($path) . '$/', '.pdf', basename($path));
+            $tmpName = PIMCORE_SYSTEM_TEMP_DIRECTORY . '/' . preg_replace("/\." . File::getFileExtension($localAssetTmpPath) . '$/', '.pdf', basename($localAssetTmpPath));
             if (file_exists($tmpName)) {
-                File::rename($tmpName, $pdfFile);
-                $pdfPath = $pdfFile;
+                $storage->write($storagePath, file_get_contents($tmpName));
+                unlink($tmpName);
+                unlink($logFile);
             } else {
-                $message = "Couldn't convert document to PDF: " . $path . " with the command: '" . $process->getCommandLine() . "'";
+                $message = "Couldn't convert document to PDF: " . $asset->getRealFullPath() . " with the command: '" . $process->getCommandLine() . "'";
                 Logger::error($message);
 
                 throw new \Exception($message);
             }
-        } else {
-            $pdfPath = $pdfFile;
         }
 
-        return $pdfPath;
+        return $storage->readStream($storagePath);
     }
 
     /**
-     * @param int|null $page
-     * @param string|null $path
-     *
-     * @return string
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function getText($page = null, $path = null)
+    public function getText(?int $page = null, ?Asset\Document $asset = null)
     {
-        $path = $path ? $this->preparePath($path) : $this->path;
+        if (!$asset && $this->asset) {
+            $asset = $this->asset;
+        }
 
         if ($page) {
             // for per page extraction we have to convert the document to PDF and extract the text via ghostscript
-            return parent::getText($page, $this->getPdf($path));
+            return parent::getText($page, $asset);
         }
-        if (File::getFileExtension($path)) {
+
+        // if asset is pdf extract via ghostscript
+        if (parent::isFileTypeSupported($asset->getFilename())) {
+            return parent::getText(null, $asset);
+        }
+
+        if ($this->isFileTypeSupported($asset->getFilename())) {
+            $localAssetTmpPath = $asset->getLocalFile();
             // if we want to get the text of the whole document, we can use libreoffices text export feature
-            $cmd = [self::getLibreOfficeCli(), '--headless', '--nologo', '--nofirststartwizard', '--norestore', '--convert-to', 'txt:Text', '--outdir',  PIMCORE_TEMPORARY_DIRECTORY, $path];
+            $cmd = [self::getLibreOfficeCli(), '--headless', '--nologo', '--nofirststartwizard', '--norestore', '--convert-to', 'txt:Text', '--outdir',  PIMCORE_SYSTEM_TEMP_DIRECTORY, $localAssetTmpPath];
             Console::addLowProcessPriority($cmd);
             $process = new Process($cmd);
             $process->setTimeout(240);
@@ -215,7 +204,7 @@ class LibreOffice extends Ghostscript
 
             Logger::debug('LibreOffice Output was: ' . $out);
 
-            $tmpName = PIMCORE_TEMPORARY_DIRECTORY . '/' . preg_replace("/\." . File::getFileExtension($path) . '$/', '.txt', basename($path));
+            $tmpName = PIMCORE_SYSTEM_TEMP_DIRECTORY . '/' . preg_replace("/\." . File::getFileExtension($localAssetTmpPath) . '$/', '.txt', $localAssetTmpPath);
             if (file_exists($tmpName)) {
                 $text = file_get_contents($tmpName);
                 $text = \Pimcore\Tool\Text::convertToUTF8($text);
@@ -224,10 +213,10 @@ class LibreOffice extends Ghostscript
                 return $text;
             }
 
-            $message = "Couldn't convert document to Text: " . $path . " with the command: '" . $process->getCommandLine() . "' - now trying to get the text out of the PDF with ghostscript...";
+            $message = "Couldn't convert document to Text: " . $asset->getRealFullPath() . " with the command: '" . $process->getCommandLine() . "' - now trying to get the text out of the PDF with ghostscript...";
             Logger::notice($message);
 
-            return parent::getText(null, $this->getPdf($path));
+            return parent::getText(null, $asset);
         }
 
         return ''; // default empty string

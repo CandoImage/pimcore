@@ -19,12 +19,19 @@ use DeepCopy\TypeMatcher\TypeMatcher;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Element\Service;
 
+/**
+ * @internal
+ */
 class MarshalMatcher extends TypeMatcher
 {
-    /** @var string|null */
+    /**
+     * @var string|null
+     */
     private $sourceType;
 
-    /** @var int|null */
+    /**
+     * @var int|null
+     */
     private $sourceId;
 
     /**
@@ -47,7 +54,7 @@ class MarshalMatcher extends TypeMatcher
     public function matches($element): bool
     {
         if ($element instanceof ElementInterface) {
-            $elementType = Service::getType($element);
+            $elementType = Service::getElementType($element);
             if ($elementType === $this->sourceType && $element->getId() === $this->sourceId) {
                 return false;
             }
@@ -58,6 +65,3 @@ class MarshalMatcher extends TypeMatcher
         return false;
     }
 }
-
-//TODO: remove in Pimcore 10
-class_alias(MarshalMatcher::class, 'Pimcore\Model\Version\MarshalMatcher');

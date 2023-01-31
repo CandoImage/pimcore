@@ -18,6 +18,9 @@ namespace Pimcore\Model\DataObject\Traits;
 use Pimcore\Model\AbstractModel;
 use Pimcore\Model\DataObject\OwnerAwareFieldInterface;
 
+/**
+ * @internal
+ */
 trait ObjectVarTrait
 {
     /**
@@ -41,13 +44,13 @@ trait ObjectVarTrait
     }
 
     /**
-     * @param string $var
+     * @param string|null $var
      *
      * @return mixed
      */
     public function getObjectVar($var)
     {
-        if (!property_exists($this, $var)) {
+        if (!$var || !property_exists($this, $var)) {
             return null;
         }
 

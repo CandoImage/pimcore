@@ -16,8 +16,8 @@
 namespace Pimcore\Workflow\Place;
 
 use Pimcore\Workflow\Manager;
-use Symfony\Component\Templating\EngineInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Twig\Environment;
 
 class StatusInfo
 {
@@ -27,27 +27,30 @@ class StatusInfo
     private $workflowManager;
 
     /**
-     * @var EngineInterface $templatingEngine
+     * @var Environment
      */
-    private $templatingEngine;
+    private $twig;
 
     /**
      * @var TranslatorInterface
      */
     private $translator;
 
-    public function __construct(Manager $workflowManager, EngineInterface $templatingEngine, TranslatorInterface $translator)
+    public function __construct(Manager $workflowManager, Environment $twig, TranslatorInterface $translator)
     {
         $this->workflowManager = $workflowManager;
-        $this->templatingEngine = $templatingEngine;
+        $this->twig = $twig;
         $this->translator = $translator;
     }
 
+    /**
+     * @param object $subject
+     */
     public function getToolbarHtml($subject): string
     {
         $places = $this->getAllPlaces($subject, true);
 
-        return $this->templatingEngine->render(
+        return $this->twig->render(
             '@PimcoreCore/Workflow/statusinfo/toolbarStatusInfo.html.twig',
             [
                 'places' => $places,
@@ -56,11 +59,15 @@ class StatusInfo
         );
     }
 
+    /**
+     * @param object $subject
+     * @param string|null $workflowName
+     */
     public function getAllPalacesHtml($subject, string $workflowName = null): string
     {
         $places = $this->getAllPlaces($subject, false, $workflowName);
 
-        return $this->templatingEngine->render(
+        return $this->twig->render(
             '@PimcoreCore/Workflow/statusinfo/allPlacesStatusInfo.html.twig',
             [
                 'places' => $places,
@@ -69,6 +76,9 @@ class StatusInfo
         );
     }
 
+    /**
+     * @param object $subject
+     */
     public function getAllPlacesForCsv($subject, string $workflowName = null): string
     {
         $places = $this->getAllPlaces($subject, false, $workflowName);

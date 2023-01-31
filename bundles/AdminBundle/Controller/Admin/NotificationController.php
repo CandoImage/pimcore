@@ -30,6 +30,8 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * @Route("/notification")
+ *
+ * @internal
  */
 class NotificationController extends AdminController
 {
@@ -134,7 +136,7 @@ class NotificationController extends AdminController
     {
         $this->checkPermission('notifications');
 
-        $filter = ['recipient = ?' => (int) $this->getAdminUser()->getId()];
+        $filter = ['recipient' => (int) $this->getAdminUser()->getId()];
         $parser = new NotificationServiceFilterParser($request);
 
         foreach ($parser->parse() as $key => $val) {
@@ -193,7 +195,7 @@ class NotificationController extends AdminController
     }
 
     /**
-     * @Route("/mark-as-read", name="pimcore_admin_notification_markasread")
+     * @Route("/mark-as-read", name="pimcore_admin_notification_markasread", methods={"PUT"})
      *
      * @param Request $request
      * @param NotificationService $service
@@ -211,7 +213,7 @@ class NotificationController extends AdminController
     }
 
     /**
-     * @Route("/delete", name="pimcore_admin_notification_delete")
+     * @Route("/delete", name="pimcore_admin_notification_delete", methods={"DELETE"})
      *
      * @param Request $request
      * @param NotificationService $service
@@ -229,7 +231,7 @@ class NotificationController extends AdminController
     }
 
     /**
-     * @Route("/delete-all", name="pimcore_admin_notification_deleteall")
+     * @Route("/delete-all", name="pimcore_admin_notification_deleteall", methods={"DELETE"})
      *
      * @param Request $request
      * @param NotificationService $service

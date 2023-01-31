@@ -22,7 +22,7 @@ use Pimcore\Model\DataObject\Fieldcollection\Definition;
 class Model extends AbstractDefinitionHelper
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function _beforeSuite($settings = [])
     {
@@ -41,7 +41,6 @@ class Model extends AbstractDefinitionHelper
      */
     public function setupPimcoreClass_Csstore($params = [], $name = 'csstore', $filename = 'classificationstore.json')
     {
-
         /** @var ClassManager $cm */
         $cm = $this->getClassManager();
 
@@ -74,7 +73,6 @@ class Model extends AbstractDefinitionHelper
      */
     public function setupPimcoreClass_LazyLoading($name = 'LazyLoading', $filename = 'lazyloading/class_LazyLoading_export.json')
     {
-
         /** @var ClassManager $cm */
         $cm = $this->getClassManager();
 
@@ -230,7 +228,6 @@ class Model extends AbstractDefinitionHelper
      */
     public function setupPimcoreClass_RelationTest($name = 'RelationTest', $filename = 'relations/class_RelationTest_export.json')
     {
-
         /** @var ClassManager $cm */
         $cm = $this->getClassManager();
 
@@ -274,7 +271,6 @@ class Model extends AbstractDefinitionHelper
      */
     public function setupPimcoreClass_MultipleAssignments($name = 'MultipleAssignments', $filename = 'relations/class_MultipleAssignments_export.json')
     {
-
         /** @var ClassManager $cm */
         $cm = $this->getClassManager();
 
@@ -366,7 +362,7 @@ class Model extends AbstractDefinitionHelper
 
             $lblock->addChild($this->createDataChild('advancedManyToManyRelation', 'lblockadvancedRelations')
                 ->setAllowMultipleAssignments(false)
-                ->setDocumentTypes([])->setAssetTypes([])->setClasses(['Unittest'])
+                ->setDocumentTypes([])->setAssetTypes([])->setClasses(['unittest'])
                 ->setDocumentsAllowed(false)->setAssetsAllowed(false)->setObjectsAllowed(true)
                 ->setColumns([ ['position' => 1, 'key' => 'meta', 'type' => 'text', 'label' => 'meta'],
                 ]));
@@ -377,6 +373,47 @@ class Model extends AbstractDefinitionHelper
             $panel->addChild($lFields);
             $root->addChild($rootPanel);
             $class = $this->createClass($name, $root, $filename, true);
+        }
+
+        return $class;
+    }
+
+    /**
+     * Set up a class used for Link Test.
+     *
+     * @param string $name
+     * @param string $filename
+     *
+     * @return ClassDefinition|null
+     *
+     * @throws \Exception
+     */
+    public function setupPimcoreClass_Link($name = 'unittestLink', $filename = 'link-import.json')
+    {
+        /** @var ClassManager $cm */
+        $cm = $this->getClassManager();
+
+        if (!$class = $cm->getClass($name)) {
+            $root = new ClassDefinition\Layout\Panel();
+            $panel = (new ClassDefinition\Layout\Panel())->setName('MyLayout');
+            $rootPanel = (new ClassDefinition\Layout\Tabpanel())->setName('Layout');
+            $rootPanel->addChild($panel);
+
+            $link = new ClassDefinition\Data\Link();
+            $link->setName('testlink');
+
+            $lFields = new \Pimcore\Model\DataObject\ClassDefinition\Data\Localizedfields();
+            $lFields->setName('localizedfields');
+
+            $llink = new ClassDefinition\Data\Link();
+            $llink->setName('ltestlink');
+
+            $lFields->addChild($llink);
+
+            $panel->addChild($link);
+            $panel->addChild($lFields);
+            $root->addChild($rootPanel);
+            $class = $this->createClass($name, $root, $filename, true, null, false);
         }
 
         return $class;
@@ -394,7 +431,6 @@ class Model extends AbstractDefinitionHelper
      */
     public function setupPimcoreClass_Unittest($name = 'unittest', $filename = 'class-import.json')
     {
-
         /** @var ClassManager $cm */
         $cm = $this->getClassManager();
 
@@ -404,7 +440,58 @@ class Model extends AbstractDefinitionHelper
             $rootPanel = (new \Pimcore\Model\DataObject\ClassDefinition\Layout\Tabpanel())->setName('Layout');
             $rootPanel->addChild($panel);
 
+            $calculatedValue = $this->createDataChild('calculatedValue');
+            $calculatedValue->setCalculatorClass('@test.calculatorservice');
+            $panel->addChild($calculatedValue);
+
+            $calculatedValueExpression = $this->createDataChild('calculatedValue', 'calculatedValueExpression');
+            $calculatedValueExpression->setCalculatorExpression("object.getFirstname() ~ ' some calc'");
+            $calculatedValueExpression->setCalculatorType(ClassDefinition\Data\CalculatedValue::CALCULATOR_TYPE_EXPRESSION);
+            $panel->addChild($calculatedValueExpression);
+
+            $calculatedValueExpressionConstant = $this->createDataChild('calculatedValue', 'calculatedValueExpressionConstant');
+            $calculatedValueExpressionConstant->setCalculatorExpression("constant('PIMCORE_PROJECT_ROOT')");
+            $calculatedValueExpressionConstant->setCalculatorType(ClassDefinition\Data\CalculatedValue::CALCULATOR_TYPE_EXPRESSION);
+            $panel->addChild($calculatedValueExpressionConstant);
+
+            $panel->addChild($this->createDataChild('consent'));
+
+            $panel->addChild($this->createDataChild('country'));
+            $panel->addChild($this->createDataChild('countrymultiselect', 'countries'));
+
             $panel->addChild($this->createDataChild('date'));
+            $panel->addChild($this->createDataChild('datetime'));
+
+            $panel->addChild($this->createDataChild('email'));
+
+            /** @var ClassDefinition\Data\EncryptedField $encryptedField */
+            $encryptedField = $this->createDataChild('encryptedField');
+
+            $encryptedField->setDelegateDatatype('input');
+            $panel->addChild($encryptedField);
+
+            $panel->addChild($this->createDataChild('externalImage'));
+
+            $panel->addChild($this->createDataChild('firstname'));
+
+            $panel->addChild($this->createDataChild('gender'));
+
+            $panel->addChild($this->createDataChild('geopoint', 'point', false, false));
+            $panel->addChild($this->createDataChild('geobounds', 'bounds', false, false));
+            $panel->addChild($this->createDataChild('geopolygon', 'polygon', false, false));
+            $panel->addChild($this->createDataChild('geopolyline', 'polyline', false, false));
+
+            $panel->addChild($this->createDataChild('indexFieldSelection', 'indexFieldSelection', false, false));
+            $panel->addChild($this->createDataChild('indexFieldSelectionCombo', 'indexFieldSelectionCombo', false, false));
+            $panel->addChild($this->createDataChild('indexFieldSelectionField', 'indexFieldSelectionField', false, false));
+
+            $panel->addChild($this->createDataChild('imageGallery'));
+            $panel->addChild($this->createDataChild('input'));
+            /** @var ClassDefinition\Data\Input $inputWithDefault */
+            $inputWithDefault = $this->createDataChild('input', 'inputWithDefault');
+            $inputWithDefault->setDefaultValue('default');
+            $panel->addChild($inputWithDefault);
+
             $panel->addChild($this->createDataChild('manyToOneRelation', 'lazyHref')
                 ->setDocumentTypes([])->setAssetTypes([])->setClasses([])
                 ->setDocumentsAllowed(true)->setAssetsAllowed(true)->setObjectsAllowed(true));
@@ -427,7 +514,11 @@ class Model extends AbstractDefinitionHelper
             $panel->addChild($this->createDataChild('manyToManyObjectRelation', 'objects')
                 ->setClasses([]));
 
-            //TODO add test
+            $panel->addChild($this->createDataChild('newsletterActive', 'newsletterActive', false, false));
+            $panel->addChild($this->createDataChild('newsletterConfirmed', 'newsletterConfirmed', false, false));
+
+            $panel->addChild($this->createDataChild('inputQuantityValue'));
+            $panel->addChild($this->createDataChild('quantityValue'));
 
             $panel->addChild($this->createDataChild('advancedManyToManyObjectRelation', 'objectswithmetadata')
                 ->setAllowedClassId($name)
@@ -435,20 +526,28 @@ class Model extends AbstractDefinitionHelper
                 ->setColumns([ ['position' => 1, 'key' => 'meta1', 'type' => 'text', 'label' => 'label1'],
                     ['position' => 2, 'key' => 'meta2', 'type' => 'text', 'label' => 'label2'], ]));
 
-            $panel->addChild($this->createDataChild('slider'));
+            $panel->addChild($this->createDataChild('lastname'));
+
             $panel->addChild($this->createDataChild('numeric', 'number'));
-            $panel->addChild($this->createDataChild('geopoint', 'point'));
-            $panel->addChild($this->createDataChild('geobounds', 'bounds'));
-            $panel->addChild($this->createDataChild('geopolygon', 'poly'));
-            $panel->addChild($this->createDataChild('datetime'));
-            $panel->addChild($this->createDataChild('time'));
-            $panel->addChild($this->createDataChild('input'));
-            $panel->addChild($this->createDataChild('password'));
-            $panel->addChild($this->createDataChild('textarea'));
-            $panel->addChild($this->createDataChild('wysiwyg'));
+
+            $passwordField = $this->createDataChild('password');
+            $passwordField->setAlgorithm(ClassDefinition\Data\Password::HASH_FUNCTION_PASSWORD_HASH);
+            $panel->addChild($passwordField);
+
+            $panel->addChild($this->createDataChild('rgbaColor', 'rgbaColor', false, false));
+
             $panel->addChild($this->createDataChild('select')->setOptions([
                 ['key' => 'Selection 1', 'value' => '1'],
                 ['key' => 'Selection 2', 'value' => '2'], ]));
+
+            $panel->addChild($this->createDataChild('slider'));
+
+            $panel->addChild($this->createDataChild('textarea'));
+            $panel->addChild($this->createDataChild('time'));
+
+            $panel->addChild($this->createDataChild('wysiwyg'));
+
+            $panel->addChild($this->createDataChild('video', 'video', false, false));
 
             $panel->addChild($this->createDataChild('multiselect')->setOptions([
                 ['key' => 'Katze', 'value' => 'cat'],
@@ -460,8 +559,6 @@ class Model extends AbstractDefinitionHelper
                 ['key' => 'Huhn', 'value' => 'chicken'],
             ]));
 
-            $panel->addChild($this->createDataChild('country'));
-            $panel->addChild($this->createDataChild('countrymultiselect', 'countries'));
             $panel->addChild($this->createDataChild('language', 'languagex'));
             $panel->addChild($this->createDataChild('languagemultiselect', 'languages'));
             $panel->addChild($this->createDataChild('user'));
@@ -471,7 +568,7 @@ class Model extends AbstractDefinitionHelper
             $panel->addChild($this->createDataChild('checkbox'));
             $panel->addChild($this->createDataChild('booleanSelect'));
             $panel->addChild($this->createDataChild('table'));
-            $panel->addChild($this->createDataChild('structuredTable', 'structuredtable')
+            $panel->addChild($this->createDataChild('structuredTable', 'structuredtable', false, false)
                 ->setCols([
                     ['position' => 1, 'key' => 'col1', 'type' => 'number', 'label' => 'collabel1'],
                     ['position' => 2, 'key' => 'col2', 'type' => 'text', 'label' => 'collabel2'],
@@ -484,7 +581,7 @@ class Model extends AbstractDefinitionHelper
             );
             $panel->addChild($this->createDataChild('fieldcollections', 'fieldcollection')
                 ->setAllowedTypes(['unittestfieldcollection']));
-            $panel->addChild($this->createDataChild('reverseObjectRelation', 'nonowner'));
+            $panel->addChild($this->createDataChild('reverseObjectRelation', 'nonowner')->setOwnerClassName($name)->setOwnerFieldName('objects'));
             $panel->addChild($this->createDataChild('fieldcollections', 'myfieldcollection')
                 ->setAllowedTypes(['unittestfieldcollection']));
 
@@ -545,7 +642,6 @@ class Model extends AbstractDefinitionHelper
      */
     public function setupPimcoreClass_Inheritance($name = 'inheritance', $filename = 'inheritance.json')
     {
-
         /** @var ClassManager $cm */
         $cm = $this->getClassManager();
 
@@ -575,6 +671,10 @@ class Model extends AbstractDefinitionHelper
             $panel->addChild($otherPanel);
             $panel->addChild($this->createDataChild('objectbricks', 'mybricks'));
 
+            $csField = $this->createDataChild('classificationstore', 'teststore');
+            $csField->setStoreId(1);
+            $panel->addChild($csField);
+
             $root->addChild($rootPanel);
             $class = $this->createClass($name, $root, $filename, true);
         }
@@ -588,10 +688,11 @@ class Model extends AbstractDefinitionHelper
      * @param string $filename
      * @param bool $inheritanceAllowed
      * @param string|null $id
+     * @param bool $generateTypeDeclarations
      *
      * @return ClassDefinition
      */
-    protected function createClass($name, $layout, $filename, $inheritanceAllowed = false, $id = null)
+    protected function createClass($name, $layout, $filename, $inheritanceAllowed = false, $id = null, $generateTypeDeclarations = true)
     {
         $cm = $this->getClassManager();
         $def = new ClassDefinition();
@@ -602,7 +703,7 @@ class Model extends AbstractDefinitionHelper
         $def->setName($name);
         $def->setLayoutDefinitions($layout);
         $def->setAllowInherit($inheritanceAllowed);
-        $def->setGenerateTypeDeclarations(true);
+        $def->setGenerateTypeDeclarations($generateTypeDeclarations);
         $json = ClassDefinition\Service::generateClassDefinitionJson($def);
         $cm->saveJson($filename, $json);
 
@@ -989,6 +1090,8 @@ class Model extends AbstractDefinitionHelper
      */
     public function initializeDefinitions()
     {
+        $this->setupQuantityValueUnits();
+
         $cm = $this->getClassManager();
 
         $this->setupUnitDefinitions();
@@ -999,5 +1102,24 @@ class Model extends AbstractDefinitionHelper
         $this->setupPimcoreClass_RelationTest();
 
         $this->setupObjectbrick_UnittestBrick();
+    }
+
+    private function setupUnit($abbr)
+    {
+        $unit = DataObject\QuantityValue\Unit::getByAbbreviation($abbr);
+        if (!$unit) {
+            $unit = new DataObject\QuantityValue\Unit();
+            $unit->setAbbreviation($abbr);
+            $unit->save();
+        }
+    }
+
+    public function setupQuantityValueUnits()
+    {
+        $this->setupUnit('mm');
+        $this->setupUnit('cm');
+        $this->setupUnit('dm');
+        $this->setupUnit('m');
+        $this->setupUnit('km');
     }
 }

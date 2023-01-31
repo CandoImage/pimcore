@@ -39,7 +39,7 @@ to let elasticsearch know about the sub-documents:
     options:
         mapping:
             type: 'nested'
-    interpreter_id: AppBundle\Ecommerce\IndexService\Interpreter\MyAttributes
+    interpreter_id: App\Ecommerce\IndexService\Interpreter\MyAttributes
     interpreter_options:
         locale: '%%locale%%'
 ```
@@ -51,7 +51,7 @@ class SelectMyAttribute extends \Pimcore\Bundle\EcommerceFrameworkBundle\FilterS
 {
     public function prepareGroupByValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList)
     {
-        /* @var AbstractElasticSearch $productList */
+        /** @var AbstractElasticSearch $productList */
 
         $nestedPath = "attributes.my_attributes";
 
@@ -115,27 +115,20 @@ class SelectMyAttribute extends \Pimcore\Bundle\EcommerceFrameworkBundle\FilterS
         $productList->addCondition($condition, $this->getField($filterDefinition));
     }
 
-    /**
-     * @param AbstractFilterDefinitionType $filterDefinition
-     * @param ProductListInterface $productList
-     * @param array $currentFilter
-     * @return string
-     * @throws \Exception
-     */
-    public function getFilterFrontend(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter)
+    public function getFilterValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, array $currentFilter): array
     {
         $field = $this->getField($filterDefinition);
         $this->prepareGroupByValues($filterDefinition, $productList);
 
         $values = $productList->getGroupByValues($field, true, !$filterDefinition->getUseAndCondition());
-        return $this->render($this->getTemplate($filterDefinition), [
+
+        return [
             'label' => $filterDefinition->getLabel(),
             'values' => $values,
             'metaData' => $filterDefinition->getMetaData(),
-            'hasValue' => $this->hasValue
-        ]);
+            'hasValue' => $this->hasValue,
+        ];
     }
-
 }
 ```
 

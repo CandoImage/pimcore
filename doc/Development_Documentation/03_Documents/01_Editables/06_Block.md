@@ -12,6 +12,7 @@ The items in the loop as well as their order can be defined by the editor with t
 | Name        | Type      | Description                                                                                                                  |
 |-------------|-----------|------------------------------------------------------------------------------------------------------------------------------|
 | `limit`     | integer   | Max. amount of iterations.                                                                                                   |
+| `reload`    | bool      | Reload editmode on add, move or remove (default=false)                                                                       |
 | `default`   | integer   | If block is empty, this specifies the iterations at startup.                                                                 |
 | `manual`    | bool      | Forces the manual mode, which enables a complete custom HTML implementation for blocks, for example using `<table>` elements |
 | `class`     | string    | A CSS class that is added to the surrounding container of this element in editmode                                           |
@@ -35,29 +36,12 @@ The items in the loop as well as their order can be defined by the editor with t
 
 ## Basic Usage
 
-Please use the `loop()` method to iterate through all block elements. This makes sure the correct indices are set internally
-to reference the right elements within a block.
-
-As Twig does not provide a `while` construct, there's a specialized function `pimcore_iterate_block` which allows you
-to iterate through all block elements.
-
-<div class="code-section">
-
-```php
-<?php while($this->block("contentblock")->loop()) { ?>
-    <h2><?= $this->input("subline"); ?></h2>
-    <?= $this->wysiwyg("content"); ?>
-<?php } ?>
-```
-
 ```twig
-{% for i in pimcore_iterate_block(pimcore_block('contentblock')) %}
+{% for i in pimcore_block('contentblock').iterator %}
     <h2>{{ pimcore_input('subline') }}</h2>
     {{ pimcore_wysiwyg('content') }}
 {% endfor %}
 ```
-
-</div>
 
 The result in editmode should looks like to following: 
 ![Block in editmode](../../img/block_editmode.png)
@@ -66,74 +50,32 @@ And in the frontend of the application:
 ![Block in the frontend](../../img/block_frontend_preview.png)
 
 ## Advanced Usage
-### Advanced Usage with Different Includes.
-
-```php
-<?php while($this->block("contentblock")->loop()) { ?>
-    <?php if($this->editmode) { ?>
-        <?= $this->select("blocktype", [
-            "store" => [
-                ["wysiwyg", "WYSIWYG"],
-                ["contentimages", "WYSIWYG with images"],
-                ["video", "Video"]
-            ],
-            "reload" => true
-        ]); ?>
-    <?php } ?>
-     
-    <?php if(!$this->select("blocktype")->isEmpty()) {
-        $this->template("content/blocks/".$this->select("blocktype")->getData().".php");
-    } ?>
-<?php } ?>
- 
-<?php while($this->block("teasers", ["limit" => 2])->loop()) { ?>
-    <?= $this->snippet("teaser") ?>
-<?php } ?>
-```
 
 ### Example for `getCurrent()`
-```php
-<?php while ($this->block("myBlock")->loop()) { ?>
-    <?php if ($this->block("myBlock")->getCurrent() > 0) { ?>
+
+```twig
+{% set myBlock = pimcore_block('contentblock', {'reload': true}) %}
+{% for i in myBlock.iterator %}
+    {% if myBlock.current > 0 %}
         Insert this line only after the first iteration<br />
         <br />
-    <?php } ?>
-    <h2><?= $this->input("subline"); ?></h2>
-     
-<?php } ?>
+    {% endif %}
+    <h2>{{ pimcore_input('subline') }}</h2>
+{% endfor %}
 ```
+
+> **IMPORTANT**
+> If you want to change content structure dynamically for each index in editmode, then it is required to use `reload=true` config.
 
 ### Using Manual Mode
 
 The manual mode offers you the possibility to deal with block the way you like, this is for example useful with tables: 
 
-<div class="code-section">
-
-```php
-<?php $block = $this->block("gridblock", ["manual" => true])->start(); ?>
-<table>
-    <tr>
-        <?php while ($block->loop()) { ?>
-            <?php $block->blockConstruct(); ?>
-                <td customAttribute="<?= $this->input("myInput")->getData() ?>">
-                    <?php $block->blockStart(); ?>
-                        <div style="width:200px; height:200px;border:1px solid black;">
-                            <?= $this->input("myInput"); ?>
-                        </div>
-                    <?php $block->blockEnd(); ?>
-                </td>
-            <?php $block->blockDestruct(); ?>
-        <?php } ?>
-    </tr>
-</table>
-<?php $block->end(); ?>
-```
-
 ```twig
 {% set block = pimcore_block('gridblock', {'manual' : true, 'limit' : 6}).start() %}
 <table>
     <tr>
-        {% for b in pimcore_iterate_block(block) %}
+        {% for b in block.iterator %}
             {% do block.blockConstruct() %}
               <td customAttribute="{{ pimcore_input("myInput").getData() }}">
                     {% do block.blockStart() %}
@@ -149,33 +91,47 @@ The manual mode offers you the possibility to deal with block the way you like, 
 {% do block.end() %}
 ```
 
-</div>
-
 ### Using Manual Mode with custom button position
 
 If you want to wrap buttons in a div or change the Position.
 
-```php
-<?php $block = $this->block("gridblock", ["manual" => true])->start(); ?>
+```twig
+{% set block = pimcore_block("gridblock", {"manual": true}).start() %}
 <table>
     <tr>
-        <?php while ($block->loop()) { ?>
-            <?php $block->blockConstruct(); ?>
-                <td customAttribute="<?= $this->input("myInput")->getData() ?>">
-                    <?php $block->blockStart('false'); ?>
+        {% for b in block.iterator %}
+            {% do block.blockConstruct() %}
+                <td customAttribute="{{ pimcore_input("myInput").data }}">
+                    {% do block.blockStart(false) %}
                         <div style="background-color: #fc0; margin-bottom: 10px; padding: 5px; border: 1px solid black;">
-                            <?php $block->blockControls(); ?>
+                            {% do block.blockControls() %}
                         </div>
                         <div style="width:200px; height:200px;border:1px solid black;">
-                            <?= $this->input("myInput"); ?>
+                            {{ pimcore_input("myInput") }}
                         </div>
-                    <?php $block->blockEnd(); ?>
+                    {% do block.blockEnd() %}
                 </td>
-            <?php $block->blockDestruct(); ?>
-        <?php } ?>
+            {% do block.blockDestruct() %}
+        {% endfor %}
     </tr>
 </table>
-<?php $block->end(); ?>
+{% do block.end() %}
+```
+
+### Using Manual Mode with additional css class for element in editmode
+
+```twig
+{% set block = pimcore_block("gridblock", {"manual": true}).start() %}
+<div>
+    {% for b in block.iterator %}
+        {% do block.blockConstruct() %}
+            {% do block.blockStart(true, false, 'my-additional-class') %}
+                Add additional class 'my-addional-class' to editmode-div
+            {% do block.blockEnd() %}
+        {% do block.blockDestruct() %}
+    {% endfor %}
+</div>
+{% do block.end() %}
 ```
 
 
@@ -183,19 +139,14 @@ If you want to wrap buttons in a div or change the Position.
 
 Bricks and structure refer to the CMS demo (content/default template).
 
-```php
-<?php
-// load document
-$document = \Pimcore\Model\Document\Page::getByPath('/en/basic-examples/galleries');
- 
-// Bsp #1 | get the first picture from the first "gallery-single-images" brick
-$image = $document
-    ->getElement('content')                             // view.html.php > $this->areablock('content')
-        ->getElement('gallery-single-images')[0]        // get the first entry for this brick
-            ->getBlock('gallery')->getElements()[0]     // view.html.php > $this->block("gallery")->loop()
-                ->getImage('image')                     // view.html.php > $this->image("image")
-;
- 
- 
-var_dump("Bsp #1: " . $image->getSrc());
+```twig
+
+{# load document #}
+{% set document = pimcore_document_by_path('/en/More-Stuff/Developers-Corner/Galleries') %}
+
+{# get the first picture from the first "gallery-carousel" brick #}
+{% set image = document.getEditable('content').getElement('gallery-single-images')[5].getBlock('gallery').getElements()[0].getImage('image') %}
+
+{{ dump(document.getEditable('content').getElement('gallery-single-images')) }}
+{{ dump(image.getSrc()) }}
 ```

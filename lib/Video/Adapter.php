@@ -15,6 +15,9 @@
 
 namespace Pimcore\Video;
 
+/**
+ * @internal
+ */
 abstract class Adapter
 {
     /**
@@ -31,6 +34,11 @@ abstract class Adapter
      * @var string
      */
     public $format;
+
+    /**
+     * @var array
+     */
+    public $medias;
 
     /**
      * @var string
@@ -116,6 +124,22 @@ abstract class Adapter
     abstract public function destroy();
 
     /**
+     * @return array|null
+     */
+    public function getMedias()
+    {
+        return $this->medias;
+    }
+
+    /**
+     * @param array|null $medias
+     */
+    public function setMedias($medias)
+    {
+        $this->medias = $medias;
+    }
+
+    /**
      * @param string $format
      *
      * @return $this
@@ -192,14 +216,12 @@ abstract class Adapter
     }
 
     /**
-     * @return float
-     *
-     * @throws \Exception
+     * @return float|null
      */
     abstract public function getDuration();
 
     /**
-     * @return array
+     * @return array|null
      */
     abstract public function getDimensions();
 }

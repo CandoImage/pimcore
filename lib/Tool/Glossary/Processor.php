@@ -22,7 +22,11 @@ use Pimcore\Http\RequestHelper;
 use Pimcore\Model\Document;
 use Pimcore\Model\Glossary;
 use Pimcore\Model\Site;
+use Pimcore\Tool\DomCrawler;
 
+/**
+ * @internal
+ */
 class Processor
 {
     /**
@@ -43,10 +47,7 @@ class Processor
     /**
      * @var array
      */
-    private $blockedTags = [
-        'a', 'script', 'style', 'code', 'pre', 'textarea', 'acronym',
-        'abbr', 'option', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    ];
+    private $blockedTags = [];
 
     /**
      * @param RequestHelper $requestHelper
@@ -56,11 +57,13 @@ class Processor
     public function __construct(
         RequestHelper $requestHelper,
         EditmodeResolver $editmodeResolver,
-        DocumentResolver $documentResolver
+        DocumentResolver $documentResolver,
+        array $blockedTags = [],
     ) {
         $this->requestHelper = $requestHelper;
         $this->editmodeResolver = $editmodeResolver;
         $this->documentResolver = $documentResolver;
+        $this->blockedTags = $blockedTags;
     }
 
     /**
@@ -73,7 +76,20 @@ class Processor
      */
     public function process(string $content, array $options): string
     {
-        $data = $this->getData();
+        if ($this->editmodeResolver->isEditmode()) {
+            return $content;
+        }
+
+        $locale = $this->requestHelper->getMainRequest()->getLocale();
+        $currentDocument = $this->documentResolver->getDocument();
+        $uri = $this->requestHelper->getMainRequest()->getRequestUri();
+
+        return $this->parse($content, $options, $locale, $currentDocument, $uri);
+    }
+
+    public function parse(string $content, array $options, string $locale, ?Document $document, ?string $uri): string
+    {
+        $data = $this->getData($locale);
         if (empty($data)) {
             return $content;
         }
@@ -82,45 +98,32 @@ class Processor
             'limit' => -1,
         ], $options);
 
-        if ($this->editmodeResolver->isEditmode()) {
-            return $content;
-        }
-
         // why not using a simple str_ireplace(array(), array(), $subject) ?
-        // because if you want to replace the terms "Donec vitae" and "Donec" you will get nested links, so the content of the html must be reloaded every searchterm to ensure that there is no replacement within a blocked tag
-        // kind of a hack but,
-        // changed to this because of that: http://www.pimcore.org/issues/browse/PIMCORE-687
-        $html = str_get_html($content);
-        if (!$html) {
-            return $content;
-        }
-
-        $es = $html->find('text');
+        // because if you want to replace the terms "Donec vitae" and "Donec" you will get nested links, so the content
+        // of the html must be reloaded every search term to ensure that there is no replacement within a blocked tag
+        $html = new DomCrawler($content);
+        $es = $html->filterXPath('//*[normalize-space(text())]');
 
         $tmpData = [
             'search' => [],
             'replace' => [],
         ];
 
-        // get initial document from request (requested document, if it was a "document" request)
-        $currentDocument = $this->documentResolver->getDocument();
-        $currentUri = $this->requestHelper->getMasterRequest()->getRequestUri();
-
         foreach ($data as $entry) {
-            if ($currentDocument && $currentDocument instanceof Document) {
+            if ($document instanceof Document) {
                 // check if the current document is the target link (id check)
-                if ($entry['linkType'] == 'internal' && $currentDocument->getId() == $entry['linkTarget']) {
+                if ($entry['linkType'] == 'internal' && $document->getId() == $entry['linkTarget']) {
                     continue;
                 }
 
                 // check if the current document is the target link (path check)
-                if ($currentDocument->getFullPath() == rtrim($entry['linkTarget'], ' /')) {
+                if ($document->getFullPath() == rtrim($entry['linkTarget'], ' /')) {
                     continue;
                 }
             }
 
             // check if the current URI is the target link (path check)
-            if ($currentUri == rtrim($entry['linkTarget'], ' /')) {
+            if ($uri === rtrim($entry['linkTarget'], ' /')) {
                 continue;
             }
 
@@ -131,9 +134,15 @@ class Processor
         $data = $tmpData;
         $data['count'] = array_fill(0, count($data['search']), 0);
 
-        foreach ($es as $e) {
-            $text = $e->innertext;
-            if (!in_array((string)$e->parent()->tag, $this->blockedTags) && strlen(trim($text))) {
+        $es->each(function ($parentNode, $i) use ($options, $data) {
+            /** @var DomCrawler|null $parentNode */
+            $text = htmlentities($parentNode->text(), ENT_XML1);
+            if (
+                $parentNode instanceof DomCrawler &&
+                !in_array((string)$parentNode->nodeName(), $this->blockedTags) &&
+                strlen(trim($text))
+            ) {
+                $originalText = $text;
                 if ($options['limit'] < 0) {
                     $text = preg_replace($data['search'], $data['replace'], $text);
                 } else {
@@ -146,12 +155,18 @@ class Processor
                     }
                 }
 
-                $e->innertext = $text;
+                if ($originalText !== $text) {
+                    $domNode = $parentNode->getNode(0);
+                    $fragment = $domNode->ownerDocument->createDocumentFragment();
+                    $fragment->appendXML($text);
+                    $clone = $domNode->cloneNode();
+                    $clone->appendChild($fragment);
+                    $domNode->parentNode->replaceChild($clone, $domNode);
+                }
             }
-        }
+        });
 
-        $result = $html->save();
-
+        $result = $html->html();
         $html->clear();
         unset($html);
 
@@ -159,15 +174,12 @@ class Processor
     }
 
     /**
+     * @param string $locale
+     *
      * @return array
      */
-    private function getData(): array
+    private function getData(string $locale): array
     {
-        $locale = $this->requestHelper->getMasterRequest()->getLocale();
-        if (!$locale) {
-            return [];
-        }
-
         $siteId = '';
         if (Site::isSiteRequest()) {
             $siteId = Site::getCurrentSite()->getId();
@@ -175,8 +187,8 @@ class Processor
 
         $cacheKey = 'glossary_' . $locale . '_' . $siteId;
 
-        if (Cache\Runtime::isRegistered($cacheKey)) {
-            return Cache\Runtime::get($cacheKey);
+        if (Cache\RuntimeCache::isRegistered($cacheKey)) {
+            return Cache\RuntimeCache::get($cacheKey);
         }
 
         if (!$data = Cache::load($cacheKey)) {
@@ -189,7 +201,7 @@ class Processor
             $data = $this->prepareData($data);
 
             Cache::save($data, $cacheKey, ['glossary'], null, 995);
-            Cache\Runtime::set($cacheKey, $data);
+            Cache\RuntimeCache::set($cacheKey, $data);
         }
 
         return $data;
@@ -207,9 +219,10 @@ class Processor
         // fix htmlentities issues
         $tmpData = [];
         foreach ($data as $d) {
-            if ($d['text'] != htmlentities($d['text'], null, 'UTF-8')) {
+            $text = htmlentities($d['text'], ENT_COMPAT, 'UTF-8');
+            if ($d['text'] !== $text) {
                 $td = $d;
-                $td['text'] = htmlentities($d['text'], null, 'UTF-8');
+                $td['text'] = $text;
                 $tmpData[] = $td;
             }
 
@@ -220,15 +233,13 @@ class Processor
 
         // prepare data
         foreach ($data as $d) {
-            if (!($d['link'] || $d['abbr'] || $d['acronym'])) {
+            if (!($d['link'] || $d['abbr'])) {
                 continue;
             }
 
             $r = $d['text'];
             if ($d['abbr']) {
                 $r = '<abbr class="pimcore_glossary" title="' . $d['abbr'] . '">' . $r . '</abbr>';
-            } elseif ($d['acronym']) {
-                $r = '<acronym class="pimcore_glossary" title="' . $d['acronym'] . '">' . $r . '</acronym>';
             }
 
             $linkType = '';
@@ -238,7 +249,7 @@ class Processor
                 $linkType = 'external';
                 $linkTarget = $d['link'];
 
-                if (intval($d['link'])) {
+                if ((int)$d['link']) {
                     if ($doc = Document::getById($d['link'])) {
                         $d['link'] = $doc->getFullPath();
 

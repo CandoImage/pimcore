@@ -27,7 +27,7 @@ use Twig\TwigFunction;
 use Twig\TwigTest;
 
 /**
- * Simple helpers that do not need a dedicated extension
+ * @internal
  */
 class HelpersExtension extends AbstractExtension
 {
@@ -41,6 +41,9 @@ class HelpersExtension extends AbstractExtension
         $this->pimcoreUrlHelper = $pimcoreUrlHelper;
     }
 
+    /**
+     * @return array
+     */
     public function getFilters()
     {
         return [
@@ -48,13 +51,16 @@ class HelpersExtension extends AbstractExtension
         ];
     }
 
-    public function getFunctions()
+    /**
+     * {@inheritDoc}
+     */
+    public function getFunctions(): array
     {
         return [
             new TwigFunction('pimcore_video_is_available', [Video::class, 'isAvailable']),
             new TwigFunction('pimcore_document_is_available', [Document::class, 'isAvailable']),
             new TwigFunction('pimcore_file_exists', function ($file) {
-                return file_exists($file);
+                return is_file($file);
             }),
             new TwigFunction('pimcore_file_extension', [File::class, 'getFileExtension']),
             new TwigFunction('pimcore_image_version_preview', [$this, 'getImageVersionPreview']),
@@ -68,6 +74,9 @@ class HelpersExtension extends AbstractExtension
         ];
     }
 
+    /**
+     * @return array
+     */
     public function getTests()
     {
         return [

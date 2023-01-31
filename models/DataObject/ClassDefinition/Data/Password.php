@@ -25,7 +25,6 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
     use DataObject\Traits\SimpleComparisonTrait;
     use Extension\ColumnType;
     use Extension\QueryColumnType;
-    use DataObject\ClassDefinition\NullablePhpdocReturnTypeTrait;
     use DataObject\Traits\SimpleNormalizerTrait;
 
     const HASH_FUNCTION_PASSWORD_HASH = 'password_hash';
@@ -33,17 +32,23 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'password';
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
-    public $width;
+    public $width = 0;
 
     /**
      * Type for the column to query
+     *
+     * @internal
      *
      * @var string
      */
@@ -52,34 +57,40 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * Type for the column
      *
+     * @internal
+     *
      * @var string
      */
     public $columnType = 'varchar(255)';
 
     /**
-     * Type for the generated phpdoc
+     * @internal
      *
-     * @var string
-     */
-    public $phpdocType = 'string';
-
-    /**
      * @var string
      */
     public $algorithm = self::HASH_FUNCTION_PASSWORD_HASH;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $salt = '';
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $saltlocation = '';
 
     /**
-     * @return int
+     * @var int|null
+     */
+    public $minimumLength;
+
+    /**
+     * @return string|int
      */
     public function getWidth()
     {
@@ -87,15 +98,34 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
     }
 
     /**
-     * @param int $width
+     * @param string|int $width
      *
      * @return $this
      */
     public function setWidth($width)
     {
-        $this->width = $this->getAsIntegerCast($width);
+        if (is_numeric($width)) {
+            $width = (int)$width;
+        }
+        $this->width = $width;
 
         return $this;
+    }
+
+    /**
+     * @return int|null
+     */
+    public function getMinimumLength(): ?int
+    {
+        return $this->minimumLength;
+    }
+
+    /**
+     * @param int|null $minimumLength
+     */
+    public function setMinimumLength(?int $minimumLength): void
+    {
+        $this->minimumLength = $minimumLength;
     }
 
     /**
@@ -196,7 +226,7 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
             ? $params['owner']
             : ($object ?: null);
 
-        if (null !== $passwordModel) {
+        if (null !== $passwordModel && !$passwordModel instanceof DataObject\Classificationstore && !$passwordModel instanceof DataObject\Localizedfield) {
             $setter = 'set' . ucfirst($this->getName());
             $passwordModel->$setter($hashed);
         }
@@ -206,6 +236,8 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
 
     /**
      * Calculate hash according to configured parameters
+     *
+     * @internal
      *
      * @param string $data
      *
@@ -238,6 +270,8 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
      * from the ones which were used to create the hash (e.g. cost was increased from 10 to 12).
      * In this case, the hash will be re-calculated with the new parameters and saved back to the object.
      *
+     * @internal
+     *
      * @param string $password
      * @param DataObject\Concrete $object
      * @param bool|true $updateHash
@@ -268,7 +302,7 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
             }
         } else {
             $hash = $this->calculateHash($password);
-            $result = $hash === $objectHash;
+            $result = hash_equals($objectHash, $hash);
         }
 
         return $result;
@@ -277,11 +311,11 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
     /**
      * @see ResourcePersistenceAwareInterface::getDataFromResource
      *
-     * @param string $data
+     * @param string|null $data
      * @param null|DataObject\Concrete $object
      * @param mixed $params
      *
-     * @return string
+     * @return string|null
      */
     public function getDataFromResource($data, $object = null, $params = [])
     {
@@ -357,28 +391,7 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
     }
 
     /**
-     * fills object field data values from CSV Import String
-     *
-     * @abstract
-     *
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return string
-     */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
-    {
-        return $this->getDataFromEditmode($importValue, $object, $params);
-    }
-
-    /**
-     * @param DataObject\Concrete|DataObject\Objectbrick\Data\AbstractData|DataObject\Fieldcollection\Data\AbstractData $object
-     * @param mixed $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getDataForSearchIndex($object, $params = [])
     {
@@ -386,26 +399,7 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
     }
 
     /**
-     * converts data to be exposed via webservices
-     *
-     * @deprecated
-     *
-     * @param DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return null
-     */
-    public function getForWebserviceExport($object, $params = [])
-    {
-        //neither hash nor password is exported via WS
-        return null;
-    }
-
-    /** True if change is allowed in edit mode.
-     * @param DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
@@ -461,5 +455,53 @@ class Password extends Data implements ResourcePersistenceAwareInterface, QueryR
         $this->algorithm = $masterDefinition->algorithm;
         $this->salt = $masterDefinition->salt;
         $this->saltlocation = $masterDefinition->saltlocation;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getParameterTypeDeclaration(): ?string
+    {
+        return '?string';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?string';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
+    {
+        return 'string|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return 'string|null';
+    }
+
+    /**
+     * @param mixed $data
+     * @param bool $omitMandatoryCheck
+     * @param array $params
+     *
+     * @throws Model\Element\ValidationException|\Exception
+     */
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
+    {
+        if (!$omitMandatoryCheck && ($this->getMinimumLength() && strlen($data) < $this->getMinimumLength())) {
+            throw new Model\Element\ValidationException('Value in field [ ' . $this->getName() . ' ] is not at least ' . $this->getMinimumLength() . ' characters');
+        }
+
+        parent::checkValidity($data, $omitMandatoryCheck, $params);
     }
 }

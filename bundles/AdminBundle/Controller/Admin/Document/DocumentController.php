@@ -15,15 +15,24 @@
 
 namespace Pimcore\Bundle\AdminBundle\Controller\Admin\Document;
 
+use Exception;
+use Imagick;
+use Pimcore;
 use Pimcore\Bundle\AdminBundle\Controller\Admin\ElementControllerBase;
 use Pimcore\Bundle\AdminBundle\Controller\Traits\DocumentTreeConfigTrait;
-use Pimcore\Controller\EventedControllerInterface;
+use Pimcore\Cache\RuntimeCache;
+use Pimcore\Config;
+use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Db;
 use Pimcore\Event\Admin\ElementAdminStyleEvent;
 use Pimcore\Event\AdminEvents;
+use Pimcore\Image\Chromium;
 use Pimcore\Image\HtmlToImage;
 use Pimcore\Logger;
 use Pimcore\Model\Document;
+use Pimcore\Model\Document\DocType;
+use Pimcore\Model\Element\Service;
+use Pimcore\Model\Exception\ConfigWriteException;
 use Pimcore\Model\Redirect;
 use Pimcore\Model\Site;
 use Pimcore\Model\Version;
@@ -31,21 +40,23 @@ use Pimcore\Routing\Dynamic\DocumentRouteHandler;
 use Pimcore\Tool;
 use Pimcore\Tool\Frontend;
 use Pimcore\Tool\Session;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\GenericEvent;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @Route("/document")
+ *
+ * @internal
  */
-class DocumentController extends ElementControllerBase implements EventedControllerInterface
+class DocumentController extends ElementControllerBase implements KernelControllerEventInterface
 {
     use DocumentTreeConfigTrait;
 
@@ -70,12 +81,13 @@ class DocumentController extends ElementControllerBase implements EventedControl
      * @Route("/delete-info", name="pimcore_admin_document_document_deleteinfo", methods={"GET"})
      *
      * @param Request $request
+     * @param EventDispatcherInterface $eventDispatcher
      *
      * @return JsonResponse
      */
-    public function deleteInfoAction(Request $request)
+    public function deleteInfoAction(Request $request, EventDispatcherInterface $eventDispatcher)
     {
-        return parent::deleteInfoAction($request);
+        return parent::deleteInfoAction($request, $eventDispatcher);
     }
 
     /**
@@ -87,7 +99,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
      */
     public function getDataByIdAction(Request $request, EventDispatcherInterface $eventDispatcher)
     {
-        $document = Document::getById($request->get('id'));
+        $document = Document::getById((int) $request->get('id'));
 
         if (!$document) {
             throw $this->createNotFoundException('Document not found');
@@ -108,7 +120,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
             'data' => $data,
             'document' => $document,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::DOCUMENT_GET_PRE_SEND_DATA, $event);
+        $eventDispatcher->dispatch($event, AdminEvents::DOCUMENT_GET_PRE_SEND_DATA);
         $data = $event->getArgument('data');
 
         if ($document->isAllowed('view')) {
@@ -130,8 +142,8 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $allParams = array_merge($request->request->all(), $request->query->all());
 
         $filter = $request->get('filter');
-        $limit = intval($allParams['limit'] ?? 100000000);
-        $offset = intval($allParams['start'] ?? 0);
+        $limit = (int)($allParams['limit'] ?? 100000000);
+        $offset = (int)($allParams['start'] ?? 0);
 
         if (!is_null($filter)) {
             if (substr($filter, -1) != '*') {
@@ -151,28 +163,30 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $cv = false;
         if ($document->hasChildren()) {
             if ($allParams['view']) {
-                $cv = \Pimcore\Model\Element\Service::getCustomViewById($allParams['view']);
+                $cv = Service::getCustomViewById($allParams['view']);
             }
 
             $db = Db::get();
 
             $list = new Document\Listing();
-            if ($this->getAdminUser()->isAdmin()) {
-                $condition = 'parentId =  ' . $db->quote($document->getId());
-            } else {
+
+            $condition = 'parentId =  ' . $db->quote($document->getId());
+
+            if (!$this->getAdminUser()->isAdmin()) {
                 $userIds = $this->getAdminUser()->getRoles();
-                $userIds[] = $this->getAdminUser()->getId();
-                $condition = 'parentId = ' . $db->quote($document->getId()) . ' AND
-                (
-                    (SELECT list FROM users_workspaces_document WHERE userId IN (' . implode(',', $userIds) . ') AND LOCATE(CONCAT(path,`key`),cpath)=1  ORDER BY LENGTH(cpath) DESC, FIELD(userId, '. $this->getAdminUser()->getId() .') DESC, list DESC LIMIT 1)=1
-                    or
-                    (SELECT list FROM users_workspaces_document WHERE userId IN (' . implode(',', $userIds) . ') AND LOCATE(cpath,CONCAT(path,`key`))=1  ORDER BY LENGTH(cpath) DESC, FIELD(userId, '. $this->getAdminUser()->getId() .') DESC, list DESC LIMIT 1)=1
-                )';
+                $currentUserId = $this->getAdminUser()->getId();
+                $userIds[] = $currentUserId;
+
+                $inheritedPermission = $document->getDao()->isInheritingPermission('list', $userIds);
+
+                $anyAllowedRowOrChildren = 'EXISTS(SELECT list FROM users_workspaces_document uwd WHERE userId IN (' . implode(',', $userIds) . ') AND list=1 AND LOCATE(CONCAT(path,`key`),cpath)=1 AND
+                NOT EXISTS(SELECT list FROM users_workspaces_document WHERE userId =' . $currentUserId . '  AND list=0 AND cpath = uwd.cpath))';
+                $isDisallowedCurrentRow = 'EXISTS(SELECT list FROM users_workspaces_document WHERE userId IN (' . implode(',', $userIds) . ')  AND cid = id AND list=0)';
+
+                $condition .= ' AND IF(' . $anyAllowedRowOrChildren . ',1,IF(' . $inheritedPermission . ', ' . $isDisallowedCurrentRow . ' = 0, 0)) = 1';
             }
 
             if ($filter) {
-                $db = Db::get();
-
                 $condition = '(' . $condition . ')' . ' AND CAST(documents.key AS CHAR CHARACTER SET utf8) COLLATE utf8_general_ci LIKE ' . $db->quote($filter);
             }
 
@@ -184,23 +198,24 @@ class DocumentController extends ElementControllerBase implements EventedControl
             $list->setLimit($limit);
             $list->setOffset($offset);
 
-            \Pimcore\Model\Element\Service::addTreeFilterJoins($cv, $list);
+            Service::addTreeFilterJoins($cv, $list);
 
             $beforeListLoadEvent = new GenericEvent($this, [
                 'list' => $list,
                 'context' => $allParams,
             ]);
 
-            $eventDispatcher->dispatch(AdminEvents::DOCUMENT_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+            $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::DOCUMENT_LIST_BEFORE_LIST_LOAD);
             /** @var Document\Listing $list */
             $list = $beforeListLoadEvent->getArgument('list');
 
-            $childsList = $list->load();
+            $childrenList = $list->load();
 
-            foreach ($childsList as $childDocument) {
-                // only display document if listing is allowed for the current user
-                if ($childDocument->isAllowed('list')) {
-                    $documents[] = $this->getTreeNodeConfig($childDocument);
+            foreach ($childrenList as $childDocument) {
+                $documentTreeNode = $this->getTreeNodeConfig($childDocument);
+                // the !isset is for printContainer case, there are no permissions sets there
+                if (!isset($documentTreeNode['permissions']['list']) || $documentTreeNode['permissions']['list'] == 1) {
+                    $documents[] = $documentTreeNode;
                 }
             }
         }
@@ -209,7 +224,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $event = new GenericEvent($this, [
             'documents' => $documents,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::DOCUMENT_TREE_GET_CHILDREN_BY_ID_PRE_SEND_DATA, $event);
+        $eventDispatcher->dispatch($event, AdminEvents::DOCUMENT_TREE_GET_CHILDREN_BY_ID_PRE_SEND_DATA);
         $documents = $event->getArgument('documents');
 
         if ($allParams['limit']) {
@@ -219,7 +234,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
                 'total' => $document->getChildAmount($this->getAdminUser()),
                 'nodes' => $documents,
                 'filter' => $request->get('filter') ? $request->get('filter') : '',
-                'inSearch' => intval($request->get('inSearch')),
+                'inSearch' => (int)$request->get('inSearch'),
             ]);
         } else {
             return $this->adminJson($documents);
@@ -239,7 +254,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $errorMessage = '';
 
         // check for permission
-        $parentDocument = Document::getById(intval($request->get('parentId')));
+        $parentDocument = Document::getById((int)$request->get('parentId'));
         $document = null;
         if ($parentDocument->isAllowed('create')) {
             $intendedPath = $parentDocument->getRealFullPath() . '/' . $request->get('key');
@@ -251,25 +266,26 @@ class DocumentController extends ElementControllerBase implements EventedControl
                     'published' => false,
                 ];
 
-                $createValues['key'] = \Pimcore\Model\Element\Service::getValidKey($request->get('key'), 'document');
+                $createValues['key'] = Service::getValidKey($request->get('key'), 'document');
 
                 // check for a docType
-                $docType = Document\DocType::getById(intval($request->get('docTypeId')));
+                $docType = Document\DocType::getById($request->get('docTypeId'));
                 if ($docType) {
                     $createValues['template'] = $docType->getTemplate();
                     $createValues['controller'] = $docType->getController();
-                    $createValues['action'] = $docType->getAction();
-                    $createValues['module'] = $docType->getModule();
-                } elseif ($request->get('translationsBaseDocument')) {
-                    $translationsBaseDocument = Document::getById($request->get('translationsBaseDocument'));
+                    $createValues['staticGeneratorEnabled'] = $docType->getStaticGeneratorEnabled();
+                } elseif ($translationsBaseDocumentId = $request->get('translationsBaseDocument')) {
+                    $translationsBaseDocument = Document::getById((int) $translationsBaseDocumentId);
                     if ($translationsBaseDocument instanceof Document\PageSnippet) {
                         $createValues['template'] = $translationsBaseDocument->getTemplate();
                         $createValues['controller'] = $translationsBaseDocument->getController();
-                        $createValues['action'] = $translationsBaseDocument->getAction();
-                        $createValues['module'] = $translationsBaseDocument->getModule();
                     }
                 } elseif ($request->get('type') == 'page' || $request->get('type') == 'snippet' || $request->get('type') == 'email') {
                     $createValues['controller'] = $this->getParameter('pimcore.documents.default_controller');
+                } elseif ($request->get('type') == 'printpage') {
+                    $createValues['controller'] = $this->getParameter('pimcore.documents.web_to_print.default_controller_print_page');
+                } elseif ($request->get('type') == 'printcontainer') {
+                    $createValues['controller'] = $this->getParameter('pimcore.documents.web_to_print.default_controller_print_container');
                 }
 
                 if ($request->get('inheritanceSource')) {
@@ -312,7 +328,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
                         try {
                             $document->save();
                             $success = true;
-                        } catch (\Exception $e) {
+                        } catch (Exception $e) {
                             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                         }
 
@@ -322,9 +338,9 @@ class DocumentController extends ElementControllerBase implements EventedControl
 
                         // this is the fallback for custom document types using prefixes
                         // so we need to check if the class exists first
-                        if (!\Pimcore\Tool::classExists($classname)) {
+                        if (!Tool::classExists($classname)) {
                             $oldStyleClass = '\\Document_' . ucfirst($request->get('type'));
-                            if (\Pimcore\Tool::classExists($oldStyleClass)) {
+                            if (Tool::classExists($oldStyleClass)) {
                                 $classname = $oldStyleClass;
                             }
                         }
@@ -335,7 +351,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
                             try {
                                 $document->save();
                                 $success = true;
-                            } catch (\Exception $e) {
+                            } catch (Exception $e) {
                                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                             }
 
@@ -356,13 +372,13 @@ class DocumentController extends ElementControllerBase implements EventedControl
         }
 
         if ($success && $document instanceof Document) {
-            if ($request->get('translationsBaseDocument')) {
-                $translationsBaseDocument = Document::getById($request->get('translationsBaseDocument'));
+            if ($translationsBaseDocumentId = $request->get('translationsBaseDocument')) {
+                $translationsBaseDocument = Document::getById((int) $translationsBaseDocumentId);
 
                 $properties = $translationsBaseDocument->getProperties();
                 $properties = array_merge($properties, $document->getProperties());
                 $document->setProperties($properties);
-                $document->setProperty('language', 'text', $request->get('language'));
+                $document->setProperty('language', 'text', $request->get('language'), false, true);
                 $document->save();
 
                 $service = new Document\Service();
@@ -391,12 +407,22 @@ class DocumentController extends ElementControllerBase implements EventedControl
      */
     public function deleteAction(Request $request)
     {
-        if ($request->get('type') == 'childs') {
-            $parentDocument = Document::getById($request->get('id'));
+        $type = $request->get('type');
+
+        if ($type === 'childs') {
+            trigger_deprecation(
+                'pimcore/pimcore',
+                '10.4',
+                'Type childs is deprecated. Use children instead'
+            );
+            $type = 'children';
+        }
+        if ($type === 'children') {
+            $parentDocument = Document::getById((int) $request->get('id'));
 
             $list = new Document\Listing();
             $list->setCondition('path LIKE ?', [$list->escapeLike($parentDocument->getRealFullPath()) . '/%']);
-            $list->setLimit(intval($request->get('amount')));
+            $list->setLimit((int)$request->get('amount'));
             $list->setOrderKey('LENGTH(path)', false);
             $list->setOrder('DESC');
 
@@ -411,18 +437,19 @@ class DocumentController extends ElementControllerBase implements EventedControl
             }
 
             return $this->adminJson(['success' => true, 'deleted' => $deletedItems]);
-        } elseif ($request->get('id')) {
-            $document = Document::getById($request->get('id'));
+        }
+        if ($id = $request->get('id')) {
+            $document = Document::getById((int) $id);
             if ($document && $document->isAllowed('delete')) {
                 try {
                     if ($document->isLocked()) {
-                        throw new \Exception('prevented deleting document, because it is locked: ID: ' . $document->getId());
+                        throw new Exception('prevented deleting document, because it is locked: ID: ' . $document->getId());
                     }
                     $document->delete();
 
                     return $this->adminJson(['success' => true]);
-                } catch (\Exception $e) {
-                    Logger::err($e);
+                } catch (Exception $e) {
+                    Logger::err((string) $e);
 
                     return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                 }
@@ -439,17 +466,17 @@ class DocumentController extends ElementControllerBase implements EventedControl
      *
      * @return JsonResponse
      *
-     * @throws \Exception
+     * @throws Exception
      */
     public function updateAction(Request $request)
     {
         $success = false;
         $allowUpdate = true;
 
-        $document = Document::getById($request->get('id'));
+        $document = Document::getById((int) $request->get('id'));
 
         $oldPath = $document->getDao()->getCurrentFullPath();
-        $oldDocument = Document::getById($document->getId(), true);
+        $oldDocument = Document::getById($document->getId(), ['force' => true]);
 
         // this prevents the user from renaming, relocating (actions in the tree) if the newest version isn't the published one
         // the reason is that otherwise the content of the newer not published version will be overwritten
@@ -462,13 +489,13 @@ class DocumentController extends ElementControllerBase implements EventedControl
 
         if ($document->isAllowed('settings')) {
             // if the position is changed the path must be changed || also from the children
-            if ($request->get('parentId')) {
-                $parentDocument = Document::getById($request->get('parentId'));
+            if ($parentId = $request->get('parentId')) {
+                $parentDocument = Document::getById((int) $parentId);
 
                 //check if parent is changed
                 if ($document->getParentId() != $parentDocument->getId()) {
                     if (!$parentDocument->isAllowed('create')) {
-                        throw new \Exception('Prevented moving document - no create permission on new parent ');
+                        throw new Exception('Prevented moving document - no create permission on new parent ');
                     }
 
                     $intendedPath = $parentDocument->getRealPath();
@@ -517,7 +544,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
                     $success = true;
 
                     $this->createRedirectForFormerPath($request, $document, $oldPath, $oldDocument);
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                 }
             } else {
@@ -535,7 +562,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
                 $success = true;
 
                 $this->createRedirectForFormerPath($request, $document, $oldPath, $oldDocument);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         } else {
@@ -550,12 +577,9 @@ class DocumentController extends ElementControllerBase implements EventedControl
         if ($document instanceof Document\Page || $document instanceof Document\Hardlink) {
             if ($request->get('create_redirects') === 'true' && $this->getAdminUser()->isAllowed('redirects')) {
                 if ($oldPath && $oldPath != $document->getRealFullPath()) {
-                    $sourceSite = null;
-                    if ($oldDocument) {
-                        $sourceSite = Frontend::getSiteForDocument($oldDocument);
-                        if ($sourceSite) {
-                            $oldPath = preg_replace('@^' . preg_quote($sourceSite->getRootPath(), '@') . '@', '', $oldPath);
-                        }
+                    $sourceSite = Frontend::getSiteForDocument($oldDocument);
+                    if ($sourceSite) {
+                        $oldPath = preg_replace('@^' . preg_quote($sourceSite->getRootPath(), '@') . '@', '', $oldPath);
                     }
 
                     $targetSite = Frontend::getSiteForDocument($document);
@@ -584,7 +608,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
 
                             $count++;
                             if ($count % 10 === 0) {
-                                \Pimcore::collectGarbage();
+                                Pimcore::collectGarbage();
                             }
                         }
                     }
@@ -598,7 +622,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $redirect = new Redirect();
         $redirect->setType(Redirect::TYPE_AUTO_CREATE);
         $redirect->setRegex(false);
-        $redirect->setTarget($targetId);
+        $redirect->setTarget((string) $targetId);
         $redirect->setSource($source);
         $redirect->setStatusCode(301);
         $redirect->setExpiry(time() + 86400 * 365); // this entry is removed automatically after 1 year
@@ -629,7 +653,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
         };
 
         // if changed the index change also all documents on the same level
-        $newIndex = intval($newIndex);
+        $newIndex = (int)$newIndex;
         $document->saveIndex($newIndex);
 
         $list = new Document\Listing();
@@ -665,7 +689,9 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $docTypes = [];
         foreach ($list->getDocTypes() as $type) {
             if ($this->getAdminUser()->isAllowed($type->getId(), 'docType')) {
-                $docTypes[] = $type->getObjectVars();
+                $data = $type->getObjectVars();
+                $data['writeable'] = $type->isWriteable();
+                $docTypes[] = $data;
             }
         }
 
@@ -673,7 +699,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
     }
 
     /**
-     * @Route("/doc-types", name="pimcore_admin_document_document_doctypes", methods={"PUT", "POST","DELETE"})
+     * @Route("/doc-types", name="pimcore_admin_document_document_doctypes", methods={"PUT", "POST", "DELETE"})
      *
      * @param Request $request
      *
@@ -684,25 +710,36 @@ class DocumentController extends ElementControllerBase implements EventedControl
         if ($request->get('data')) {
             $this->checkPermission('document_types');
 
-            if ($request->get('xaction') == 'destroy') {
-                $data = $this->decodeJson($request->get('data'));
-                $id = $data['id'];
-                $type = Document\DocType::getById($id);
+            $data = $this->decodeJson($request->get('data'));
+
+            if ($request->get('xaction') === 'destroy') {
+                $type = Document\DocType::getById($data['id']);
+                if (!$type->isWriteable()) {
+                    throw new ConfigWriteException();
+                }
                 $type->delete();
 
                 return $this->adminJson(['success' => true, 'data' => []]);
-            } elseif ($request->get('xaction') == 'update') {
-                $data = $this->decodeJson($request->get('data'));
-
+            } elseif ($request->get('xaction') === 'update') {
                 // save type
                 $type = Document\DocType::getById($data['id']);
+
+                if (!$type->isWriteable()) {
+                    throw new ConfigWriteException();
+                }
 
                 $type->setValues($data);
                 $type->save();
 
-                return $this->adminJson(['data' => $type->getObjectVars(), 'success' => true]);
-            } elseif ($request->get('xaction') == 'create') {
-                $data = $this->decodeJson($request->get('data'));
+                $responseData = $type->getObjectVars();
+                $responseData['writeable'] = $type->isWriteable();
+
+                return $this->adminJson(['data' => $responseData, 'success' => true]);
+            } elseif ($request->get('xaction') === 'create') {
+                if (!(new DocType())->isWriteable()) {
+                    throw new ConfigWriteException();
+                }
+
                 unset($data['id']);
 
                 // save type
@@ -711,7 +748,10 @@ class DocumentController extends ElementControllerBase implements EventedControl
 
                 $type->save();
 
-                return $this->adminJson(['data' => $type->getObjectVars(), 'success' => true]);
+                $responseData = $type->getObjectVars();
+                $responseData['writeable'] = $type->isWriteable();
+
+                return $this->adminJson(['data' => $responseData, 'success' => true]);
             }
         }
 
@@ -723,24 +763,21 @@ class DocumentController extends ElementControllerBase implements EventedControl
      *
      * @param Request $request
      *
+     * @throws BadRequestHttpException If type is invalid
+     *
      * @return JsonResponse
      */
     public function getDocTypesAction(Request $request)
     {
         $list = new Document\DocType\Listing();
-        if ($request->get('type')) {
-            $type = $request->get('type');
-            if (Document\Service::isValidType($type)) {
-                $list->setFilter(function ($row) use ($type) {
-                    if ($row['type'] == $type) {
-                        return true;
-                    }
-
-                    return false;
-                });
+        if ($type = $request->get('type')) {
+            if (!Document\Service::isValidType($type)) {
+                throw new BadRequestHttpException('Invalid type: ' . $type);
             }
+            $list->setFilter(function (Document\DocType $docType) use ($type) {
+                return $docType->getType() === $type;
+            });
         }
-        $list->load();
 
         $docTypes = [];
         foreach ($list->getDocTypes() as $type) {
@@ -759,8 +796,12 @@ class DocumentController extends ElementControllerBase implements EventedControl
      */
     public function versionToSessionAction(Request $request)
     {
-        $version = Version::getById($request->get('id'));
-        $document = $version->loadData();
+        $id = (int)$request->get('id');
+        $version = Version::getById($id);
+        $document = $version?->loadData();
+        if (!$document) {
+            throw $this->createNotFoundException('Version with id [' . $id . "] doesn't exist");
+        }
         Document\Service::saveElementToSession($document);
 
         return new Response();
@@ -777,8 +818,12 @@ class DocumentController extends ElementControllerBase implements EventedControl
     {
         $this->versionToSessionAction($request);
 
-        $version = Version::getById($request->get('id'));
-        $document = $version->loadData();
+        $id = (int)$request->get('id');
+        $version = Version::getById($id);
+        $document = $version?->loadData();
+        if (!$document) {
+            throw $this->createNotFoundException('Version with id [' . $id . "] doesn't exist");
+        }
 
         $currentDocument = Document::getById($document->getId());
         if ($currentDocument->isAllowed('publish')) {
@@ -790,7 +835,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
                 $document->setUserModification($this->getAdminUser()->getId());
 
                 $document->save();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         }
@@ -813,21 +858,34 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $domains = str_replace(' ', '', $domains);
         $domains = explode("\n", $domains);
 
-        if (!$site = Site::getByRootId(intval($request->get('id')))) {
+        if (!$site = Site::getByRootId((int)$request->get('id'))) {
             $site = Site::create([
-                'rootId' => intval($request->get('id')),
+                'rootId' => (int)$request->get('id'),
             ]);
+        }
+
+        $localizedErrorDocuments = [];
+        $validLanguages = Tool::getValidLanguages();
+
+        foreach ($validLanguages as $language) {
+            // localized error pages
+            $requestValue = $request->get('errorDocument_localized_' . $language);
+
+            if (isset($requestValue)) {
+                $localizedErrorDocuments[$language] = $requestValue;
+            }
         }
 
         $site->setDomains($domains);
         $site->setMainDomain($request->get('mainDomain'));
         $site->setErrorDocument($request->get('errorDocument'));
+        $site->setLocalizedErrorDocuments($localizedErrorDocuments);
         $site->setRedirectToMainDomain(($request->get('redirectToMainDomain') == 'true') ? true : false);
         $site->save();
 
         $site->setRootDocument(null); // do not send the document to the frontend
 
-        return $this->adminJson($site);
+        return $this->adminJson($site->getObjectVars());
     }
 
     /**
@@ -839,7 +897,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
      */
     public function removeSiteAction(Request $request)
     {
-        $site = Site::getByRootId(intval($request->get('id')));
+        $site = Site::getByRootId((int)$request->get('id'));
         $site->delete();
 
         return $this->adminJson(['success' => true]);
@@ -858,11 +916,11 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $pasteJobs = [];
 
         Session::useSession(function (AttributeBagInterface $session) use ($transactionId) {
-            $session->set($transactionId, ['idMapping' => []]);
+            $session->set((string) $transactionId, ['idMapping' => []]);
         }, 'pimcore_copy');
 
         if ($request->get('type') == 'recursive' || $request->get('type') == 'recursive-update-references') {
-            $document = Document::getById($request->get('sourceId'));
+            $document = Document::getById((int) $request->get('sourceId'));
 
             // first of all the new parent
             $pasteJobs[] = [[
@@ -882,7 +940,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
 
             $childIds = [];
             if ($document->hasChildren()) {
-                // get amount of childs
+                // get amount of children
                 $list = new Document\Listing();
                 $list->setCondition('path LIKE ?', [$list->escapeLike($document->getRealFullPath()) . '/%']);
                 $list->setOrderKey('LENGTH(path)', false);
@@ -999,22 +1057,22 @@ class DocumentController extends ElementControllerBase implements EventedControl
     public function copyAction(Request $request)
     {
         $success = false;
-        $sourceId = intval($request->get('sourceId'));
+        $sourceId = (int)$request->get('sourceId');
         $source = Document::getById($sourceId);
         $session = Session::get('pimcore_copy');
 
-        $targetId = intval($request->get('targetId'));
+        $targetId = (int)$request->get('targetId');
 
         $sessionBag = $session->get($request->get('transactionId'));
 
         if ($request->get('targetParentId')) {
-            $sourceParent = Document::getById($request->get('sourceParentId'));
+            $sourceParent = Document::getById((int) $request->get('sourceParentId'));
 
             // this is because the key can get the prefix "_copy" if the target does already exists
             if ($sessionBag['parentId']) {
                 $targetParent = Document::getById($sessionBag['parentId']);
             } else {
-                $targetParent = Document::getById($request->get('targetParentId'));
+                $targetParent = Document::getById((int) $request->get('targetParentId'));
             }
 
             $targetPath = preg_replace('@^' . $sourceParent->getRealFullPath() . '@', $targetParent . '/', $source->getRealPath());
@@ -1081,13 +1139,23 @@ class DocumentController extends ElementControllerBase implements EventedControl
     public function diffVersionsAction(Request $request, $from, $to)
     {
         // return with error if prerequisites do not match
-        if (!HtmlToImage::isSupported() || !class_exists('Imagick')) {
-            return $this->render('PimcoreAdminBundle:Admin/Document/Document:diff-versions-unsupported.html.php');
+        if ((!Chromium::isSupported() && !HtmlToImage::isSupported()) || !class_exists('Imagick')) {
+            return $this->render('@PimcoreAdmin/Admin/Document/Document/diff-versions-unsupported.html.twig');
         }
 
         $versionFrom = Version::getById($from);
-        $docFrom = $versionFrom->loadData();
-        $prefix = $request->getSchemeAndHttpHost() . $docFrom->getRealFullPath() . '?pimcore_version=';
+        $docFrom = $versionFrom?->loadData();
+
+        if (!$docFrom) {
+            throw $this->createNotFoundException('Version with id [' . $from . "] doesn't exist");
+        }
+
+        $prefix = Config::getSystemConfiguration('documents')['preview_url_prefix'];
+        if (empty($prefix)) {
+            $prefix = $request->getSchemeAndHttpHost();
+        }
+
+        $prefix .= $docFrom->getRealFullPath() . '?pimcore_version=';
 
         $fromUrl = $prefix . $from;
         $toUrl = $prefix . $to;
@@ -1101,14 +1169,21 @@ class DocumentController extends ElementControllerBase implements EventedControl
 
         $viewParams = [];
 
-        HtmlToImage::convert($fromUrl, $fromFile);
-        HtmlToImage::convert($toUrl, $toFile);
+        if (Chromium::isSupported()) {
+            $tool = Chromium::class;
+        } else {
+            $tool = HtmlToImage::class;
+        }
 
-        $image1 = new \Imagick($fromFile);
-        $image2 = new \Imagick($toFile);
+        /** @var Chromium|HtmlToImage $tool */
+        $tool::convert($fromUrl, $fromFile);
+        $tool::convert($toUrl, $toFile);
+
+        $image1 = new Imagick($fromFile);
+        $image2 = new Imagick($toFile);
 
         if ($image1->getImageWidth() == $image2->getImageWidth() && $image1->getImageHeight() == $image2->getImageHeight()) {
-            $result = $image1->compareImages($image2, \Imagick::METRIC_MEANSQUAREERROR);
+            $result = $image1->compareImages($image2, Imagick::METRIC_MEANSQUAREERROR);
             $result[0]->setImageFormat('png');
 
             $result[0]->writeImage($diffFile);
@@ -1127,7 +1202,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $image2->clear();
         $image2->destroy();
 
-        return $this->render('PimcoreAdminBundle:Admin/Document/Document:diff-versions.html.php', $viewParams);
+        return $this->render('@PimcoreAdmin/Admin/Document/Document/diff-versions.html.twig', $viewParams);
     }
 
     /**
@@ -1217,7 +1292,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $filterPrepareEvent = new GenericEvent($this, [
             'requestParams' => $allParams,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::DOCUMENT_LIST_BEFORE_FILTER_PREPARE, $filterPrepareEvent);
+        $eventDispatcher->dispatch($filterPrepareEvent, AdminEvents::DOCUMENT_LIST_BEFORE_FILTER_PREPARE);
 
         $allParams = $filterPrepareEvent->getArgument('requestParams');
 
@@ -1239,7 +1314,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
                 'list' => $list,
                 'context' => $allParams,
             ]);
-            $eventDispatcher->dispatch(AdminEvents::DOCUMENT_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+            $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::DOCUMENT_LIST_BEFORE_LIST_LOAD);
             /** @var Document\Listing $list */
             $list = $beforeListLoadEvent->getArgument('list');
 
@@ -1264,7 +1339,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
             'list' => $result,
             'context' => $allParams,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::DOCUMENT_LIST_AFTER_LIST_LOAD, $afterListLoadEvent);
+        $eventDispatcher->dispatch($afterListLoadEvent, AdminEvents::DOCUMENT_LIST_AFTER_LIST_LOAD);
         $result = $afterListLoadEvent->getArgument('list');
 
         return $this->adminJson($result['data']);
@@ -1279,9 +1354,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
      */
     public function languageTreeAction(Request $request)
     {
-        $document = Document::getById($request->query->get('node'));
-
-        $service = new Document\Service();
+        $document = Document::getById((int) $request->query->get('node'));
 
         $languages = explode(',', $request->get('languages'));
 
@@ -1300,11 +1373,11 @@ class DocumentController extends ElementControllerBase implements EventedControl
      *
      * @return JsonResponse
      *
-     * @throws \Exception
+     * @throws Exception
      */
     public function languageTreeRootAction(Request $request)
     {
-        $document = Document::getById($request->query->get('id'));
+        $document = Document::getById((int) $request->query->get('id'));
 
         if (!$document) {
             return $this->adminJson([
@@ -1369,7 +1442,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $translations = is_null($translations) ? $service->getTranslations($document) : $translations;
 
         foreach ($languages as $language) {
-            if ($languageDocument = $translations[$language]) {
+            if ($languageDocument = $translations[$language] ?? false) {
                 $languageDocument = Document::getById($languageDocument);
                 $config[$language] = [
                     'text' => $languageDocument->getKey(),
@@ -1378,7 +1451,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
                     'fullPath' => $languageDocument->getFullPath(),
                     'published' => $languageDocument->getPublished(),
                     'itemType' => 'document',
-                    'permissions' => $languageDocument->getUserPermissions(),
+                    'permissions' => $languageDocument->getUserPermissions($this->getAdminUser()),
                 ];
             } elseif (!$document instanceof Document\Folder) {
                 $config[$language] = [
@@ -1400,7 +1473,10 @@ class DocumentController extends ElementControllerBase implements EventedControl
      */
     public function convertAction(Request $request)
     {
-        $document = Document::getById($request->get('id'));
+        $document = Document::getById((int) $request->get('id'));
+        if (!$document) {
+            throw $this->createNotFoundException();
+        }
 
         $type = $request->get('type');
         $class = '\\Pimcore\\Model\\Document\\' . ucfirst($type);
@@ -1408,7 +1484,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
             $new = new $class;
 
             // overwrite internal store to avoid "duplicate full path" error
-            \Pimcore\Cache\Runtime::set('document_' . $document->getId(), $new);
+            RuntimeCache::set('document_' . $document->getId(), $new);
 
             $props = $document->getObjectVars();
             foreach ($props as $name => $value) {
@@ -1441,9 +1517,9 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $success = false;
         $targetDocument = null;
 
-        $document = Document::getById($request->get('id'));
+        $document = Document::getById((int) $request->get('id'));
         if ($document) {
-            $service = new Document\Service;
+            $service = new Document\Service();
             $document = $document->getId() === 1 ? $document : $document->getParent();
 
             $translations = $service->getTranslations($document);
@@ -1469,21 +1545,21 @@ class DocumentController extends ElementControllerBase implements EventedControl
      */
     public function translationAddAction(Request $request)
     {
-        $sourceDocument = Document::getById($request->get('sourceId'));
+        $sourceDocument = Document::getById((int) $request->get('sourceId'));
         $targetDocument = Document::getByPath($request->get('targetPath'));
 
         if ($sourceDocument && $targetDocument) {
             if (empty($sourceDocument->getProperty('language'))) {
-                throw new \Exception(sprintf('Source Document(ID:%s) Language(Properties) missing', $sourceDocument->getId()));
+                throw new Exception(sprintf('Source Document(ID:%s) Language(Properties) missing', $sourceDocument->getId()));
             }
 
             if (empty($targetDocument->getProperty('language'))) {
-                throw new \Exception(sprintf('Target Document(ID:%s) Language(Properties) missing', $sourceDocument->getId()));
+                throw new Exception(sprintf('Target Document(ID:%s) Language(Properties) missing', $sourceDocument->getId()));
             }
 
             $service = new Document\Service;
             if ($service->getTranslationSourceId($targetDocument) != $targetDocument->getId()) {
-                throw new \Exception('Target Document already linked to Source Document ID('.$service->getTranslationSourceId($targetDocument).'). Please unlink existing relation first.');
+                throw new Exception('Target Document already linked to Source Document ID('.$service->getTranslationSourceId($targetDocument).'). Please unlink existing relation first.');
             }
             $service->addTranslation($sourceDocument, $targetDocument);
         }
@@ -1502,8 +1578,8 @@ class DocumentController extends ElementControllerBase implements EventedControl
      */
     public function translationRemoveAction(Request $request)
     {
-        $sourceDocument = Document::getById($request->get('sourceId'));
-        $targetDocument = Document::getById($request->get('targetId'));
+        $sourceDocument = Document::getById((int) $request->get('sourceId'));
+        $targetDocument = Document::getById((int) $request->get('targetId'));
         if ($sourceDocument && $targetDocument) {
             $service = new Document\Service;
             $service->removeTranslationLink($sourceDocument, $targetDocument);
@@ -1546,7 +1622,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
     }
 
     /**
-     * @param Document\Page $document
+     * @param Document $document
      *
      * @return array
      */
@@ -1554,7 +1630,7 @@ class DocumentController extends ElementControllerBase implements EventedControl
     {
         $nodeConfig = $this->getTreeNodeConfig($document);
 
-        if (method_exists($document, 'getTitle') && method_exists($document, 'getDescription')) {
+        if ($document instanceof Document\Page) {
             // analyze content
             $nodeConfig['prettyUrl'] = $document->getPrettyUrl();
 
@@ -1572,12 +1648,11 @@ class DocumentController extends ElementControllerBase implements EventedControl
     }
 
     /**
-     * @param FilterControllerEvent $event
+     * @param ControllerEvent $event
      */
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelControllerEvent(ControllerEvent $event)
     {
-        $isMasterRequest = $event->isMasterRequest();
-        if (!$isMasterRequest) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
@@ -1585,13 +1660,5 @@ class DocumentController extends ElementControllerBase implements EventedControl
         $this->checkActionPermission($event, 'documents', ['docTypesGetAction']);
 
         $this->_documentService = new Document\Service($this->getAdminUser());
-    }
-
-    /**
-     * @param FilterResponseEvent $event
-     */
-    public function onKernelResponse(FilterResponseEvent $event)
-    {
-        // nothing to do
     }
 }

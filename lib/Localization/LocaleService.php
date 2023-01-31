@@ -31,7 +31,7 @@ class LocaleService implements LocaleServiceInterface
     protected $requestStack;
 
     /**
-     * @var Translator
+     * @var Translator|null
      */
     protected $translator;
 
@@ -81,7 +81,7 @@ class LocaleService implements LocaleServiceInterface
     protected function getLocaleFromRequest()
     {
         if ($this->requestStack) {
-            $masterRequest = $this->requestStack->getMasterRequest();
+            $masterRequest = $this->requestStack->getMainRequest();
 
             if ($masterRequest) {
                 return $masterRequest->getLocale();
@@ -96,9 +96,7 @@ class LocaleService implements LocaleServiceInterface
      */
     public function getLocaleList()
     {
-        $locales = \ResourceBundle::getLocales(null);
-
-        return $locales;
+        return \ResourceBundle::getLocales('');
     }
 
     /**
@@ -141,20 +139,22 @@ class LocaleService implements LocaleServiceInterface
     {
         $this->locale = $locale;
 
-        if ($this->requestStack) {
-            $masterRequest = $this->requestStack->getMasterRequest();
-            if ($masterRequest) {
-                $masterRequest->setLocale($locale);
+        if ($locale && is_string($locale)) {
+            if ($this->requestStack) {
+                $masterRequest = $this->requestStack->getMainRequest();
+                if ($masterRequest) {
+                    $masterRequest->setLocale($locale);
+                }
+
+                $currentRequest = $this->requestStack->getCurrentRequest();
+                if ($currentRequest) {
+                    $currentRequest->setLocale($locale);
+                }
             }
 
-            $currentRequest = $this->requestStack->getCurrentRequest();
-            if ($currentRequest) {
-                $currentRequest->setLocale($locale);
+            if ($this->translator) {
+                $this->translator->setLocale($locale);
             }
-        }
-
-        if ($this->translator) {
-            $this->translator->setLocale($locale);
         }
     }
 

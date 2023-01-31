@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Model\Document\Targeting\TargetingDocumentDaoInterface;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Document\Page $model
  */
 class Dao extends Model\Document\PageSnippet\Dao implements TargetingDocumentDaoInterface
@@ -30,7 +32,7 @@ class Dao extends Model\Document\PageSnippet\Dao implements TargetingDocumentDao
      *
      * @param int $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id = null)
     {
@@ -38,7 +40,7 @@ class Dao extends Model\Document\PageSnippet\Dao implements TargetingDocumentDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow("SELECT documents.*, documents_page.*, tree_locks.locked FROM documents
+        $data = $this->db->fetchAssociative("SELECT documents.*, documents_page.*, tree_locks.locked FROM documents
             LEFT JOIN documents_page ON documents.id = documents_page.id
             LEFT JOIN tree_locks ON documents.id = tree_locks.id AND tree_locks.type = 'document'
                 WHERE documents.id = ?", [$this->model->getId()]);
@@ -50,7 +52,7 @@ class Dao extends Model\Document\PageSnippet\Dao implements TargetingDocumentDao
             }
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('Page with the ID ' . $this->model->getId() . " doesn't exists");
+            throw new Model\Exception\NotFoundException('Page with the ID ' . $this->model->getId() . " doesn't exists");
         }
     }
 
@@ -70,7 +72,6 @@ class Dao extends Model\Document\PageSnippet\Dao implements TargetingDocumentDao
     {
         $this->deleteAllProperties();
 
-        $this->db->delete('documents_page', ['id' => $this->model->getId()]);
         parent::delete();
     }
 }

@@ -29,7 +29,10 @@ use Symfony\Component\HttpFoundation\Cookie;
  */
 class FullPageCacheCookieCleanupListener implements EventSubscriberInterface
 {
-    public static function getSubscribedEvents()
+    /**
+     * @return string[]
+     */
+    public static function getSubscribedEvents()//: array
     {
         return [
             FullPageCacheEvents::PREPARE_RESPONSE => 'onPrepareFullPageCacheResponse',
@@ -46,7 +49,6 @@ class FullPageCacheCookieCleanupListener implements EventSubscriberInterface
             CookieStorage::COOKIE_NAME_SESSION,
         ];
 
-        /** @var Cookie $cookie */
         foreach ($cookies as $cookie) {
             if (in_array($cookie->getName(), $blacklist)) {
                 $response->headers->removeCookie(

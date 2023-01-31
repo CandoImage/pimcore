@@ -27,7 +27,6 @@ class Input extends Data implements
     VarExporterInterface,
     NormalizerInterface
 {
-    use Model\DataObject\ClassDefinition\NullablePhpdocReturnTypeTrait;
     use Model\DataObject\ClassDefinition\Data\Extension\Text;
     use Model\DataObject\Traits\SimpleComparisonTrait;
     use Extension\ColumnType;
@@ -38,22 +37,30 @@ class Input extends Data implements
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'input';
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
-    public $width;
+    public $width = 0;
 
     /**
+     * @internal
+     *
      * @var string|null
      */
     public $defaultValue;
 
     /**
      * Type for the column to query
+     *
+     * @internal
      *
      * @var string
      */
@@ -62,6 +69,8 @@ class Input extends Data implements
     /**
      * Type for the column
      *
+     * @internal
+     *
      * @var string
      */
     public $columnType = 'varchar';
@@ -69,34 +78,42 @@ class Input extends Data implements
     /**
      * Column length
      *
+     * @internal
+     *
      * @var int
      */
     public $columnLength = 190;
 
     /**
-     * Type for the generated phpdoc
+     * @internal
      *
-     * @var string
-     */
-    public $phpdocType = 'string';
-
-    /**
      * @var string
      */
     public $regex = '';
 
     /**
+     * @internal
+     *
+     * @var array
+     */
+    public $regexFlags = [];
+
+    /**
+     * @internal
+     *
      * @var bool
      */
     public $unique;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $showCharCount;
 
     /**
-     * @return int
+     * @return string|int
      */
     public function getWidth()
     {
@@ -104,12 +121,15 @@ class Input extends Data implements
     }
 
     /**
-     * @param int $width
+     * @param string|int $width
      *
      * @return $this
      */
     public function setWidth($width)
     {
+        if (is_numeric($width)) {
+            $width = (int)$width;
+        }
         $this->width = $width;
 
         return $this;
@@ -118,11 +138,11 @@ class Input extends Data implements
     /**
      * @see ResourcePersistenceAwareInterface::getDataForResource
      *
-     * @param string $data
+     * @param string|null $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
-     * @return string
+     * @return string|null
      */
     public function getDataForResource($data, $object = null, $params = [])
     {
@@ -134,11 +154,11 @@ class Input extends Data implements
     /**
      * @see ResourcePersistenceAwareInterface::getDataFromResource
      *
-     * @param string $data
+     * @param string|null $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
-     * @return string
+     * @return string|null
      */
     public function getDataFromResource($data, $object = null, $params = [])
     {
@@ -148,11 +168,11 @@ class Input extends Data implements
     /**
      * @see QueryResourcePersistenceAwareInterface::getDataForQueryResource
      *
-     * @param string $data
+     * @param string|null $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
-     * @return string
+     * @return string|null
      */
     public function getDataForQueryResource($data, $object = null, $params = [])
     {
@@ -188,7 +208,7 @@ class Input extends Data implements
     }
 
     /**
-     * @param float $data
+     * @param string $data
      * @param Model\DataObject\Concrete $object
      * @param mixed $params
      *
@@ -238,6 +258,22 @@ class Input extends Data implements
     }
 
     /**
+     * @return array
+     */
+    public function getRegexFlags(): array
+    {
+        return $this->regexFlags;
+    }
+
+    /**
+     * @param array $regexFlags
+     */
+    public function setRegexFlags(array $regexFlags): void
+    {
+        $this->regexFlags = $regexFlags;
+    }
+
+    /**
      * @return bool
      */
     public function getUnique()
@@ -250,7 +286,7 @@ class Input extends Data implements
      */
     public function setUnique($unique)
     {
-        $this->unique = $unique;
+        $this->unique = (bool) $unique;
     }
 
     /**
@@ -266,11 +302,11 @@ class Input extends Data implements
      */
     public function setShowCharCount($showCharCount)
     {
-        $this->showCharCount = $showCharCount;
+        $this->showCharCount = (bool) $showCharCount;
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getColumnType()
     {
@@ -278,7 +314,7 @@ class Input extends Data implements
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getQueryColumnType()
     {
@@ -286,17 +322,12 @@ class Input extends Data implements
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         if (!$omitMandatoryCheck && $this->getRegex() && strlen($data) > 0) {
-            if (!preg_match('#' . $this->getRegex() . '#', $data)) {
+            if (!preg_match('#' . $this->getRegex() . '#' . implode('', $this->getRegexFlags()), $data)) {
                 throw new Model\Element\ValidationException('Value in field [ ' . $this->getName() . " ] doesn't match input validation '" . $this->getRegex() . "'");
             }
         }
@@ -312,16 +343,16 @@ class Input extends Data implements
         $this->columnLength = $masterDefinition->columnLength;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function isFilterable(): bool
     {
         return true;
     }
 
     /**
-     * @param Model\DataObject\Concrete $object
-     * @param array $context
-     *
-     * @return null|string
+     * {@inheritdoc}
      */
     protected function doGetDefaultValue($object, $context = [])
     {
@@ -348,5 +379,37 @@ class Input extends Data implements
         }
 
         return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getParameterTypeDeclaration(): ?string
+    {
+        return '?string';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?string';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
+    {
+        return 'string|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return 'string|null';
     }
 }

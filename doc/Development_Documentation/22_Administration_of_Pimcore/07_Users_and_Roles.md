@@ -42,7 +42,6 @@ The following list outlines what the different system permissions (available for
 * **Notes & Events**: Notes & Events are visible 
 * **Objects**: objects tree is visible 
 * **Predefined Properties**: User can create and modify predefined properties
-* **QR-Codes**: User can create and modify QR codes
 * **Recycle Bin**: User has access to recycle bin
 * **Redirects**: User can create and modify redirects
 * **Reports**: User has access to reports module
@@ -112,3 +111,6 @@ custom layouts for the user.
 
 By using the event `Pimcore\Event\AdminEvents::ELEMENT_PERMISSION_IS_ALLOWED` it is possible to dynamically manipulate 
 the permissions of a user on a specific element on request.
+
+Please note: When listing (tree view,search etc..), this event is fired afterwards on each element of the filtered result list,
+ therefore in the case of granting a `list` permission on a disallowed element (list=0), it DOES NOT affect the listing conditions nor results (as if the element would be considered as allowed for the filtering purposes).

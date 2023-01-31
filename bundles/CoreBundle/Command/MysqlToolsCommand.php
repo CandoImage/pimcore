@@ -21,6 +21,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class MysqlToolsCommand extends AbstractCommand
 {
     protected function configure()
@@ -38,9 +41,9 @@ class MysqlToolsCommand extends AbstractCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // display error message
         if (!$input->getOption('mode')) {
@@ -51,20 +54,20 @@ class MysqlToolsCommand extends AbstractCommand
         $db = \Pimcore\Db::get();
 
         if ($input->getOption('mode') == 'optimize') {
-            $tables = $db->fetchAll('SHOW TABLES');
+            $tables = $db->fetchAllAssociative('SHOW TABLES');
 
             foreach ($tables as $table) {
                 $t = current($table);
 
                 try {
                     Logger::debug('Running: OPTIMIZE TABLE ' . $t);
-                    $db->query('OPTIMIZE TABLE ' . $t);
+                    $db->executeQuery('OPTIMIZE TABLE ' . $t);
                 } catch (\Exception $e) {
-                    Logger::error($e);
+                    Logger::error((string) $e);
                 }
             }
         } elseif ($input->getOption('mode') == 'warmup') {
-            $tables = $db->fetchAll('SHOW TABLES');
+            $tables = $db->fetchAllAssociative('SHOW TABLES');
 
             foreach ($tables as $table) {
                 $t = current($table);
@@ -74,7 +77,7 @@ class MysqlToolsCommand extends AbstractCommand
                     $res = $db->fetchOne("SELECT COUNT(*) FROM $t");
                     Logger::debug('Result: ' . $res);
                 } catch (\Exception $e) {
-                    Logger::error($e);
+                    Logger::error((string) $e);
                 }
             }
         }

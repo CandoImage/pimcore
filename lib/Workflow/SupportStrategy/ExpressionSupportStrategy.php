@@ -16,13 +16,13 @@
 namespace Pimcore\Workflow\SupportStrategy;
 
 use Pimcore\Workflow\ExpressionService;
-use Symfony\Component\Workflow\SupportStrategy\SupportStrategyInterface;
-use Symfony\Component\Workflow\Workflow;
+use Symfony\Component\Workflow\SupportStrategy\WorkflowSupportStrategyInterface;
+use Symfony\Component\Workflow\WorkflowInterface;
 
 /**
  * @author Andreas Kleemann <akleemann@inviqa.com>
  */
-class ExpressionSupportStrategy implements SupportStrategyInterface
+class ExpressionSupportStrategy implements WorkflowSupportStrategyInterface
 {
     /**
      * @var ExpressionService
@@ -56,7 +56,7 @@ class ExpressionSupportStrategy implements SupportStrategyInterface
     /**
      * {@inheritdoc}
      */
-    public function supports(Workflow $workflow, $subject)
+    public function supports(WorkflowInterface $workflow, $subject): bool
     {
         if (!$this->supportsClass($subject)) {
             return false;
@@ -65,6 +65,11 @@ class ExpressionSupportStrategy implements SupportStrategyInterface
         return $this->expressionService->evaluateExpression($workflow, $subject, $this->expression);
     }
 
+    /**
+     * @param object $subject
+     *
+     * @return bool
+     */
     private function supportsClass($subject)
     {
         if (is_string($this->className)) {

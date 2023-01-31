@@ -18,7 +18,7 @@ The installer does following tasks:
 If either classes, field collections, object bricks or tables already exist, the installation cannot be started. 
 
 After this installation routine, additional configurations have to be made - most important Product and ProductCategory.
-Please see [Configuration](./04_Configuration) for further information on available options.
+Please see [Configuration](./04_Configuration/README.md) for further information on available options.
 
 
 ## Configure Product and Product Category Class
@@ -45,7 +45,7 @@ There are two ways of preparing a Pimcore class for product-usage in the E-Comme
 the parent class functionality or the overriding models functionality of Pimcore 
 (see also [Overriding Models](../20_Extending_Pimcore/03_Overriding_Models.md)).
 
-> If using the abstract class, also have a look at its [implementation](https://github.com/pimcore/pimcore/blob/master/bundles/EcommerceFrameworkBundle/Model/AbstractProduct.php). 
+> If using the abstract class, also have a look at its [implementation](https://github.com/pimcore/pimcore/blob/10.5/bundles/EcommerceFrameworkBundle/Model/AbstractProduct.php). 
 You might need to override a few methods that cannot be implemented by the abstract class and throw an 
 exception depending on the use case you are using it. 
 
@@ -62,7 +62,7 @@ Possibly the index update scripts need to be adapted.
 
 The E-Commerce Framework is split up into multiple components which can be configured individually. For further reading please see:
 
-- [Configuration](./04_Configuration) describes configuration features valid for the whole framework configuration
+- [Configuration](./04_Configuration/README.md) describes configuration features valid for the whole framework configuration
 - [PimcoreEcommerceFrameworkBundle Configuration Reference](./04_Configuration/01_PimcoreEcommerceFrameworkBundle_Configuration_Reference.md)
   contains a reference of the whole configuration tree
   

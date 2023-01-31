@@ -13,9 +13,7 @@ Examples:
 
 ### Access the Settings
 
-In controllers and views, you can use view helpers or argument resolves to access the config. If you're not in a view or
-controller you can use `Pimcore\Tool\Frontend::getWebsiteConfig();` to retrieve the configuration.
-
+In controllers and views, you can use view helpers or argument resolves to access the config.
 The returned configuration is a `Pimcore\Config\Config` object containing your settings.
 
 
@@ -23,21 +21,6 @@ The returned configuration is a `Pimcore\Config\Config` object containing your s
 ![Website Setting Config](../img/website-settings.png)
 
 Usage in a template:
-
-<div class="code-section">
-
-```php
-<?php
-// access the whole configuration
-$this->websiteConfig();
-
-// or only a single value
-$this->websiteConfig('googleMapsKey');
-
-// you can pass a default value in case the value is not configured
-$this->websiteConfig('googleMapsKey', 'NOT SET');
-?>
-```
 
 ```twig
 {# access the whole configuration #}
@@ -49,8 +32,6 @@ $this->websiteConfig('googleMapsKey', 'NOT SET');
 {# you can pass a default value in case the value is not configured #}
 {{ pimcore_website_config('googleMapsKey', 'NOT SET') }}
 ```
-
-</div>
 
 Usage in a controller:
 

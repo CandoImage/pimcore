@@ -23,18 +23,16 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ *
+ * @deprecated will be removed in Pimcore 11
+ */
 class DisableCommand extends AbstractBundleCommand
 {
-    /**
-     * @var PostStateChange
-     */
-    private $postStateChangeHelper;
-
-    public function __construct(PimcoreBundleManager $bundleManager, PostStateChange $postStateChangeHelper)
+    public function __construct(PimcoreBundleManager $bundleManager, private PostStateChange $postStateChangeHelper)
     {
         parent::__construct($bundleManager);
-
-        $this->postStateChangeHelper = $postStateChangeHelper;
     }
 
     protected function configure()
@@ -48,8 +46,22 @@ class DisableCommand extends AbstractBundleCommand
         PostStateChange::configureStateChangeCommandOptions($this);
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    /**
+     * {@inheritdoc}
+     */
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $deprecation = 'Disabling bundle is deprecated and will not work in Pimcore 11. Use config/bundles.php to register/de-register bundles instead.';
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.5',
+            $deprecation
+        );
+
+        if ($output->isVerbose()) {
+            $output->writeln(sprintf('Since pimcore/pimcore 10.5, %s', $deprecation));
+        }
+
         $bundle = $this->getBundle();
 
         try {

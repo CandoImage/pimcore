@@ -22,7 +22,15 @@ pimcore.object.folder = Class.create(pimcore.object.abstract, {
         this.id = intval(id);
         this.addLoadingPanel();
 
-        pimcore.plugin.broker.fireEvent("preOpenObject", this, "folder");
+        const preOpenObjectFolder = new CustomEvent(pimcore.events.preOpenObject, {
+            detail: {
+                object: this,
+                type: "folder"
+            }
+        });
+
+        document.dispatchEvent(preOpenObjectFolder);
+
         this.getData();
     },
 
@@ -47,10 +55,21 @@ pimcore.object.folder = Class.create(pimcore.object.abstract, {
 
 
     getData: function () {
+
+        var eventData =  {requestParams: {id: this.id}};
+        const preGetObjectFolder = new CustomEvent(pimcore.events.preGetObjectFolder, {
+            detail: {
+                eventData: eventData,
+            }
+        });
+
+        document.dispatchEvent(preGetObjectFolder);
+
+
         var options = this.options || {};
         Ext.Ajax.request({
             url: Routing.generate('pimcore_admin_dataobject_dataobject_getfolder'),
-            params: {id: this.id},
+            params: eventData.requestParams,
             ignoreErrors: options.ignoreNotFoundError,
             success: this.getDataComplete.bind(this),
             failure: function() {
@@ -132,7 +151,16 @@ pimcore.object.folder = Class.create(pimcore.object.abstract, {
 
         this.tab.on("afterrender", function (tabId) {
             this.tabPanel.setActiveItem(tabId);
-            pimcore.plugin.broker.fireEvent("postOpenObject", this, "folder");
+
+            const postOpenObject = new CustomEvent(pimcore.events.postOpenObject, {
+                detail: {
+                    object: this,
+                    type: "folder"
+                }
+            });
+
+            document.dispatchEvent(postOpenObject);
+
 
             // load selected class if available
             if(this.data["selectedClass"]) {
@@ -343,6 +371,21 @@ pimcore.object.folder = Class.create(pimcore.object.abstract, {
 
         this.tab.mask();
 
+
+        const preSaveObject = new CustomEvent(pimcore.events.preSaveObject, {
+            detail: {
+                object: this,
+                type: "object"
+            },
+            cancelable: true
+        });
+
+        const isAllowed = document.dispatchEvent(preSaveObject);
+        if (!isAllowed) {
+            this.tab.unmask();
+            return false;
+        }
+
         Ext.Ajax.request({
             url: Routing.generate('pimcore_admin_dataobject_dataobject_savefolder', {task: task}),
             method: "PUT",
@@ -353,6 +396,15 @@ pimcore.object.folder = Class.create(pimcore.object.abstract, {
                     if (rdata && rdata.success) {
                         pimcore.helpers.showNotification(t("success"), t("saved_successfully"), "success");
                         this.resetChanges();
+
+                        const postSaveObject = new CustomEvent(pimcore.events.postSaveObject, {
+                            detail: {
+                                object: this,
+                            }
+                        });
+
+                        document.dispatchEvent(postSaveObject);
+
                     }
                     else {
                         pimcore.helpers.showNotification(t("error"), t("saving_failed"),

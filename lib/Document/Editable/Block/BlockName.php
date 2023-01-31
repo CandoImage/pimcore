@@ -20,10 +20,12 @@ namespace Pimcore\Document\Editable\Block;
 use Pimcore\Model\Document\Editable;
 
 /**
+ * @internal
+ *
  * Simple value object containing both name and real name of
  * a block.
  */
-class BlockName implements \JsonSerializable
+final class BlockName implements \JsonSerializable
 {
     /**
      * @var string
@@ -59,21 +61,7 @@ class BlockName implements \JsonSerializable
     }
 
     /**
-     * @TODO remove in Pimcore 10
-     *
-     * @param Editable $tag
-     *
-     * @return BlockName
-     *
-     * @deprecated since 6.8, will be removed in Pimcore 10, use createFromEditable() instead
-     */
-    public static function createFromTag(Editable $tag): BlockName
-    {
-        return self::createFromEditable($tag);
-    }
-
-    /**
-     * Create an instance from a document tag
+     * Create an instance from a document editable
      *
      * @param Editable $editable
      *
@@ -101,9 +89,9 @@ class BlockName implements \JsonSerializable
     }
 
     /**
-     * @inheritDoc
+     * @return array
      */
-    public function jsonSerialize()
+    public function jsonSerialize(): array
     {
         return [
             'name' => $this->name,
@@ -111,5 +99,3 @@ class BlockName implements \JsonSerializable
         ];
     }
 }
-
-class_alias(BlockName::class, 'Pimcore\Document\Tag\Block\BlockName');

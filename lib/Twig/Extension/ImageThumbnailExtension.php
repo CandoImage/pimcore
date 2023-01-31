@@ -22,7 +22,10 @@ use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
 
-final class ImageThumbnailExtension extends AbstractExtension
+/**
+ * @internal
+ */
+class ImageThumbnailExtension extends AbstractExtension
 {
     /**
      * {@inheritdoc}

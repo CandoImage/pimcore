@@ -21,8 +21,6 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractVoucherTokenType;
 use Pimcore\Model\DataObject\OnlineShopVoucherToken;
 
 /**
- * Interface ITokenManager
- *
  * Manager for specific token settings object of type AbstractVoucherTokenType.
  * Provides functionality for generating, checking, removing, applying, reserving tokens.
  * Also prepares the view of the Voucher Code Tab and specifies its template.
@@ -132,11 +130,13 @@ interface TokenManagerInterface
     public function insertOrUpdateVoucherSeries();
 
     /**
-     * @return  int
+     * @return int
      */
     public function getFinalTokenLength();
 
     /**
+     * Removes reservations
+     *
      * @param int $duration
      *
      * @return bool
@@ -160,5 +160,3 @@ interface TokenManagerInterface
      */
     public function getConfiguration();
 }
-
-class_alias(TokenManagerInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\TokenManager\ITokenManager');

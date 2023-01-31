@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Model\Tool\Targeting\Rule;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Tool\Targeting\Rule\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -28,7 +30,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function load()
     {
-        $ids = $this->db->fetchCol('SELECT id FROM targeting_rules' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $ids = $this->db->fetchFirstColumn('SELECT id FROM targeting_rules' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
 
         $targets = [];
         foreach ($ids as $id) {

@@ -15,13 +15,23 @@
 
 namespace Pimcore\Model\Metadata\Predefined;
 
+use Pimcore\Model\Listing\CallableFilterListingInterface;
+use Pimcore\Model\Listing\CallableOrderListingInterface;
+use Pimcore\Model\Listing\JsonListing;
+use Pimcore\Model\Listing\Traits\FilterListingTrait;
+use Pimcore\Model\Listing\Traits\OrderListingTrait;
+
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Metadata\Predefined\Listing\Dao getDao()
- * @method \Pimcore\Model\Metadata\Predefined[] load()
  * @method int getTotalCount()
  */
-class Listing extends \Pimcore\Model\Listing\JsonListing
+class Listing extends JsonListing implements CallableFilterListingInterface, CallableOrderListingInterface
 {
+    use FilterListingTrait;
+    use OrderListingTrait;
+
     /**
      * @var \Pimcore\Model\Metadata\Predefined[]|null
      */
@@ -33,7 +43,7 @@ class Listing extends \Pimcore\Model\Listing\JsonListing
     public function getDefinitions()
     {
         if ($this->definitions === null) {
-            $this->getDao()->load();
+            $this->getDao()->loadList();
         }
 
         return $this->definitions;
@@ -53,15 +63,15 @@ class Listing extends \Pimcore\Model\Listing\JsonListing
 
     /**
      * @param string $type
-     * @param array $subTypes
+     * @param array|string|null $subTypes
      *
-     * @return \Pimcore\Model\Metadata\Predefined[]
+     * @return \Pimcore\Model\Metadata\Predefined[]|null
      *
      * @throws \Exception
      */
-    public static function getByTargetType($type, $subTypes)
+    public static function getByTargetType($type, $subTypes = null)
     {
-        if ($type != 'asset') {
+        if ($type !== 'asset') {
             throw new \Exception('other types than assets are currently not supported');
         }
 
@@ -72,21 +82,20 @@ class Listing extends \Pimcore\Model\Listing\JsonListing
         }
 
         if (is_array($subTypes)) {
-            $list->setFilter(function ($row) use ($subTypes) {
-                if (empty($row['targetSubtype'])) {
+            return array_filter($list->load(), function ($item) use ($subTypes) {
+                if (empty($item->getTargetSubtype())) {
                     return true;
                 }
 
-                if (in_array($row['targetSubtype'], $subTypes)) {
+                if (in_array($item->getTargetSubtype(), $subTypes)) {
                     return true;
                 }
 
                 return false;
             });
         }
-        $list = $list->load();
 
-        return $list;
+        return $list->load();
     }
 
     /**
@@ -100,25 +109,30 @@ class Listing extends \Pimcore\Model\Listing\JsonListing
     {
         $list = new self();
 
-        $list->setFilter(function ($row) use ($key, $language, $targetSubtype) {
-            if ($row['name'] != $key) {
-                return false;
+        foreach ($list->load() as $item) {
+            if ($item->getName() != $key) {
+                continue;
             }
 
-            if ($language && $language != $row['language']) {
-                return false;
+            if ($language && $language != $item->getLanguage()) {
+                continue;
             }
 
-            if ($targetSubtype && $targetSubtype != $row['targetSubtype']) {
-                return false;
+            if ($targetSubtype && $targetSubtype != $item->getTargetSubtype()) {
+                continue;
             }
-        });
 
-        $list = $list->load();
-        if ($list) {
-            return $list[0];
+            return $item;
         }
 
         return null;
+    }
+
+    /**
+     * @return \Pimcore\Model\Metadata\Predefined[]
+     */
+    public function load()
+    {
+        return $this->getDefinitions();
     }
 }

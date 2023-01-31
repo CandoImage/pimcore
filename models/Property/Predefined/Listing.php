@@ -16,14 +16,22 @@
 namespace Pimcore\Model\Property\Predefined;
 
 use Pimcore\Model;
+use Pimcore\Model\Listing\CallableFilterListingInterface;
+use Pimcore\Model\Listing\CallableOrderListingInterface;
+use Pimcore\Model\Listing\Traits\FilterListingTrait;
+use Pimcore\Model\Listing\Traits\OrderListingTrait;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Property\Predefined\Listing\Dao getDao()
- * @method \Pimcore\Model\Property\Predefined[] load()
  * @method int getTotalCount()
  */
-class Listing extends Model\Listing\JsonListing
+class Listing extends Model\Listing\JsonListing implements CallableFilterListingInterface, CallableOrderListingInterface
 {
+    use FilterListingTrait;
+    use OrderListingTrait;
+
     /**
      * @var array|null
      */
@@ -35,7 +43,7 @@ class Listing extends Model\Listing\JsonListing
     public function getProperties()
     {
         if ($this->properties === null) {
-            $this->getDao()->load();
+            $this->getDao()->loadList();
         }
 
         return $this->properties;
@@ -51,5 +59,13 @@ class Listing extends Model\Listing\JsonListing
         $this->properties = $properties;
 
         return $this;
+    }
+
+    /**
+     * @return Model\Property\Predefined[]|null
+     */
+    public function load()
+    {
+        return $this->getProperties();
     }
 }

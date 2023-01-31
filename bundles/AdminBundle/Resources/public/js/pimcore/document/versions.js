@@ -26,7 +26,7 @@ pimcore.document.versions = Class.create({
             if (!Ext.ClassManager.get(modelName)) {
                 Ext.define(modelName, {
                     extend: 'Ext.data.Model',
-                    fields: ['id', 'date', 'note', {
+                    fields: ['id', { name: "date", type: 'date', dateFormat: 'timestamp' }, 'note', {
                         name: 'name', convert: function (v, rec) {
                             if (rec.data) {
                                 if (rec.data.user) {
@@ -94,7 +94,7 @@ pimcore.document.versions = Class.create({
 
             this.grid = Ext.create('Ext.grid.Panel', {
                 store: this.store,
-                plugins: [this.cellEditing],
+                plugins: [this.cellEditing, 'gridfilters'],
                 columns: [
                     checkShow,
                     {
@@ -103,25 +103,30 @@ pimcore.document.versions = Class.create({
                         sortable: false,
                         dataIndex: 'date',
                         renderer: function (d, metaData, cellValues) {
-                            var d = cellValues.get('date');
+                            var d = Ext.Date.format(cellValues.get('date'), "timestamp");
                             var versionCount = cellValues.get('versionCount');
                             var index = cellValues.get('index');
 
-                            if (this.document.data.published && index === 0 && d == this.document.data.versionDate && versionCount == this.document.data.versionCount) {
-                                metaData.tdCls = "pimcore_icon_publish";
+                            if (index === 0 && d == this.document.data.versionDate && versionCount == this.document.data.versionCount) {
+                                if(this.document.data.published) {
+                                    metaData.tdCls = "pimcore_icon_publish";
+                                } else {
+                                    metaData.tdCls = "pimcore_icon_sql";
+                                    metaData.tdAttr = 'data-qtip="' + t('version_currently_saved_in_database') + '"';
+                                }
                             }
+
                             return "";
                         }.bind(this),
                         editable: false
                     },
                     {
-                        text: t("date"), width: 150, sortable: true, dataIndex: 'date', renderer: function (d) {
-                            var date = new Date(d * 1000);
-                            return Ext.Date.format(date, "Y-m-d H:i:s");
+                        text: t("date"), width: 150, sortable: true, dataIndex: 'date', filter: 'date', renderer: function (d) {
+                            return Ext.Date.format(d, "Y-m-d H:i:s");
                         }, editable: false
                     },
                     {text: "ID", sortable: true, dataIndex: 'id', editable: false, width: 60},
-                    {text: t("user"), sortable: true, dataIndex: 'name', editable: false},
+                    {text: t("user"), sortable: true, dataIndex: 'name', editable: false, filter: 'list'},
                     {
                         text: t("scheduled"),
                         width: 130,
@@ -136,9 +141,16 @@ pimcore.document.versions = Class.create({
                         },
                         editable: false
                     },
-                    {text: t("note"), sortable: true, dataIndex: 'note', editor: new Ext.form.TextField(), renderer: Ext.util.Format.htmlEncode},
+                    {text: t("note"), sortable: true, dataIndex: 'note', editor: new Ext.form.TextField(), filter: 'string', renderer: Ext.util.Format.htmlEncode},
+                    {
+                        xtype: "checkcolumn",
+                        text: t("auto_save"),
+                        disabled : true,
+                        dataIndex: "autoSave",
+                        width: 50
+                    },
                     checkPublic,
-                    {text: t("public_url"), width: 300, sortable: false, dataIndex: 'publicurl', editable: false}
+                    {text: t("public_url"), width: 300, sortable: false, dataIndex: 'publicurl', filter: 'string', editable: false}
                 ],
                 columnLines: true,
                 trackMouseOver: true,

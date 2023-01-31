@@ -308,6 +308,33 @@ pimcore.settings.email.log = Class.create({
                 }]
             },
             {
+                xtype: 'actioncolumn',
+                sortable: false,
+                width: 50,
+                dataIndex: 'error',
+                menuText: t('error'),
+                text: t('error'),
+                items: [{
+                    icon: '/bundles/pimcoreadmin/img/flat-color-icons/high_priority.svg',
+                    handler: function (grid, rowIndex) {
+                        var rec = grid.getStore().getAt(rowIndex);
+                        var iframe = new Ext.Window({
+                            title: t('text'),
+                            width: iFrameSettings.width,
+                            height: iFrameSettings.height,
+                            layout: 'fit',
+                            html: rec.get('error')
+                        });
+                        iframe.show();
+                    }.bind(this),
+                    getClass: function (v, meta, rec) {
+                        if (!rec.get('error')) {
+                            return 'pimcore_hidden';
+                        }
+                    }
+                }]
+            },
+            {
                 xtype:'actioncolumn',
                 width: 30,
                 menuText: t('email_log_resend'),
@@ -390,24 +417,30 @@ pimcore.settings.email.log = Class.create({
                     tooltip: t('delete'),
                     icon: '/bundles/pimcoreadmin/img/flat-color-icons/delete.svg',
                     handler: function (grid, rowIndex) {
-                        var rec = grid.getStore().getAt(rowIndex);
-                        Ext.Ajax.request({
-                            url: Routing.generate('pimcore_admin_email_deleteemaillog'),
-                            method: 'DELETE',
-                            success: function(response){
-                                var data = Ext.decode( response.responseText );
-                                if(!data.success){
+                        let data = grid.getStore().getAt(rowIndex);
+                        pimcore.helpers.deleteConfirm(t('email_log'), data.id, function () {
+                            var rec = grid.getStore().getAt(rowIndex);
+                            Ext.Ajax.request({
+                                url: Routing.generate('pimcore_admin_email_deleteemaillog'),
+                                method: 'DELETE',
+                                success: function(response){
+                                    var data = Ext.decode( response.responseText );
+                                    if(!data.success){
+                                        Ext.Msg.alert(t('error'),
+                                            t('error_deleting_item'));
+                                    }
+
+                                    grid.getStore().reload();
+                                },
+                                failure: function () {
                                     Ext.Msg.alert(t('error'),
                                         t('error_deleting_item'));
-                                }
-                            },
-                            failure: function () {
-                                Ext.Msg.alert(t('error'),
-                                    t('error_deleting_item'));
-                            },
-                            params: { id : rec.get('id') }
-                        });
-                        grid.getStore().reload();
+                                },
+                                params: { id : rec.get('id') }
+                            });
+                        }.bind(this));
+
+
                     }.bind(this)
                 }]
             }
@@ -415,7 +448,7 @@ pimcore.settings.email.log = Class.create({
 
         var storeFields = ["id","documentId","subject","emailLogExistsHtml","params","sentDate","params",
             "modificationDate","requestUri","from","to","cc","bcc","emailLogExistsHtml",
-            "emailLogExistsText"];
+            "emailLogExistsText", 'error'];
 
         this.store = pimcore.helpers.grid.buildDefaultStore(
             Routing.generate('pimcore_admin_email_emaillogs'),
@@ -452,7 +485,11 @@ pimcore.settings.email.log = Class.create({
             trackMouseOver: true,
             loadMask: true,
             viewConfig: {
-                forceFit: true
+                forceFit: true,
+                enableTextSelection: true,
+                getRowClass: function (record) {
+                    return (record.get('error')) ? 'log-type-error' : '';
+                }
             },
             tbar: toolbar,
             bbar: this.pagingtoolbar

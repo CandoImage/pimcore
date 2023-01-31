@@ -17,9 +17,9 @@ namespace Pimcore\Event\Model\Ecommerce;
 
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractOrder;
-use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderManagerInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\V7\OrderManagerInterface;
 use Pimcore\Event\Traits\ArgumentsAwareTrait;
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 class OrderManagerEvent extends Event
 {
@@ -44,7 +44,7 @@ class OrderManagerEvent extends Event
      * OrderManagerEvent constructor.
      *
      * @param CartInterface $cart
-     * @param AbstractOrder $order
+     * @param AbstractOrder|null $order
      * @param OrderManagerInterface $orderManager
      * @param array $arguments
      */

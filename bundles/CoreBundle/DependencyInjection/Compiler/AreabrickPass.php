@@ -30,7 +30,10 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Finder\Finder;
 
-class AreabrickPass implements CompilerPassInterface
+/**
+ * @internal
+ */
+final class AreabrickPass implements CompilerPassInterface
 {
     /**
      * @var Inflector
@@ -100,8 +103,8 @@ class AreabrickPass implements CompilerPassInterface
      *
      * Valid examples:
      *
-     *  - AppBundle\Document\Areabrick\Foo
-     *  - AppBundle\Document\Areabrick\Foo\Bar\Baz
+     *  - MyBundle\Document\Areabrick\Foo
+     *  - MyBundle\Document\Areabrick\Foo\Bar\Baz
      *
      * @param ContainerBuilder $container
      * @param Definition $areaManagerDefinition
@@ -117,6 +120,12 @@ class AreabrickPass implements CompilerPassInterface
         array $excludedClasses
     ) {
         $bundles = $container->getParameter('kernel.bundles_metadata');
+        //Find bricks from /src since AppBundle is removed
+        $bundles['App'] = [
+            'path' => PIMCORE_PROJECT_ROOT . '/src',
+            'namespace' => 'App',
+        ];
+
         foreach ($bundles as $bundleName => $bundleMetadata) {
             $bundleAreas = $this->findBundleBricks($container, $bundleName, $bundleMetadata, $excludedClasses);
 
@@ -194,21 +203,18 @@ class AreabrickPass implements CompilerPassInterface
      */
     protected function findBundleBricks(ContainerBuilder $container, string $name, array $metadata, array $excludedClasses = []): array
     {
-        $directory = implode(DIRECTORY_SEPARATOR, [
-            $metadata['path'],
-            'Document',
-            'Areabrick',
-        ]);
+        $sourcePath = is_dir($metadata['path'].'/src') ? $metadata['path'].'/src' : $metadata['path'];
+        $directory = $sourcePath.'/Document/Areabrick';
 
         // update cache when directory is added/removed
         $container->addResource(new FileExistenceResource($directory));
 
-        if (!file_exists($directory) || !is_dir($directory)) {
+        if (!is_dir($directory)) {
             return [];
-        } else {
-            // update container cache when areabricks are added/changed
-            $container->addResource(new DirectoryResource($directory, '/\.php$/'));
         }
+
+        // update container cache when areabricks are added/changed
+        $container->addResource(new DirectoryResource($directory, '/\.php$/'));
 
         $finder = new Finder();
         $finder
@@ -221,7 +227,7 @@ class AreabrickPass implements CompilerPassInterface
             $shortClassName = $classPath->getBasename('.php');
 
             // relative path in bundle path
-            $relativePath = str_replace($metadata['path'], '', $classPath->getPathInfo());
+            $relativePath = str_replace($sourcePath, '', $classPath->getPathInfo());
             $relativePath = trim($relativePath, DIRECTORY_SEPARATOR);
 
             // namespace starting from bundle path
@@ -248,8 +254,6 @@ class AreabrickPass implements CompilerPassInterface
                     $areas[] = [
                         'brickId' => $brickId,
                         'serviceId' => $serviceId,
-                        'bundleName' => $name,
-                        'bundleMetadata' => $metadata,
                         'reflector' => $reflector,
                     ];
                 }
@@ -277,8 +281,8 @@ class AreabrickPass implements CompilerPassInterface
     /**
      * Generate service ID from bundle name and sub-namespace
      *
-     *  - AppBundle\Document\Areabrick\Foo         -> app.area.brick.foo
-     *  - AppBundle\Document\Areabrick\Foo\Bar\Baz -> app.area.brick.foo.bar.baz
+     *  - MyBundle\Document\Areabrick\Foo         -> my.area.brick.foo
+     *  - MyBundle\Document\Areabrick\Foo\Bar\Baz -> my.area.brick.foo.bar.baz
      *
      * @param string $bundleName
      * @param string $subNamespace

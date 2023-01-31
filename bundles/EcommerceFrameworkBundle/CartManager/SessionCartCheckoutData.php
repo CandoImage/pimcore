@@ -62,6 +62,8 @@ class SessionCartCheckoutData extends AbstractCartCheckoutData
 
     /**
      * @return array
+     *
+     * @internal
      */
     public function __sleep()
     {

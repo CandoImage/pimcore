@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Model\DataObject;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Classificationstore\KeyConfig\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -31,7 +33,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
     public function load()
     {
         $sql = 'SELECT * FROM ' . DataObject\Classificationstore\KeyConfig\Dao::TABLE_NAME_KEYS . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit();
-        $configsData = $this->db->fetchAll($sql, $this->model->getConditionVariables());
+        $configsData = $this->db->fetchAllAssociative($sql, $this->model->getConditionVariables());
 
         $configList = [];
         foreach ($configsData as $keyConfigData) {
@@ -50,7 +52,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function getDataArray()
     {
-        $configsData = $this->db->fetchAll('SELECT * FROM ' . DataObject\Classificationstore\KeyConfig\Dao::TABLE_NAME_KEYS . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $configsData = $this->db->fetchAllAssociative('SELECT * FROM ' . DataObject\Classificationstore\KeyConfig\Dao::TABLE_NAME_KEYS . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
 
         return $configsData;
     }
@@ -79,10 +81,6 @@ class Dao extends Model\Listing\Dao\AbstractDao
             $condition = $condition . ' AND (' . $cond . ')';
         }
 
-        if ($condition) {
-            return ' WHERE ' . $condition . ' ';
-        }
-
-        return '';
+        return ' WHERE ' . $condition . ' ';
     }
 }

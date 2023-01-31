@@ -15,17 +15,29 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class Substring extends AbstractOperator
+/**
+ * @internal
+ */
+final class Substring extends AbstractOperator
 {
-    /** @var int */
+    /**
+     * @var int
+     */
     private $start;
 
-    /** @var int */
+    /**
+     * @var int
+     */
     private $length;
 
-    /** @var bool */
+    /**
+     * @var bool
+     */
     private $ellipses;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -35,6 +47,9 @@ class Substring extends AbstractOperator
         $this->ellipses = $config->ellipses ?? false;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();
@@ -56,7 +71,6 @@ class Substring extends AbstractOperator
                 $childValues = [$childValues];
             }
 
-            /** @var array $childValues */
             if (is_array($childValues)) {
                 /** @var string $childValue */
                 foreach ($childValues as $childValue) {

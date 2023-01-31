@@ -19,24 +19,25 @@ use Monolog\Logger;
 use Pimcore\Log\Handler\ApplicationLoggerDb;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Element\Service;
+use Psr\Log\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 
 class ApplicationLogger implements LoggerInterface
 {
     /**
-     * @var null
+     * @var string|null
      */
-    protected $component = null;
+    protected $component;
 
     /**
-     * @var null
+     * @var \Pimcore\Log\FileObject|string|null
      */
-    protected $fileObject = null;
+    protected $fileObject;
 
     /**
-     * @var null
+     * @var \Pimcore\Model\DataObject\AbstractObject|\Pimcore\Model\Document|\Pimcore\Model\Asset|int|null
      */
-    protected $relatedObject = null;
+    protected $relatedObject;
 
     /**
      * @var string
@@ -107,7 +108,7 @@ class ApplicationLogger implements LoggerInterface
     /**
      * @deprecated
      *
-     * @param \Pimcore\Log\FileObject | string $fileObject
+     * @param \Pimcore\Log\FileObject|string $fileObject
      */
     public function setFileObject($fileObject)
     {
@@ -135,11 +136,11 @@ class ApplicationLogger implements LoggerInterface
     }
 
     /**
-     * @param mixed $level
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function log($level, $message, array $context = [])
+    public function log($level, $message, array $context = [])// : void
     {
         if (!isset($context['component']) || is_null($context['component'])) {
             $context['component'] = $this->component;
@@ -152,9 +153,11 @@ class ApplicationLogger implements LoggerInterface
 
         if (isset($context['fileObject'])) {
             if (is_string($context['fileObject'])) {
-                $context['fileObject'] = str_replace(PIMCORE_PROJECT_ROOT, '', $context['fileObject']);
+                $context['fileObject'] = preg_replace('/^'.preg_quote(\PIMCORE_PROJECT_ROOT, '/').'/', '', $context['fileObject']);
+            } elseif ($context['fileObject'] instanceof FileObject) {
+                $context['fileObject'] = $context['fileObject']->getFilename();
             } else {
-                $context['fileObject'] = str_replace(PIMCORE_PROJECT_ROOT, '', $context['fileObject']->getFilename());
+                throw new InvalidArgumentException('fileObject must either be the path to a file as string or an instance of FileObject');
             }
         }
 
@@ -175,7 +178,9 @@ class ApplicationLogger implements LoggerInterface
             $context['relatedObjectType'] = Service::getElementType($relatedObject);
         }
 
-        $context['source'] = $this->resolveLoggingSource();
+        if (!isset($context['source'])) {
+            $context['source'] = $this->resolveLoggingSource();
+        }
 
         foreach ($this->loggers as $logger) {
             if ($logger instanceof \Psr\Log\LoggerInterface) {
@@ -252,73 +257,81 @@ class ApplicationLogger implements LoggerInterface
     }
 
     /**
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function emergency($message, array $context = [])
+    public function emergency($message, array $context = [])// : void
     {
         $this->handleLog('emergency', $message, func_get_args());
     }
 
     /**
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function critical($message, array $context = [])
+    public function critical($message, array $context = [])// : void
     {
         $this->handleLog('critical', $message, func_get_args());
     }
 
     /**
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function error($message, array $context = [])
+    public function error($message, array $context = [])// : void
     {
         $this->handleLog('error', $message, func_get_args());
     }
 
     /**
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function alert($message, array $context = [])
+    public function alert($message, array $context = [])// : void
     {
         $this->handleLog('alert', $message, func_get_args());
     }
 
     /**
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function warning($message, array $context = [])
+    public function warning($message, array $context = [])// : void
     {
         $this->handleLog('warning', $message, func_get_args());
     }
 
     /**
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function notice($message, array $context = [])
+    public function notice($message, array $context = [])// : void
     {
         $this->handleLog('notice', $message, func_get_args());
     }
 
     /**
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function info($message, array $context = [])
+    public function info($message, array $context = [])// : void
     {
         $this->handleLog('info', $message, func_get_args());
     }
 
     /**
-     * @param string $message
-     * @param array $context
+     * {@inheritdoc}
+     *
+     * @return void
      */
-    public function debug($message, array $context = [])
+    public function debug($message, array $context = [])// : void
     {
         $this->handleLog('debug', $message, func_get_args());
     }
@@ -359,7 +372,7 @@ class ApplicationLogger implements LoggerInterface
     /**
      * @param string $message
      * @param \Throwable $exceptionObject
-     * @param string $priority
+     * @param string|null $priority
      * @param \Pimcore\Model\DataObject\AbstractObject|null $relatedObject
      * @param string|null $component
      */
@@ -409,17 +422,35 @@ class ApplicationLogger implements LoggerInterface
         ], $context));
     }
 
-    private static function createExceptionFileObject(\Throwable $exceptionObject)
+    private static function exceptionToString(\Throwable $exceptionObject, bool $includeStackTrace, bool $includePrevious = false): string
     {
-        //workaround to prevent "nesting level to deep" errors when used var_export()
-        ob_start();
-        var_dump($exceptionObject);
-        $dataDump = ob_get_clean();
+        $data = [
+            $exceptionObject->getMessage(),
+            'File: ' . $exceptionObject->getFile(),
+            'Line: ' . $exceptionObject->getLine(),
+            'Code: ' . $exceptionObject->getCode(),
+        ];
 
-        if (!$dataDump) {
-            $dataDump = $exceptionObject->getMessage();
+        if ($includeStackTrace) {
+            $data[] = "Trace:\n" . $exceptionObject->getTraceAsString();
         }
 
-        return new FileObject($dataDump);
+        if ($includePrevious && $exceptionObject->getPrevious()) {
+            $data[] = "\nPrevious:\n" . self::exceptionToString($exceptionObject->getPrevious(), $includeStackTrace);
+        }
+
+        return implode("\n", $data);
+    }
+
+    /**
+     * @param \Throwable $exceptionObject
+     *
+     * @return FileObject
+     */
+    private static function createExceptionFileObject(\Throwable $exceptionObject)
+    {
+        $data = self::exceptionToString($exceptionObject, true, true);
+
+        return new FileObject($data);
     }
 }

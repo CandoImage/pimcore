@@ -46,7 +46,7 @@ class HardwarePlatform extends AbstractVariableCondition implements DataProvider
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public static function fromConfig(array $config)
     {
@@ -54,7 +54,7 @@ class HardwarePlatform extends AbstractVariableCondition implements DataProvider
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getDataProviderKeys(): array
     {
@@ -62,7 +62,7 @@ class HardwarePlatform extends AbstractVariableCondition implements DataProvider
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function canMatch(): bool
     {
@@ -70,13 +70,13 @@ class HardwarePlatform extends AbstractVariableCondition implements DataProvider
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function match(VisitorInfo $visitorInfo): bool
     {
         $device = $visitorInfo->get(Device::PROVIDER_KEY);
 
-        if (!$device || empty($device) || true === ($device['is_bot'] ?? false)) {
+        if (!$device || true === ($device['is_bot'] ?? false)) {
             return false;
         }
 

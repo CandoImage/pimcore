@@ -15,6 +15,9 @@
 
 namespace Pimcore\Model\DataObject\Traits;
 
+/**
+ * @internal
+ */
 trait SimpleComparisonTrait
 {
     /**
@@ -25,7 +28,7 @@ trait SimpleComparisonTrait
      */
     public function isEqual($oldValue, $newValue): bool
     {
-        return $oldValue == $newValue;
+        return $oldValue === $newValue;
     }
 
     /**

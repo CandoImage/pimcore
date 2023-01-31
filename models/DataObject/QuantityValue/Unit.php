@@ -18,6 +18,7 @@ namespace Pimcore\Model\DataObject\QuantityValue;
 use Pimcore\Cache;
 use Pimcore\Event\DataObjectQuantityValueEvents;
 use Pimcore\Event\Model\DataObject\QuantityValueUnitEvent;
+use Pimcore\Event\Traits\RecursionBlockingEventDispatchHelperTrait;
 use Pimcore\Model;
 
 /**
@@ -25,50 +26,54 @@ use Pimcore\Model;
  */
 class Unit extends Model\AbstractModel
 {
+    use RecursionBlockingEventDispatchHelperTrait;
+
     const CACHE_KEY = 'quantityvalue_units_table';
 
     /**
      * @var string
      */
-    public $id;
+    protected $id;
 
     /**
      * @var string
      */
-    public $abbreviation;
+    protected $abbreviation;
 
     /**
      * @var string
      */
-    public $group;
+    protected $group;
 
     /**
      * @var string
      */
-    public $longname;
+    protected $longname;
 
     /**
      * @var string
      */
-    public $baseunit;
+    protected $baseunit;
 
     /**
      * @var string
      */
-    public $reference;
+    protected $reference;
 
     /**
-     * @var float
+     * @var float|null
      */
-    public $factor;
+    protected $factor;
 
     /**
-     * @var float
+     * @var float|null
      */
-    public $conversionOffset;
+    protected $conversionOffset;
 
-    /** @var string */
-    public $converter;
+    /**
+     * @var string
+     */
+    protected $converter;
 
     /**
      * @param string $abbreviation
@@ -82,7 +87,7 @@ class Unit extends Model\AbstractModel
             $unit->getDao()->getByAbbreviation($abbreviation);
 
             return $unit;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -99,7 +104,7 @@ class Unit extends Model\AbstractModel
             $unit->getDao()->getByReference($reference);
 
             return $unit;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -107,20 +112,20 @@ class Unit extends Model\AbstractModel
     /**
      * @param string $id
      *
-     * @return self|null
+     * @return Unit|null
      */
     public static function getById($id)
     {
         try {
             $table = null;
-            if (Cache\Runtime::isRegistered(self::CACHE_KEY)) {
-                $table = Cache\Runtime::get(self::CACHE_KEY);
+            if (Cache\RuntimeCache::isRegistered(self::CACHE_KEY)) {
+                $table = Cache\RuntimeCache::get(self::CACHE_KEY);
             }
 
             if (!is_array($table)) {
                 $table = Cache::load(self::CACHE_KEY);
                 if (is_array($table)) {
-                    Cache\Runtime::set(self::CACHE_KEY, $table);
+                    Cache\RuntimeCache::set(self::CACHE_KEY, $table);
                 }
             }
 
@@ -128,13 +133,12 @@ class Unit extends Model\AbstractModel
                 $table = [];
                 $list = new Model\DataObject\QuantityValue\Unit\Listing();
                 $list = $list->load();
-                /** @var Model\DataObject\QuantityValue\Unit $item */
                 foreach ($list as $item) {
                     $table[$item->getId()] = $item;
                 }
 
                 Cache::save($table, self::CACHE_KEY, [], null, 995, true);
-                Cache\Runtime::set(self::CACHE_KEY, $table);
+                Cache\RuntimeCache::set(self::CACHE_KEY, $table);
             }
         } catch (\Exception $e) {
             return null;
@@ -165,29 +169,29 @@ class Unit extends Model\AbstractModel
         $isUpdate = false;
         if ($this->getId()) {
             $isUpdate = true;
-            \Pimcore::getEventDispatcher()->dispatch(DataObjectQuantityValueEvents::UNIT_PRE_UPDATE, new QuantityValueUnitEvent($this));
+            $this->dispatchEvent(new QuantityValueUnitEvent($this), DataObjectQuantityValueEvents::UNIT_PRE_UPDATE);
         } else {
-            \Pimcore::getEventDispatcher()->dispatch(DataObjectQuantityValueEvents::UNIT_PRE_ADD, new QuantityValueUnitEvent($this));
+            $this->dispatchEvent(new QuantityValueUnitEvent($this), DataObjectQuantityValueEvents::UNIT_PRE_ADD);
         }
 
         $this->getDao()->save();
-        Cache\Runtime::set(self::CACHE_KEY, null);
+        Cache\RuntimeCache::set(self::CACHE_KEY, null);
         Cache::remove(self::CACHE_KEY);
 
         if ($isUpdate) {
-            \Pimcore::getEventDispatcher()->dispatch(DataObjectQuantityValueEvents::UNIT_POST_UPDATE, new QuantityValueUnitEvent($this));
+            $this->dispatchEvent(new QuantityValueUnitEvent($this), DataObjectQuantityValueEvents::UNIT_POST_UPDATE);
         } else {
-            \Pimcore::getEventDispatcher()->dispatch(DataObjectQuantityValueEvents::UNIT_POST_ADD, new QuantityValueUnitEvent($this));
+            $this->dispatchEvent(new QuantityValueUnitEvent($this), DataObjectQuantityValueEvents::UNIT_POST_ADD);
         }
     }
 
     public function delete()
     {
-        \Pimcore::getEventDispatcher()->dispatch(DataObjectQuantityValueEvents::UNIT_PRE_DELETE, new QuantityValueUnitEvent($this));
+        $this->dispatchEvent(new QuantityValueUnitEvent($this), DataObjectQuantityValueEvents::UNIT_PRE_DELETE);
         $this->getDao()->delete();
-        Cache\Runtime::set(self::CACHE_KEY, null);
+        Cache\RuntimeCache::set(self::CACHE_KEY, null);
         Cache::remove(self::CACHE_KEY);
-        \Pimcore::getEventDispatcher()->dispatch(DataObjectQuantityValueEvents::UNIT_POST_DELETE, new QuantityValueUnitEvent($this));
+        $this->dispatchEvent(new QuantityValueUnitEvent($this), DataObjectQuantityValueEvents::UNIT_POST_DELETE);
     }
 
     /**
@@ -198,24 +202,44 @@ class Unit extends Model\AbstractModel
         return ucfirst($this->getAbbreviation() . ' (' . $this->getId() . ')');
     }
 
+    /**
+     * @param string $abbreviation
+     *
+     * @return $this
+     */
     public function setAbbreviation($abbreviation)
     {
         $this->abbreviation = $abbreviation;
+
+        return $this;
     }
 
+    /**
+     * @return string
+     */
     public function getAbbreviation()
     {
         return $this->abbreviation;
     }
 
+    /**
+     * @param int|Unit $baseunit
+     *
+     * @return $this
+     */
     public function setBaseunit($baseunit)
     {
         if ($baseunit instanceof self) {
             $baseunit = $baseunit->getId();
         }
         $this->baseunit = $baseunit;
+
+        return $this;
     }
 
+    /**
+     * @return Unit|null
+     */
     public function getBaseunit()
     {
         if ($this->baseunit) {
@@ -225,21 +249,41 @@ class Unit extends Model\AbstractModel
         return null;
     }
 
+    /**
+     * @param float $factor
+     *
+     * @return $this
+     */
     public function setFactor($factor)
     {
         $this->factor = $factor;
+
+        return $this;
     }
 
+    /**
+     * @return float|null
+     */
     public function getFactor()
     {
         return $this->factor;
     }
 
+    /**
+     * @param string $group
+     *
+     * @return $this
+     */
     public function setGroup($group)
     {
         $this->group = $group;
+
+        return $this;
     }
 
+    /**
+     * @return string
+     */
     public function getGroup()
     {
         return $this->group;
@@ -247,10 +291,14 @@ class Unit extends Model\AbstractModel
 
     /**
      * @param string $id
+     *
+     * @return $this
      */
     public function setId($id)
     {
         $this->id = (string) $id;
+
+        return $this;
     }
 
     /**
@@ -261,11 +309,21 @@ class Unit extends Model\AbstractModel
         return (string) $this->id;
     }
 
+    /**
+     * @param string $longname
+     *
+     * @return $this
+     */
     public function setLongname($longname)
     {
         $this->longname = $longname;
+
+        return $this;
     }
 
+    /**
+     * @return string
+     */
     public function getLongname()
     {
         return $this->longname;
@@ -281,14 +339,18 @@ class Unit extends Model\AbstractModel
 
     /**
      * @param string $reference
+     *
+     * @return $this
      */
     public function setReference($reference)
     {
         $this->reference = $reference;
+
+        return $this;
     }
 
     /**
-     * @return float
+     * @return float|null
      */
     public function getConversionOffset()
     {
@@ -297,10 +359,14 @@ class Unit extends Model\AbstractModel
 
     /**
      * @param float $conversionOffset
+     *
+     * @return $this
      */
     public function setConversionOffset($conversionOffset)
     {
         $this->conversionOffset = $conversionOffset;
+
+        return $this;
     }
 
     /**
@@ -313,9 +379,13 @@ class Unit extends Model\AbstractModel
 
     /**
      * @param string $converter
+     *
+     * @return $this
      */
     public function setConverter($converter)
     {
         $this->converter = (string)$converter;
+
+        return $this;
     }
 }

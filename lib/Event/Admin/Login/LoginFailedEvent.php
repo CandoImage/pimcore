@@ -16,12 +16,12 @@
 namespace Pimcore\Event\Admin\Login;
 
 use Pimcore\Model\User;
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 class LoginFailedEvent extends Event
 {
     /**
-     * @var string
+     * @var array
      */
     protected $credentials;
 
@@ -39,7 +39,7 @@ class LoginFailedEvent extends Event
     }
 
     /**
-     * @return string
+     * @return array
      */
     public function getCredentials()
     {
@@ -48,7 +48,7 @@ class LoginFailedEvent extends Event
 
     /**
      * @param string $name
-     * @param null|mixed $default
+     * @param mixed $default
      *
      * @return mixed
      */

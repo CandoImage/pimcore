@@ -19,6 +19,9 @@ use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData;
 use Pimcore\Model\DataObject\Localizedfield;
 
+/**
+ * @internal
+ */
 trait ContextPersistenceTrait
 {
     /**
@@ -26,7 +29,7 @@ trait ContextPersistenceTrait
      *
      * @param Concrete|Localizedfield|\Pimcore\Model\DataObject\Objectbrick\Data\AbstractData|AbstractData $object
      * @param array $params
-     * @param string $classId
+     * @param string|null $classId
      * @param array $row
      * @param string $srcCol
      */

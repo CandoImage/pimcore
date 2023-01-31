@@ -15,14 +15,24 @@
 
 namespace Pimcore\Model\DataObject\Objectbrick\Definition;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Objectbrick\Definition $model
  */
-class Dao extends Model\DataObject\Fieldcollection\Definition\Dao
+class Dao extends Model\Dao\AbstractDao
 {
+    use DataObject\ClassDefinition\Helper\Dao;
+
+    /**
+     * @var array|null
+     */
+    protected $tableDefinitions = null;
+
     /**
      * @param DataObject\ClassDefinition $class
      * @param bool $query
@@ -40,14 +50,30 @@ class Dao extends Model\DataObject\Fieldcollection\Definition\Dao
 
     /**
      * @param DataObject\ClassDefinition $class
+     * @param bool $query
+     * @param string $language
+     *
+     * @return string
+     */
+    public function getLocalizedTableName(DataObject\ClassDefinition $class, $query = false, $language = 'en')
+    {
+        if ($query) {
+            return 'object_brick_localized_query_' . $this->model->getKey() . '_' . $class->getId() . '_' . $language;
+        } else {
+            return 'object_brick_localized_' . $this->model->getKey() . '_' . $class->getId();
+        }
+    }
+
+    /**
+     * @param DataObject\ClassDefinition $class
      */
     public function delete(DataObject\ClassDefinition $class)
     {
         $table = $this->getTableName($class, false);
-        $this->db->query('DROP TABLE IF EXISTS `' . $table . '`');
+        $this->db->executeQuery('DROP TABLE IF EXISTS `' . $table . '`');
 
         $table = $this->getTableName($class, true);
-        $this->db->query('DROP TABLE IF EXISTS `' . $table . '`');
+        $this->db->executeQuery('DROP TABLE IF EXISTS `' . $table . '`');
     }
 
     /**
@@ -58,21 +84,23 @@ class Dao extends Model\DataObject\Fieldcollection\Definition\Dao
         $tableStore = $this->getTableName($class, false);
         $tableQuery = $this->getTableName($class, true);
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $tableStore . "` (
-		  `o_id` int(11) NOT NULL default '0',
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $tableStore . "` (
+		  `o_id` int(11) UNSIGNED NOT NULL default '0',
           `fieldname` varchar(190) default '',
           PRIMARY KEY (`o_id`,`fieldname`),
           INDEX `o_id` (`o_id`),
-          INDEX `fieldname` (`fieldname`)
-		) DEFAULT CHARSET=utf8mb4;");
+          INDEX `fieldname` (`fieldname`),
+          CONSTRAINT `".self::getForeignKeyName($tableStore, 'o_id').'` FOREIGN KEY (`o_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
+		) DEFAULT CHARSET=utf8mb4;');
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $tableQuery . "` (
-		  `o_id` int(11) NOT NULL default '0',
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $tableQuery . "` (
+		  `o_id` int(11) UNSIGNED NOT NULL default '0',
           `fieldname` varchar(190) default '',
           PRIMARY KEY (`o_id`,`fieldname`),
           INDEX `o_id` (`o_id`),
-          INDEX `fieldname` (`fieldname`)
-		) DEFAULT CHARSET=utf8mb4;");
+          INDEX `fieldname` (`fieldname`),
+          CONSTRAINT `".self::getForeignKeyName($tableQuery, 'o_id').'` FOREIGN KEY (`o_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
+		) DEFAULT CHARSET=utf8mb4;');
 
         $existingColumnsStore = $this->getValidTableColumns($tableStore, false); // no caching of table definition
         $columnsToRemoveStore = $existingColumnsStore;
@@ -84,14 +112,14 @@ class Dao extends Model\DataObject\Fieldcollection\Definition\Dao
 
         DataObject\ClassDefinition\Service::updateTableDefinitions($this->tableDefinitions, ([$tableStore, $tableQuery]));
 
-        /** @var DataObject\ClassDefinition\Data $value */
+        $this->removeIndices($tableStore, $columnsToRemoveStore, $protectedColumnsStore);
+        $this->removeIndices($tableQuery, $columnsToRemoveQuery, $protectedColumnsQuery);
+
         foreach ($this->model->getFieldDefinitions() as $value) {
             $key = $value->getName();
 
-            if ($value instanceof DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface || method_exists($value, 'getDataForResource')) {
+            if ($value instanceof DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface) {
                 // if a datafield requires more than one column in the datastore table => only for non-relation types
-
-                /** @var DataObject\ClassDefinition\Data&DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface $value */
                 if (!$value->isRelationType()) {
                     if (is_array($value->getColumnType())) {
                         foreach ($value->getColumnType() as $fkey => $fvalue) {
@@ -148,5 +176,23 @@ class Dao extends Model\DataObject\Fieldcollection\Definition\Dao
         $tableQuery = $this->getTableName($classDefinition, true);
 
         $this->handleEncryption($classDefinition, [$tableQuery, $tableStore]);
+    }
+
+    /**
+     * @param string $table
+     * @param array $columnsToRemove
+     * @param array $protectedColumns
+     */
+    protected function removeIndices($table, $columnsToRemove, $protectedColumns)
+    {
+        if (is_array($columnsToRemove) && count($columnsToRemove) > 0) {
+            $indexPrefix = str_starts_with($table, 'object_brick_query_') ? 'p_index_' : 'u_index_';
+            foreach ($columnsToRemove as $value) {
+                if (!in_array(strtolower($value), $protectedColumns)) {
+                    Helper::queryIgnoreError($this->db, 'ALTER TABLE `'.$table.'` DROP INDEX `' . $indexPrefix . $value . '`;');
+                }
+            }
+            $this->resetValidTableColumnsCache($table);
+        }
     }
 }

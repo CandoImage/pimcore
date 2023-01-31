@@ -18,8 +18,12 @@ namespace Pimcore\Helper;
 use Pimcore\Mail as MailClient;
 use Pimcore\Model;
 use Pimcore\Tool;
+use Symfony\Component\Mime\Address;
 use TijsVerkoyen\CssToInlineStyles\CssToInlineStyles;
 
+/**
+ * @internal
+ */
 class Mail
 {
     /**
@@ -122,21 +126,27 @@ CSS;
     }
 
     /**
+     * @internal
+     *
      * Helper to format the receivers for the debug email and logging
      *
      * @param array $receivers
      *
      * @return string
      */
-    protected static function formatDebugReceivers(array $receivers)
+    public static function formatDebugReceivers(array $receivers)
     {
         $formatedReceiversArray = [];
 
         foreach ($receivers as $mail => $name) {
-            if (strlen(trim($name)) > 0) {
-                $formatedReceiversArray[] = $name . ' <' . $mail . '>';
+            if ($name instanceof Address) {
+                $formatedReceiversArray[] = $name->toString();
             } else {
-                $formatedReceiversArray[] = $mail;
+                if (strlen(trim($name)) > 0) {
+                    $formatedReceiversArray[] = $name . ' <' . $mail . '>';
+                } else {
+                    $formatedReceiversArray[] = $mail;
+                }
             }
         }
 
@@ -146,26 +156,29 @@ CSS;
     /**
      * @param MailClient $mail
      * @param array $recipients
+     * @param string|null $error
      *
      * @return Model\Tool\Email\Log
      */
-    public static function logEmail(MailClient $mail, $recipients)
+    public static function logEmail(MailClient $mail, $recipients, $error = null)
     {
         $emailLog = new Model\Tool\Email\Log();
-        $document = $mail->getDocument();
 
-        if ($document instanceof Model\Document) {
-            $emailLog->setDocumentId($document->getId());
+        if ($documentId = $mail->getDocumentId()) {
+            $emailLog->setDocumentId($documentId);
         }
 
-        $emailLog->setRequestUri(htmlspecialchars($_SERVER['REQUEST_URI']));
+        if (isset($_SERVER['REQUEST_URI'])) {
+            $emailLog->setRequestUri(htmlspecialchars($_SERVER['REQUEST_URI']));
+        }
+
         $emailLog->setParams($mail->getParams());
         $emailLog->setSentDate(time());
 
         $subject = $mail->getSubjectRendered();
         if (0 === strpos($subject, '=?')) {
             $mbIntEnc = mb_internal_encoding();
-            mb_internal_encoding($mail->getCharset());
+            mb_internal_encoding($mail->getTextCharset());
             $subject = mb_decode_mimeheader($subject);
             mb_internal_encoding($mbIntEnc);
         }
@@ -176,19 +189,14 @@ CSS;
             $emailLog->setFrom(self::formatDebugReceivers($mailFrom));
         }
 
-        $html = $mail->getBody();
+        $html = $mail->getHtmlBody();
         if ($html) {
             $emailLog->setBodyHtml($html);
         }
 
-        $text = $mail->getBodyTextMimePart();
+        $text = $mail->getTextBody();
         if ($text) {
-            $emailLog->setBodyText($text->getBody());
-        } else {
-            // Mail was probably sent as plain text only.
-            if ($text = $mail->getBodyText()) {
-                $emailLog->setBodyText($text);
-            }
+            $emailLog->setBodyText($text);
         }
 
         foreach (['To', 'Cc', 'Bcc', 'ReplyTo'] as $key) {
@@ -201,6 +209,8 @@ CSS;
             }
         }
 
+        $emailLog->setError($error);
+
         $emailLog->save();
 
         return $emailLog;
@@ -208,19 +218,15 @@ CSS;
 
     /**
      * @param string $string
-     * @param Model\Document $document
+     * @param Model\Document|null $document
      * @param string|null $hostUrl
      *
      * @return string
      *
      * @throws \Exception
      */
-    public static function setAbsolutePaths($string, $document = null, $hostUrl = null)
+    public static function setAbsolutePaths($string, ?Model\Document $document = null, $hostUrl = null)
     {
-        if ($document && $document instanceof Model\Document == false) {
-            throw new \Exception('$document has to be an instance of Document');
-        }
-
         $replacePrefix = '';
 
         if (!$hostUrl && $document) {
@@ -248,6 +254,8 @@ CSS;
                 } elseif (strpos($path, '/') === 0) {
                     $absolutePath = preg_replace('@^' . $replacePrefix . '(/(.*))?$@', '/$2', $path);
                     $absolutePath = $hostUrl . $absolutePath;
+                } elseif (strpos($path, 'file://') === 0) {
+                    continue;
                 } else {
                     $absolutePath = $hostUrl . "/$path";
                     if ($path[0] == '?') {
@@ -268,7 +276,11 @@ CSS;
             foreach ($parts as $key => $v) {
                 $v = trim($v);
                 // ignore absolute urls
-                if (strpos($v, 'http://') === 0 || strpos($v, 'https://') === 0 || strpos($v, '//') === 0) {
+                if (strpos($v, 'http://') === 0 ||
+                    strpos($v, 'https://') === 0 ||
+                    strpos($v, '//') === 0 ||
+                    strpos($v, 'file://') === 0
+                ) {
                     continue;
                 }
                 $parts[$key] = $hostUrl.$v;
@@ -284,18 +296,14 @@ CSS;
 
     /**
      * @param string $string
-     * @param Model\Document $document
+     * @param Model\Document|null $document
      *
      * @return string
      *
      * @throws \Exception
      */
-    public static function embedAndModifyCss($string, $document = null)
+    public static function embedAndModifyCss($string, ?Model\Document $document = null)
     {
-        if ($document && $document instanceof Model\Document == false) {
-            throw new \Exception('$document has to be an instance of Document');
-        }
-
         $css = null;
 
         //matches all <link> Tags
@@ -378,18 +386,14 @@ CSS;
 
     /**
      * @param string $path
-     * @param Model\Document $document
+     * @param Model\Document|null $document
      *
      * @return array
      *
      * @throws \Exception
      */
-    public static function getNormalizedFileInfo($path, $document = null)
+    public static function getNormalizedFileInfo($path, ?Model\Document $document = null)
     {
-        if ($document && $document instanceof Model\Document == false) {
-            throw new \Exception('$document has to be an instance of Document');
-        }
-
         $fileInfo = [];
         $hostUrl = Tool::getHostUrl();
         if ($path[0] != '/') {
@@ -420,7 +424,7 @@ CSS;
         if ($emailArray) {
             foreach ($emailArray as $emailStringEntry) {
                 $entryAddress = trim($emailStringEntry);
-                $entryName = null;
+                $entryName = ''; // Symfony mailer want a string
                 $matches = [];
                 if (preg_match('/(.*)<(.*)>/', $entryAddress, $matches)) {
                     $entryAddress = trim($matches[2]);

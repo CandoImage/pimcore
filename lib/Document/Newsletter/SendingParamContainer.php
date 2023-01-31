@@ -18,12 +18,16 @@ namespace Pimcore\Document\Newsletter;
 class SendingParamContainer
 {
     /**
+     * @internal
+     *
      * @var string
      */
     protected $email;
 
     /**
-     * @var array
+     * @internal
+     *
+     * @var array|null
      */
     protected $params;
 
@@ -31,7 +35,7 @@ class SendingParamContainer
      * SendingParamContainer constructor.
      *
      * @param string $email
-     * @param array $params
+     * @param array|null $params
      */
     public function __construct($email, array $params = null)
     {
@@ -56,7 +60,7 @@ class SendingParamContainer
     }
 
     /**
-     * @return array
+     * @return array|null
      */
     public function getParams()
     {
@@ -64,7 +68,7 @@ class SendingParamContainer
     }
 
     /**
-     * @param array $params
+     * @param array|null $params
      */
     public function setParams($params)
     {

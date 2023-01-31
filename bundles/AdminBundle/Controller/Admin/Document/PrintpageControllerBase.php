@@ -16,112 +16,103 @@
 namespace Pimcore\Bundle\AdminBundle\Controller\Admin\Document;
 
 use Pimcore\Config;
-use Pimcore\Controller\Traits\ElementEditLockHelperTrait;
 use Pimcore\Model\Document;
+use Pimcore\Model\Element\ValidationException;
+use Pimcore\Model\Schedule\Task;
 use Pimcore\Web2Print\Processor;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
 
-class PrintpageControllerBase extends DocumentControllerBase
+/**
+ * @internal
+ */
+abstract class PrintpageControllerBase extends DocumentControllerBase
 {
-    use ElementEditLockHelperTrait;
-
     /**
+     * @Route("/get-data-by-id", name="getdatabyid", methods={"GET"})
+     *
      * @param Request $request
      *
      * @return JsonResponse
+     *
+     * @throws \Exception
      */
-    public function getDataByIdAction(Request $request)
+    public function getDataByIdAction(Request $request): JsonResponse
     {
-        $page = Document\PrintAbstract::getById($request->get('id'));
+        $page = Document\PrintAbstract::getById((int)$request->get('id'));
 
         if (!$page) {
             throw $this->createNotFoundException('Document not found');
         }
 
-        // check for lock
-        if ($page->isAllowed('save') || $page->isAllowed('publish') || $page->isAllowed('unpublish') || $page->isAllowed('delete')) {
-            if (\Pimcore\Model\Element\Editlock::isLocked($request->get('id'), 'document')) {
-                return $this->getEditLockResponse($request->get('id'), 'document');
-            }
-            \Pimcore\Model\Element\Editlock::lock($request->get('id'), 'document');
+        if (($lock = $this->checkForLock($page)) instanceof JsonResponse) {
+            return $lock;
         }
 
         $page = clone $page;
-        $isLatestVersion = true;
-        $page = $this->getLatestVersion($page, $isLatestVersion);
+        $draftVersion = null;
+        $page = $this->getLatestVersion($page, $draftVersion);
 
         $page->getVersions();
-        $page->getScheduledTasks();
-        $page->setLocked($page->isLocked());
 
         // unset useless data
         $page->setEditables(null);
         $page->setChildren(null);
 
         $data = $page->getObjectVars();
+        $data['locked'] = $page->isLocked();
 
         $this->addTranslationsData($page, $data);
         $this->minimizeProperties($page, $data);
 
         $data['url'] = $page->getUrl();
-        // this used for the "this is not a published version" hint
-        $data['documentFromVersion'] = !$isLatestVersion;
+        $data['scheduledTasks'] = array_map(
+            static function (Task $task) {
+                return $task->getObjectVars();
+            },
+            $page->getScheduledTasks()
+        );
+
         if ($page->getContentMasterDocument()) {
             $data['contentMasterDocumentPath'] = $page->getContentMasterDocument()->getRealFullPath();
         }
 
-        $this->preSendDataActions($data, $page);
-
-        if ($page->isAllowed('view')) {
-            return $this->adminJson($data);
-        }
-
-        throw $this->createAccessDeniedHttpException();
+        return $this->preSendDataActions($data, $page, $draftVersion);
     }
 
     /**
+     * @Route("/save", name="save", methods={"PUT", "POST"})
+     *
      * @param Request $request
      *
      * @return JsonResponse
+     *
+     * @throws ValidationException
      */
-    public function saveAction(Request $request)
+    public function saveAction(Request $request): JsonResponse
     {
-        $page = Document\PrintAbstract::getById($request->get('id'));
-
+        $page = Document\PrintAbstract::getById((int) $request->get('id'));
         if (!$page) {
             throw $this->createNotFoundException('Document not found');
         }
 
         $page = $this->getLatestVersion($page);
-        $page->setUserModification($this->getAdminUser()->getId());
-
-        // save to session
-        $key = 'document_' . $request->get('id');
 
         Document\Service::saveElementToSession($page);
 
-        if ($request->get('task') == 'unpublish') {
-            $page->setPublished(false);
-        }
-        if ($request->get('task') == 'publish') {
-            $page->setPublished(true);
-        }
-
-        // only save when publish or unpublish
-        if (($request->get('task') == 'publish' && $page->isAllowed('publish')) || ($request->get('task') == 'unpublish' && $page->isAllowed('unpublish'))) {
-
+        if ($request->get('task') !== self::TASK_SAVE) {
             //check, if to cleanup existing elements of document
             $config = Config::getWeb2PrintConfig();
             if ($config->get('generalDocumentSaveMode') == 'cleanup') {
                 $page->setEditables([]);
             }
+        }
 
-            $this->setValuesToDocument($request, $page);
+        list($task, $page, $version) = $this->saveDocument($page, $request);
 
-            $page->save();
-
+        if ($task === self::TASK_PUBLISH || $task === self::TASK_UNPUBLISH) {
             $treeData = $this->getTreeNodeConfig($page);
 
             return $this->adminJson([
@@ -132,21 +123,25 @@ class PrintpageControllerBase extends DocumentControllerBase
                 ],
                 'treeData' => $treeData,
             ]);
-        } elseif ($page->isAllowed('save')) {
-            $this->setValuesToDocument($request, $page);
-            $page->saveVersion();
-
-            return $this->adminJson(['success' => true]);
         } else {
-            throw $this->createAccessDeniedHttpException();
+            $draftData = [];
+            if ($version) {
+                $draftData = [
+                    'id' => $version->getId(),
+                    'modificationDate' => $version->getDate(),
+                    'isAutoSave' => $version->isAutoSave(),
+                ];
+            }
+
+            return $this->adminJson(['success' => true, 'draft' => $draftData]);
         }
     }
 
     /**
      * @param Request $request
-     * @param Document\PrintAbstract $page
+     * @param Document $page
      */
-    protected function setValuesToDocument(Request $request, Document $page)
+    protected function setValuesToDocument(Request $request, Document $page): void
     {
         $this->addSettingsToDocument($request, $page);
         $this->addDataToDocument($request, $page);
@@ -154,15 +149,17 @@ class PrintpageControllerBase extends DocumentControllerBase
     }
 
     /**
+     * @Route("/active-generate-process", name="activegenerateprocess", methods={"POST"})
+     *
      * @param Request $request
      *
      * @return JsonResponse
      *
      * @throws \Exception
      */
-    public function activeGenerateProcessAction(Request $request)
+    public function activeGenerateProcessAction(Request $request): JsonResponse
     {
-        $document = Document\PrintAbstract::getById(intval($request->get('id')));
+        $document = Document\PrintAbstract::getById((int)$request->get('id'));
 
         if (!$document) {
             throw $this->createNotFoundException('Document with id ' . $request->get('id') . ' not found.');
@@ -190,15 +187,17 @@ class PrintpageControllerBase extends DocumentControllerBase
     }
 
     /**
+     * @Route("/pdf-download", name="pdfdownload", methods={"GET"})
+     *
      * @param Request $request
      *
-     * @throws \Exception
-     *
      * @return BinaryFileResponse
+     *
+     * @throws \Exception
      */
-    public function pdfDownloadAction(Request $request)
+    public function pdfDownloadAction(Request $request): BinaryFileResponse
     {
-        $document = Document\PrintAbstract::getById(intval($request->get('id')));
+        $document = Document\PrintAbstract::getById((int)$request->get('id'));
 
         if (!$document) {
             throw $this->createNotFoundException('Document with id ' . $request->get('id') . ' not found.');
@@ -218,6 +217,8 @@ class PrintpageControllerBase extends DocumentControllerBase
     }
 
     /**
+     * @Route("/start-pdf-generation", name="startpdfgeneration", methods={"POST"})
+     *
      * @param Request $request
      * @param Config $config
      *
@@ -225,7 +226,7 @@ class PrintpageControllerBase extends DocumentControllerBase
      *
      * @throws \Exception
      */
-    public function startPdfGenerationAction(Request $request, Config $config)
+    public function startPdfGenerationAction(Request $request, Config $config): JsonResponse
     {
         $allParams = json_decode($request->getContent(), true);
 
@@ -254,13 +255,15 @@ class PrintpageControllerBase extends DocumentControllerBase
     }
 
     /**
+     * @Route("/check-pdf-dirty", name="checkpdfdirty", methods={"GET"})
+     *
      * @param Request $request
      *
      * @return JsonResponse
      */
-    public function checkPdfDirtyAction(Request $request)
+    public function checkPdfDirtyAction(Request $request): JsonResponse
     {
-        $printDocument = Document\PrintAbstract::getById($request->get('id'));
+        $printDocument = Document\PrintAbstract::getById((int) $request->get('id'));
 
         $dirty = true;
         if ($printDocument) {
@@ -271,11 +274,13 @@ class PrintpageControllerBase extends DocumentControllerBase
     }
 
     /**
+     * @Route("/get-processing-options", name="getprocessingoptions", methods={"GET"})
+     *
      * @param Request $request
      *
      * @return JsonResponse
      */
-    public function getProcessingOptionsAction(Request $request)
+    public function getProcessingOptionsAction(Request $request): JsonResponse
     {
         $options = Processor::getInstance()->getProcessingOptions();
 
@@ -304,35 +309,42 @@ class PrintpageControllerBase extends DocumentControllerBase
     /**
      * @param int $documentId
      *
-     * @return array|mixed
+     * @return array
      */
-    private function getStoredProcessingOptions($documentId)
+    private function getStoredProcessingOptions($documentId): array
     {
         $filename = PIMCORE_SYSTEM_TEMP_DIRECTORY . DIRECTORY_SEPARATOR . 'web2print-processingoptions-' . $documentId . '_' . $this->getAdminUser()->getId() . '.psf';
         if (file_exists($filename)) {
-            return \Pimcore\Tool\Serialize::unserialize(file_get_contents($filename));
-        } else {
-            return [];
+            $options = \Pimcore\Tool\Serialize::unserialize(file_get_contents($filename));
+            if (is_array($options)) {
+                return $options;
+            }
         }
+
+        return [];
     }
 
     /**
      * @param int $documentId
      * @param array $options
      */
-    private function saveProcessingOptions($documentId, $options)
+    private function saveProcessingOptions(int $documentId, array $options)
     {
         file_put_contents(PIMCORE_SYSTEM_TEMP_DIRECTORY . DIRECTORY_SEPARATOR . 'web2print-processingoptions-' . $documentId . '_' . $this->getAdminUser()->getId() . '.psf', \Pimcore\Tool\Serialize::serialize($options));
     }
 
     /**
+     * @Route("/cancel-generation", name="cancelgeneration", methods={"DELETE"})
+     *
      * @param Request $request
      *
      * @return JsonResponse
+     *
+     * @throws \Exception
      */
-    public function cancelGenerationAction(Request $request)
+    public function cancelGenerationAction(Request $request): JsonResponse
     {
-        Processor::getInstance()->cancelGeneration(intval($request->get('id')));
+        Processor::getInstance()->cancelGeneration((int)$request->get('id'));
 
         return $this->adminJson(['success' => true]);
     }

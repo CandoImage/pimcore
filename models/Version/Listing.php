@@ -19,22 +19,36 @@ use Pimcore\Model;
 
 /**
  * @method \Pimcore\Model\Version\Listing\Dao getDao()
+ * @method array loadIdList()
  * @method Model\Version[] load()
- * @method Model\Version current()
+ * @method Model\Version|false current()
  * @method int getTotalCount()
  */
 class Listing extends Model\Listing\AbstractListing
 {
     /**
-     * @var Model\Version[]|null
+     * @internal
      *
-     * @deprecated use getter/setter methods or $this->data
+     * @var bool
      */
-    protected $versions = null;
+    protected bool $loadAutoSave = false;
 
-    public function __construct()
+    /**
+     * @return bool
+     */
+    public function isLoadAutoSave(): bool
     {
-        $this->versions = & $this->data;
+        return $this->loadAutoSave;
+    }
+
+    /**
+     * @param bool $loadAutoSave
+     */
+    public function setLoadAutoSave(bool $loadAutoSave): self
+    {
+        $this->loadAutoSave = $loadAutoSave;
+
+        return $this;
     }
 
     /**
@@ -48,7 +62,7 @@ class Listing extends Model\Listing\AbstractListing
     /**
      * @param Model\Version[]|null $versions
      *
-     * @return static
+     * @return $this
      */
     public function setVersions($versions)
     {

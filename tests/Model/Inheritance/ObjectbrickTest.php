@@ -24,11 +24,12 @@ use Pimcore\Tests\Util\TestHelper;
  * Class ObjectbrickTest
  *
  * @package Pimcore\Tests\Model\Inheritance
+ *
  * @group model.inheritance.objectbrick
  */
 class ObjectbrickTest extends ModelTestCase
 {
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         TestHelper::cleanUp();
@@ -49,7 +50,6 @@ class ObjectbrickTest extends ModelTestCase
      */
     public function testInheritance()
     {
-        /** @var Inheritance $one */
         $one = new Inheritance();
         $one->setKey('one');
         $one->setParentId(1);
@@ -62,7 +62,6 @@ class ObjectbrickTest extends ModelTestCase
 
         $one->save();
 
-        /** @var Inheritance $two */
         $two = new Inheritance();
         $two->setKey('two');
         $two->setParentId($one->getId());
@@ -72,7 +71,6 @@ class ObjectbrickTest extends ModelTestCase
         $two->getMybricks()->getUnittestBrick()->setBrickinput2('childtext');
         $two->save();
 
-        /** @var Inheritance $three */
         $three = new Inheritance();
         $three->setKey('three');
         $three->setParentId($two->getId());

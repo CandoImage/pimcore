@@ -15,6 +15,8 @@
 
 namespace Pimcore\Event;
 
+use Pimcore\Model\Asset;
+
 final class AssetEvents
 {
     /**
@@ -116,7 +118,27 @@ final class AssetEvents
 
     /**
      * Arguments:
-     *  - base_element | Pimcore\Model\Document | contains the base document used in copying process
+     *  - params | array | contains the values that were passed to getById() as the second parameter
+     *
+     * @Event("Pimcore\Event\Model\AssetEvent")
+     *
+     * @var string
+     */
+    const POST_LOAD = 'pimcore.asset.postLoad';
+
+    /**
+     * Arguments:
+     *  - target_element | Pimcore\Model\Asset | contains the target asset used in copying process
+     *
+     * @Event("Pimcore\Event\Model\AssetEvent")
+     *
+     * @var string
+     */
+    const PRE_COPY = 'pimcore.asset.preCopy';
+
+    /**
+     * Arguments:
+     *  - base_element | Pimcore\Model\Asset | contains the base asset used in copying process
      *
      * @Event("Pimcore\Event\Model\AssetEvent")
      *
@@ -131,7 +153,7 @@ final class AssetEvents
      *  - deferred | bool | Whether the thumbnail should be generated on demand or not
      *  - generated | bool | Whether a new thumbnail file was actually generated or not (from cache)
      *
-     * @Event("Pimcore\Event\Model\GenericEvent")
+     * @Event("Symfony\Component\EventDispatcher\GenericEvent")
      *
      * @var string
      */
@@ -144,7 +166,7 @@ final class AssetEvents
      *  - deferred | bool | Whether the thumbnail should be generated on demand or not
      *  - generated | bool | Whether a new thumbnail file was actually generated or not (from cache)
      *
-     * @Event("Pimcore\Event\Model\GenericEvent")
+     * @Event("Symfony\Component\EventDispatcher\GenericEvent")
      *
      * @var string
      */
@@ -157,7 +179,7 @@ final class AssetEvents
      *  - deferred | bool | Whether the thumbnail should be generated on demand or not
      *  - generated | bool | Whether a new thumbnail file was actually generated or not (from cache)
      *
-     * @Event("Pimcore\Event\Model\GenericEvent")
+     * @Event("Symfony\Component\EventDispatcher\GenericEvent")
      *
      * @var string
      */

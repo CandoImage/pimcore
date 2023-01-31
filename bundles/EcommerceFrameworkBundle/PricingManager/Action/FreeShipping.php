@@ -15,24 +15,13 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Action;
 
-use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartPriceModificator\CartPriceModificatorInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartPriceModificator\ShippingInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\ActionInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\EnvironmentInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Type\Decimal;
 
-class FreeShipping implements ActionInterface
+class FreeShipping implements ActionInterface, CartActionInterface
 {
-    /**
-     * @param EnvironmentInterface $environment
-     *
-     * @return ActionInterface
-     */
-    public function executeOnProduct(EnvironmentInterface $environment)
-    {
-        return $this;
-    }
-
     /**
      * @param EnvironmentInterface $environment
      *
@@ -44,8 +33,6 @@ class FreeShipping implements ActionInterface
 
         $list = $priceCalculator->getModificators();
         foreach ($list as &$modificator) {
-            // @var CartPriceModificatorInterface $modificator_
-
             // remove shipping charge
             if ($modificator instanceof ShippingInterface) {
                 $modificator->setCharge(Decimal::zero());

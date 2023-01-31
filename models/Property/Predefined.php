@@ -18,69 +18,73 @@ namespace Pimcore\Model\Property;
 use Pimcore\Model;
 
 /**
- * @method Predefined\Dao getDao()
- * @method void save()
+ * @internal
+ *
+ * @method bool isWriteable()
+ * @method string getWriteTarget()
+ * @method \Pimcore\Model\Property\Predefined\Dao getDao()
  * @method void delete()
+ * @method void save()
  */
-class Predefined extends Model\AbstractModel
+final class Predefined extends Model\AbstractModel
 {
     /**
-     * @var int
+     * @var string
      */
-    public $id;
+    protected $id;
 
     /**
      * @var string
      */
-    public $name;
+    protected $name;
 
     /**
      * @var string
      */
-    public $description;
+    protected $description;
+
+    /**
+     * @var string|null
+     */
+    protected $key;
 
     /**
      * @var string
      */
-    public $key;
+    protected $type;
 
     /**
      * @var string
      */
-    public $type;
+    protected $data;
 
     /**
      * @var string
      */
-    public $data;
+    protected $config;
 
     /**
      * @var string
      */
-    public $config;
-
-    /**
-     * @var string
-     */
-    public $ctype;
+    protected $ctype;
 
     /**
      * @var bool
      */
-    public $inheritable = false;
+    protected $inheritable = false;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
-     * @param int $id
+     * @param string $id
      *
      * @return self|null
      */
@@ -91,7 +95,7 @@ class Predefined extends Model\AbstractModel
             $property->getDao()->getById($id);
 
             return $property;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -106,7 +110,7 @@ class Predefined extends Model\AbstractModel
         $cacheKey = 'property_predefined_' . $key;
 
         try {
-            $property = \Pimcore\Cache\Runtime::get($cacheKey);
+            $property = \Pimcore\Cache\RuntimeCache::get($cacheKey);
             if (!$property) {
                 throw new \Exception('Predefined property in registry is null');
             }
@@ -114,8 +118,8 @@ class Predefined extends Model\AbstractModel
             try {
                 $property = new self();
                 $property->getDao()->getByKey($key);
-                \Pimcore\Cache\Runtime::set($cacheKey, $property);
-            } catch (\Exception $e) {
+                \Pimcore\Cache\RuntimeCache::set($cacheKey, $property);
+            } catch (Model\Exception\NotFoundException $e) {
                 return null;
             }
         }
@@ -135,7 +139,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getKey()
     {
@@ -215,7 +219,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return string
      */
     public function getId()
     {
@@ -223,13 +227,13 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @param int $id
+     * @param string $id
      *
      * @return $this
      */
     public function setId($id)
     {
-        $this->id = (int) $id;
+        $this->id = $id;
 
         return $this;
     }
@@ -279,7 +283,7 @@ class Predefined extends Model\AbstractModel
      */
     public function getInheritable()
     {
-        return (bool) $this->inheritable;
+        return $this->inheritable;
     }
 
     /**
@@ -317,7 +321,7 @@ class Predefined extends Model\AbstractModel
     /**
      * @param int $creationDate
      *
-     * @return self
+     * @return $this
      */
     public function setCreationDate($creationDate)
     {
@@ -327,7 +331,7 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -337,7 +341,7 @@ class Predefined extends Model\AbstractModel
     /**
      * @param int $modificationDate
      *
-     * @return self
+     * @return $this
      */
     public function setModificationDate($modificationDate)
     {
@@ -347,10 +351,18 @@ class Predefined extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
         return $this->modificationDate;
+    }
+
+    public function __clone()
+    {
+        if ($this->dao) {
+            $this->dao = clone $this->dao;
+            $this->dao->setModel($this);
+        }
     }
 }

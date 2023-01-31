@@ -18,43 +18,40 @@ namespace Pimcore\Bundle\CoreBundle\EventListener;
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\ResponseInjectionTrait;
 use Pimcore\Tool\Session;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelInterface;
 
+/**
+ * @internal
+ */
 class MaintenancePageListener
 {
     use ResponseInjectionTrait;
 
     /**
-     * @var KernelInterface
-     */
-    protected $kernel;
-
-    /**
-     * @var string
+     * @var string|null
      */
     protected $templateCode = null;
 
     /**
      * @param KernelInterface $kernel
      */
-    public function __construct(KernelInterface $kernel)
+    public function __construct(protected KernelInterface $kernel)
     {
-        $this->kernel = $kernel;
     }
 
     /**
      * @param string $code
      */
-    public function setTemplateCode($code)
+    public function setTemplateCode($code): void
     {
         $this->templateCode = $code;
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getTemplateCode()
+    public function getTemplateCode(): ?string
     {
         return $this->templateCode;
     }
@@ -62,7 +59,18 @@ class MaintenancePageListener
     /**
      * @param string $path
      */
-    public function loadTemplateFromResource($path)
+    public function loadTemplateFromPath($path): void
+    {
+        $templateFile = PIMCORE_PROJECT_ROOT . $path;
+        if (file_exists($templateFile)) {
+            $this->setTemplateCode(file_get_contents($templateFile));
+        }
+    }
+
+    /**
+     * @param string $path
+     */
+    public function loadTemplateFromResource($path): void
     {
         $templateFile = $this->kernel->locateResource($path);
         if (file_exists($templateFile)) {
@@ -71,11 +79,11 @@ class MaintenancePageListener
     }
 
     /**
-     * @param GetResponseEvent $event
+     * @param RequestEvent $event
      */
-    public function onKernelRequest(GetResponseEvent $event)
+    public function onKernelRequest(RequestEvent $event): void
     {
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 

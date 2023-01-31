@@ -17,59 +17,54 @@ namespace Pimcore\Model\Document\Editable\Area;
 
 use Pimcore\Model\Document;
 use Pimcore\Model\Document\Editable;
-use Pimcore\Templating\Model\ViewModelInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 class Info
 {
     /**
-     * @var string
-     */
-    public $id;
-
-    /**
+     * @internal
      *
-     * @deprecated since v6.8 and will be removed in Pimcore 10.
+     * @var string|null
      */
-    public $tag;
+    protected $id;
 
     /**
-     * @var Editable|Editable\Area|Editable\Areablock
+     * @internal
+     *
+     * @var Editable|null
      */
-    public $editable;
+    protected $editable;
 
     /**
+     * @internal
+     *
      * @var array
      */
-    public $params;
+    protected $params = [];
 
     /**
-     * @var Request
+     * @internal
+     *
+     * @var Request|null
      */
-    public $request;
+    protected $request;
 
     /**
-     * @var ViewModelInterface
+     * @internal
+     *
+     * @var string|null
      */
-    public $view;
+    protected $type;
 
     /**
-     * @var string
+     * @internal
+     *
+     * @var int|null
      */
-    public $type;
+    protected $index;
 
     /**
-     * @var int
-     */
-    public $index;
-
-    public function __construct()
-    {
-        $this->tag = & $this->editable;
-    }
-
-    /**
-     * @return string
+     * @return string|null
      */
     public function getId()
     {
@@ -77,7 +72,7 @@ class Info
     }
 
     /**
-     * @param string $id
+     * @param string|null $id
      *
      * @return $this
      */
@@ -89,27 +84,7 @@ class Info
     }
 
     /**
-     * @return Editable|Editable\Area|Editable\Areablock
-     *
-     * @deprecated since v6.8 and will be removed in Pimcore 10. use getEditable() instead.
-     */
-    public function getTag()
-    {
-        return $this->getEditable();
-    }
-
-    /**
-     * @param Editable $tag
-     *
-     * @deprecated since v6.8 and will be removed in Pimcore 10. use setEditable() instead.
-     */
-    public function setTag(Editable $tag)
-    {
-        $this->setEditable($tag);
-    }
-
-    /**
-     * @return Editable|Editable\Area|Editable\Areablock
+     * @return Editable|null
      */
     public function getEditable()
     {
@@ -125,7 +100,7 @@ class Info
     }
 
     /**
-     * @return mixed
+     * @return string|null
      */
     public function getType()
     {
@@ -133,7 +108,7 @@ class Info
     }
 
     /**
-     * @param string $type
+     * @param string|null $type
      *
      * @return $this
      */
@@ -155,7 +130,7 @@ class Info
     /**
      * @param string $name
      *
-     * @return mixed|null
+     * @return mixed
      */
     public function getParam(string $name)
     {
@@ -192,7 +167,7 @@ class Info
     }
 
     /**
-     * @return Request
+     * @return Request|null
      */
     public function getRequest()
     {
@@ -212,31 +187,7 @@ class Info
     }
 
     /**
-     * @return ViewModelInterface
-     *
-     * @deprecated
-     */
-    public function getView()
-    {
-        return $this->view;
-    }
-
-    /**
-     * @param ViewModelInterface $view
-     *
-     * @return $this
-     *
-     * @deprecated
-     */
-    public function setView(ViewModelInterface $view)
-    {
-        $this->view = $view;
-
-        return $this;
-    }
-
-    /**
-     * @param int $index
+     * @param int|null $index
      *
      * @return $this
      */
@@ -248,7 +199,7 @@ class Info
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getIndex()
     {
@@ -256,19 +207,11 @@ class Info
     }
 
     /**
-     * @return Document|Document\PageSnippet
+     * @return Document\PageSnippet
      */
     public function getDocument()
     {
-        $document = null;
-
-        if ($this->view && isset($this->view->document)) {
-            $document = $this->view->document;
-        } else {
-            $document = $this->editable->getDocument();
-        }
-
-        return $document;
+        return $this->editable->getDocument();
     }
 
     /**
@@ -292,5 +235,3 @@ class Info
         return $editable;
     }
 }
-
-class_alias(Info::class, 'Pimcore\Model\Document\Tag\Area\Info');

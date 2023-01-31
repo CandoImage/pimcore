@@ -15,55 +15,28 @@
 
 namespace Pimcore\Model\Document\Editable\Area;
 
-use Pimcore\Templating\Model\ViewModelInterface;
-
 abstract class AbstractArea
 {
     /**
-     * @var ViewModelInterface
+     * @internal
      *
-     * @deprecated
-     */
-    protected $view;
-
-    /**
      * @var \Pimcore\Config\Config
      */
     protected $config;
 
     /**
+     * @internal
+     *
      * @var Info
      */
     protected $brick;
 
     /**
+     * @internal
+     *
      * @var array
      */
     protected $params = [];
-
-    /**
-     * @param ViewModelInterface $view
-     *
-     * @return $this
-     *
-     * @deprecated
-     */
-    public function setView($view)
-    {
-        $this->view = $view;
-
-        return $this;
-    }
-
-    /**
-     * @return ViewModelInterface
-     *
-     * @deprecated
-     */
-    public function getView()
-    {
-        return $this->view;
-    }
 
     /**
      * @param \Pimcore\Config\Config $config
@@ -148,5 +121,3 @@ abstract class AbstractArea
         return $this->brick;
     }
 }
-
-class_alias(AbstractArea::class, 'Pimcore\Model\Document\Tag\Area\AbstractArea');

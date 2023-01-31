@@ -23,9 +23,7 @@ use Pimcore\Model;
 class Folder extends Model\Document
 {
     /**
-     * static type of this object
-     *
-     * @var string
+     * {@inheritdoc}
      */
-    protected $type = 'folder';
+    protected string $type = 'folder';
 }

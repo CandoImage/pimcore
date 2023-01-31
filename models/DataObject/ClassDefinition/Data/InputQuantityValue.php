@@ -17,6 +17,7 @@ namespace Pimcore\Model\DataObject\ClassDefinition\Data;
 
 use Pimcore\Model;
 use Pimcore\Model\DataObject\Data\InputQuantityValue as InputQuantityValueDataObject;
+use Pimcore\Model\DataObject\QuantityValue\Unit;
 
 /**
  * TODO: Refactor - this class is very similar to the parent one so probably we can try to refactor parent and have better results here also
@@ -31,12 +32,16 @@ class InputQuantityValue extends QuantityValue
     use Extension\QueryColumnType;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'inputQuantityValue';
 
     /**
      * Type for the column to query
+     *
+     * @internal
      *
      * @var array
      */
@@ -48,14 +53,14 @@ class InputQuantityValue extends QuantityValue
     /**
      * Type for the column
      *
+     * @internal
+     *
      * @var array
      */
     public $columnType = [
         'value' => 'varchar(255)',
         'unit' => 'varchar(50)',
     ];
-
-    public $phpdocType = '\\Pimcore\\Model\\DataObject\\Data\\InputQuantityValue';
 
     /**
      * @param array $data
@@ -70,7 +75,9 @@ class InputQuantityValue extends QuantityValue
             $dataObject = $this->getNewDataObject($data[$this->getName() . '__value'], $data[$this->getName() . '__unit']);
 
             if (isset($params['owner'])) {
-                $dataObject->setOwner($params['owner'], $params['fieldname'], $params['language'] ?? null);
+                $dataObject->_setOwner($params['owner']);
+                $dataObject->_setOwnerFieldname($params['fieldname']);
+                $dataObject->_setOwnerLanguage($params['language'] ?? null);
             }
 
             return $dataObject;
@@ -89,25 +96,20 @@ class InputQuantityValue extends QuantityValue
     public function getDataFromEditmode($data, $object = null, $params = [])
     {
         if ($data['value'] || $data['unit']) {
-            if ($data['unit']) {
-                if ($data['unit'] == -1 || $data['unit'] == null || empty($data['unit'])) {
-                    return $this->getNewDataObject($data['value'], null);
-                }
-
-                return $this->getNewDataObject($data['value'], $data['unit']);
+            if (empty($data['unit']) || $data['unit'] == -1) {
+                return $this->getNewDataObject($data['value'], null);
             }
+
+            return $this->getNewDataObject($data['value'], $data['unit']);
         }
 
         return null;
     }
 
     /**
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws Model\Element\ValidationException
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         if ($omitMandatoryCheck) {
             return;
@@ -120,104 +122,63 @@ class InputQuantityValue extends QuantityValue
     }
 
     /**
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|Model\DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return null|InputQuantityValueDataObject
-     */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
-    {
-        $values = explode('_', $importValue);
-
-        $value = null;
-        if ($values[0] && $values[1]) {
-            $number = (float) str_replace(',', '.', $values[0]);
-            $value = $this->getNewDataObject($number, $values[1]);
-        }
-
-        return $value;
-    }
-
-    /**
-     * @deprecated
-     *
-     * @param mixed $value
-     * @param Model\DataObject\Concrete|null $object
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @return null|InputQuantityValueDataObject
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($value, $object = null, $params = [], $idMapper = null)
-    {
-        if (empty($value)) {
-            return null;
-        } else {
-            $value = (array) $value;
-            if (array_key_exists('value', $value) && array_key_exists('unit', $value) && array_key_exists('unitAbbreviation', $value)) {
-                $unitId = $value['unit'];
-                if ($idMapper) {
-                    $unitId = $idMapper->getMappedId('unit', $unitId);
-                }
-
-                $unit = Model\DataObject\QuantityValue\Unit::getById($unitId);
-                if ($unit && $unit->getAbbreviation() == $value['unitAbbreviation']) {
-                    return $this->getNewDataObject($value, $unitId);
-                } elseif (!$unit && is_null($value['unit'])) {
-                    return $this->getNewDataObject($value);
-                } else {
-                    throw new \Exception(get_class($this).': cannot get values from web service import - unit id and unit abbreviation do not match with local database');
-                }
-            } else {
-                throw new \Exception(get_class($this).': cannot get values from web service import - invalid data');
-            }
-        }
-    }
-
-    /**
-     * @deprecated unmarshal is deprecated and will be removed in Pimcore 10. Use denormalize instead.
-     *
-     * @param mixed $value
-     * @param Model\DataObject\Concrete|null $object
-     * @param array $params
-     *
-     * @return array|mixed|null|InputQuantityValueDataObject
-     */
-    public function unmarshal($value, $object = null, $params = [])
-    {
-        if (($params['blockmode'] ?? false) && is_array($value)) {
-            return $this->getNewDataObject($value['value'], $value['value2']);
-        } elseif ($params['simple'] ?? false) {
-            return $value;
-        } elseif (is_array($value)) {
-            return [
-                $this->getName() . '__value' => $value['value'],
-                $this->getName() . '__unit' => $value['value2'],
-
-            ];
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * @param string $value
-     * @param int $unitId
+     * @param string|null $value
+     * @param Unit|string|null $unitId
      *
      * @return InputQuantityValueDataObject
      */
-    protected function getNewDataObject($value = null, $unitId = null)
+    private function getNewDataObject($value = null, $unitId = null)
     {
         return new InputQuantityValueDataObject($value, $unitId);
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
+     */
+    public function getParameterTypeDeclaration(): ?string
+    {
+        return '?\\' . Model\DataObject\Data\InputQuantityValue::class;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?\\' . Model\DataObject\Data\InputQuantityValue::class;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
+    {
+        return '\\' . Model\DataObject\Data\InputQuantityValue::class . '|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return '\\' . Model\DataObject\Data\InputQuantityValue::class . '|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function normalize($value, $params = [])
+    {
+        if ($value instanceof Model\DataObject\Data\InputQuantityValue) {
+            return [
+                'value' => $value->getValue(),
+                'unitId' => $value->getUnitId(),
+            ];
+        }
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function denormalize($value, $params = [])
     {

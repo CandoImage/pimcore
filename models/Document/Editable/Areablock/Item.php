@@ -24,5 +24,3 @@ class Item extends AbstractBlockItem
         return 'areablock';
     }
 }
-
-class_alias(Item::class, 'Pimcore\Model\Document\Tag\Areablock\Item');

@@ -15,7 +15,10 @@
 
 namespace Pimcore\Tool\Requirements;
 
-class Check implements \ArrayAccess
+/**
+ * @internal
+ */
+final class Check implements \ArrayAccess
 {
     const STATE_OK = 1;
 
@@ -29,26 +32,24 @@ class Check implements \ArrayAccess
     public $name;
 
     /**
-     * @var string
+     * @var string|null
      */
     public $link;
 
     /**
-     * @var string
+     * @var int
      */
     public $state;
 
     /**
-     * @var string
+     * @var string|null
      */
     public $message;
 
     /**
-     * Check constructor.
-     *
-     * @param array $data
+     * @param array{name: string, link?: string, state: int, message?: string} $data
      */
-    public function __construct(array $data = [])
+    public function __construct(array $data)
     {
         foreach ($data as $key => $value) {
             $this->$key = $value;
@@ -72,7 +73,7 @@ class Check implements \ArrayAccess
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getLink()
     {
@@ -88,7 +89,7 @@ class Check implements \ArrayAccess
     }
 
     /**
-     * @return string
+     * @return int
      */
     public function getState()
     {
@@ -96,7 +97,7 @@ class Check implements \ArrayAccess
     }
 
     /**
-     * @param string $state
+     * @param int $state
      */
     public function setState($state)
     {
@@ -128,7 +129,7 @@ class Check implements \ArrayAccess
      *
      * @return bool
      */
-    public function offsetExists($offset)
+    public function offsetExists($offset): bool
     {
         return isset($this->$offset);
     }
@@ -136,18 +137,18 @@ class Check implements \ArrayAccess
     /**
      * @param string $offset
      *
-     * @return string
+     * @return string|int|null
      */
-    public function offsetGet($offset)
+    public function offsetGet($offset): string|int|null
     {
         return $this->{'get'.$offset}();
     }
 
     /**
      * @param string $offset
-     * @param string $value
+     * @param string|int $value
      */
-    public function offsetSet($offset, $value)
+    public function offsetSet($offset, $value): void
     {
         $this->{'set'.$offset}($value);
     }
@@ -155,7 +156,7 @@ class Check implements \ArrayAccess
     /**
      * @param string $offset
      */
-    public function offsetUnset($offset)
+    public function offsetUnset($offset): void
     {
         unset($this->$offset);
     }

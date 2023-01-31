@@ -17,35 +17,44 @@ namespace Pimcore\Bundle\AdminBundle\Security\User;
 
 use Pimcore\Model\User as PimcoreUser;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
-use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
+use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
 class UserProvider implements UserProviderInterface
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function loadUserByUsername($username)
+    public function loadUserByIdentifier(string $username): UserInterface
     {
-        /** @var PimcoreUser $pimcoreUser */
         $pimcoreUser = PimcoreUser::getByName($username);
 
         if ($pimcoreUser) {
-            $user = new User($pimcoreUser);
-
-            return $user;
+            return new User($pimcoreUser);
         }
 
-        throw new UsernameNotFoundException(sprintf('User %s was not found', $username));
+        throw new UserNotFoundException(sprintf('User %s was not found', $username));
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      *
-     * @param User $user
+     * @deprecated use loadUserByIdentifier() instead.
      */
-    public function refreshUser(UserInterface $user)
+    public function loadUserByUsername($identifier)
+    {
+        return $this->loadUserByIdentifier($identifier);
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @param UserInterface $user
+     *
+     * @return UserInterface
+     */
+    public function refreshUser(UserInterface $user)//: UserInterface
     {
         if (!$user instanceof User) {
             // user is not supported - we only support pimcore users
@@ -69,9 +78,11 @@ class UserProvider implements UserProviderInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
+     *
+     * @return bool
      */
-    public function supportsClass($class)
+    public function supportsClass($class)//: bool
     {
         return $class === User::class;
     }

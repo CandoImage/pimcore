@@ -18,14 +18,16 @@ namespace Pimcore\Bundle\AdminBundle\Controller\Admin;
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
 use Pimcore\Event\AdminEvents;
 use Pimcore\Model\Element\Tag;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\GenericEvent;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @Route("/tags")
+ *
+ * @internal
  */
 class TagsController extends AdminController
 {
@@ -40,8 +42,8 @@ class TagsController extends AdminController
     {
         try {
             $tag = new Tag();
-            $tag->setName(strip_tags($request->get('text')));
-            $tag->setParentId(intval($request->get('parentId')));
+            $tag->setName(strip_tags($request->get('text', '')));
+            $tag->setParentId((int)$request->get('parentId'));
             $tag->save();
 
             return $this->adminJson(['success' => true, 'id' => $tag->getId()]);
@@ -61,13 +63,13 @@ class TagsController extends AdminController
      */
     public function deleteAction(Request $request)
     {
-        $tag = Tag::getById($request->get('id'));
+        $tag = Tag::getById((int) $request->get('id'));
         if ($tag) {
             $tag->delete();
 
             return $this->adminJson(['success' => true]);
         } else {
-            throw new \Exception('Tag with ID ' . $request->get('id') . ' not found.');
+            throw $this->createNotFoundException('Tag with ID ' . $request->get('id') . ' not found.');
         }
     }
 
@@ -82,21 +84,21 @@ class TagsController extends AdminController
      */
     public function updateAction(Request $request)
     {
-        $tag = Tag::getById($request->get('id'));
+        $tag = Tag::getById((int) $request->get('id'));
         if ($tag) {
             $parentId = $request->get('parentId');
             if ($parentId || $parentId === '0') {
-                $tag->setParentId(intval($parentId));
+                $tag->setParentId((int)$parentId);
             }
             if ($request->get('text')) {
-                $tag->setName(strip_tags($request->get('text')));
+                $tag->setName(strip_tags($request->get('text', '')));
             }
 
             $tag->save();
 
             return $this->adminJson(['success' => true]);
         } else {
-            throw new \Exception('Tag with ID ' . $request->get('id') . ' not found.');
+            throw $this->createNotFoundException('Tag with ID ' . $request->get('id') . ' not found.');
         }
     }
 
@@ -110,8 +112,8 @@ class TagsController extends AdminController
     public function treeGetChildrenByIdAction(Request $request)
     {
         $showSelection = $request->get('showSelection') == 'true';
-        $assignmentCId = intval($request->get('assignmentCId'));
-        $assignmentCType = strip_tags($request->get('assignmentCType'));
+        $assignmentCId = (int)$request->get('assignmentCId');
+        $assignmentCType = strip_tags($request->get('assignmentCType', ''));
 
         $recursiveChildren = false;
         $assignedTagIds = [];
@@ -125,7 +127,7 @@ class TagsController extends AdminController
 
         $tagList = new Tag\Listing();
         if ($request->get('node')) {
-            $tagList->setCondition('parentId = ?', intval($request->get('node')));
+            $tagList->setCondition('parentId = ?', (int)$request->get('node'));
         } else {
             $tagList->setCondition('ISNULL(parentId) OR parentId = 0');
         }
@@ -136,12 +138,12 @@ class TagsController extends AdminController
             $filterTagList = new Tag\Listing();
             $filterTagList->setCondition('LOWER(`name`) LIKE ?', ['%' . $filterTagList->escapeLike(mb_strtolower($request->get('filter'))) . '%']);
             foreach ($filterTagList->load() as $filterTag) {
-                if ($filterTag->getParentId() == 0) {
+                if ($filterTag->getParentId() === 0) {
                     $filterIds[] = $filterTag->getId();
                 } else {
                     $ids = explode('/', $filterTag->getIdPath());
                     if (isset($ids[1])) {
-                        $filterIds[] = intval($ids[1]);
+                        $filterIds[] = (int)$ids[1];
                     }
                 }
             }
@@ -188,7 +190,7 @@ class TagsController extends AdminController
 
         if ($loadChildren) {
             $children = $tag->getChildren();
-            $loadChildren = $recursiveChildren ?? false;
+            $loadChildren = $recursiveChildren;
             foreach ($children as $child) {
                 $tagArray['children'][] = $this->convertTagToArray($child, $showSelection, $assignedTagIds, $loadChildren, $recursiveChildren);
             }
@@ -206,8 +208,8 @@ class TagsController extends AdminController
      */
     public function loadTagsForElementAction(Request $request)
     {
-        $assginmentCId = intval($request->get('assignmentCId'));
-        $assginmentCType = strip_tags($request->get('assignmentCType'));
+        $assginmentCId = (int)$request->get('assignmentCId');
+        $assginmentCType = strip_tags($request->get('assignmentCType', ''));
 
         $assignedTagArray = [];
         if ($assginmentCId && $assginmentCType) {
@@ -230,9 +232,9 @@ class TagsController extends AdminController
      */
     public function addTagToElementAction(Request $request)
     {
-        $assginmentCId = intval($request->get('assignmentElementId'));
-        $assginmentCType = strip_tags($request->get('assignmentElementType'));
-        $tagId = intval($request->get('tagId'));
+        $assginmentCId = (int)$request->get('assignmentElementId');
+        $assginmentCType = strip_tags($request->get('assignmentElementType', ''));
+        $tagId = (int)$request->get('tagId');
 
         $tag = Tag::getById($tagId);
         if ($tag) {
@@ -253,9 +255,9 @@ class TagsController extends AdminController
      */
     public function removeTagFromElementAction(Request $request)
     {
-        $assginmentCId = intval($request->get('assignmentElementId'));
-        $assginmentCType = strip_tags($request->get('assignmentElementType'));
-        $tagId = intval($request->get('tagId'));
+        $assginmentCId = (int)$request->get('assignmentElementId');
+        $assginmentCType = strip_tags($request->get('assignmentElementType', ''));
+        $tagId = (int)$request->get('tagId');
 
         $tag = Tag::getById($tagId);
         if ($tag) {
@@ -277,8 +279,8 @@ class TagsController extends AdminController
      */
     public function getBatchAssignmentJobsAction(Request $request, EventDispatcherInterface $eventDispatcher)
     {
-        $elementId = intval($request->get('elementId'));
-        $elementType = strip_tags($request->get('elementType'));
+        $elementId = (int)$request->get('elementId');
+        $elementType = strip_tags($request->get('elementType', ''));
 
         $idList = [];
         switch ($elementType) {
@@ -341,7 +343,7 @@ class TagsController extends AdminController
             'list' => $childsList,
             'context' => [],
         ]);
-        $eventDispatcher->dispatch(AdminEvents::OBJECT_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+        $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::OBJECT_LIST_BEFORE_LIST_LOAD);
         /** @var \Pimcore\Model\DataObject\Listing $childsList */
         $childsList = $beforeListLoadEvent->getArgument('list');
 
@@ -373,7 +375,7 @@ class TagsController extends AdminController
             'list' => $childsList,
             'context' => [],
         ]);
-        $eventDispatcher->dispatch(AdminEvents::ASSET_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+        $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::ASSET_LIST_BEFORE_LIST_LOAD);
         /** @var \Pimcore\Model\Asset\Listing $childsList */
         $childsList = $beforeListLoadEvent->getArgument('list');
 
@@ -405,7 +407,7 @@ class TagsController extends AdminController
             'list' => $childsList,
             'context' => [],
         ]);
-        $eventDispatcher->dispatch(AdminEvents::DOCUMENT_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+        $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::DOCUMENT_LIST_BEFORE_LIST_LOAD);
         /** @var \Pimcore\Model\Document\Listing $childsList */
         $childsList = $beforeListLoadEvent->getArgument('list');
 
@@ -421,7 +423,7 @@ class TagsController extends AdminController
      */
     public function doBatchAssignmentAction(Request $request)
     {
-        $cType = strip_tags($request->get('elementType'));
+        $cType = strip_tags($request->get('elementType', ''));
         $assignedTags = json_decode($request->get('assignedTags'));
         $elementIds = json_decode($request->get('childrenIds'));
         $doCleanupTags = $request->get('removeAndApply') == 'true';

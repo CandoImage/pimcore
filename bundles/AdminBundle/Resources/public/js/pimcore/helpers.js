@@ -133,7 +133,6 @@ pimcore.helpers.openDocument = function (id, type, options) {
     }
 };
 
-
 pimcore.helpers.closeDocument = function (id) {
     try {
         var tabId = "document_" + id;
@@ -195,12 +194,12 @@ pimcore.helpers.updateTreeElementStyle = function (type, id, treeData) {
         if (pimcore.globalmanager.exists(key)) {
             var editMask = pimcore.globalmanager.get(key);
             if (editMask.tab) {
-                if (typeof treeData.icon !== "undefined") {
-                    editMask.tab.setIcon(treeData.icon);
-                }
-
                 if (typeof treeData.iconCls !== "undefined") {
                     editMask.tab.setIconCls(treeData.iconCls);
+                }
+
+                if (typeof treeData.icon !== "undefined") {
+                    editMask.tab.setIcon(treeData.icon);
                 }
             }
         }
@@ -550,6 +549,18 @@ pimcore.helpers.showNotification = function (title, text, type, detailText, hide
         });
         errWin.show();
     } else {
+        // Avoid overlapping any footer toolbar buttons
+        // Find current active tab to find its footer if there is one
+        let paddingY = 10;
+        let tabsBody = document.getElementById('pimcore_panel_tabs-body');
+        let activeTab = tabsBody.querySelector(':scope > [aria-expanded="true"]');
+        if (activeTab) {
+            let footerToolbar = activeTab.querySelector(':scope .x-toolbar-footer');
+            if (footerToolbar) {
+                paddingY += footerToolbar.scrollHeight;
+            }
+        }
+
         var notification = Ext.create('Ext.window.Toast', {
             iconCls: 'pimcore_icon_' + type,
             title: title,
@@ -557,7 +568,11 @@ pimcore.helpers.showNotification = function (title, text, type, detailText, hide
             autoShow: true,
             width: 'auto',
             maxWidth: 350,
-            closeable: true
+            closeable: true,
+            align: "br",
+            anchor: Ext.get(tabsBody),
+            paddingX: 5,
+            paddingY: paddingY
         });
         notification.show(document);
     }
@@ -634,14 +649,14 @@ pimcore.helpers.handleCtrlS = function (keyCode, e) {
             if (el.document.data.published) {
                 el.document.publish();
             } else {
-                el.document.unpublish();
+                el.document.save('version');
             }
         }
         else if (el.object) {
             if (el.object.data.general.o_published) {
                 el.object.publish();
             } else {
-                el.object.unpublish();
+                el.object.save('version');
             }
         }
         else if (el.asset) {
@@ -792,8 +807,8 @@ pimcore.helpers.loadingHide = function () {
     pimcore.globalmanager.get("loadingmask").hide();
 };
 
-pimcore.helpers.itemselector = function (muliselect, callback, restrictions, config) {
-    var itemselector = new pimcore.element.selector.selector(muliselect, callback, restrictions, config);
+pimcore.helpers.itemselector = function (multiselect, callback, restrictions, config) {
+    var itemselector = new pimcore.element.selector.selector(multiselect, callback, restrictions, config);
 };
 
 
@@ -866,11 +881,6 @@ pimcore.helpers.rememberOpenTab = function (item, forceOpenTab) {
         openTabs.push(item);
     }
 
-    // limit to the latest 10
-    openTabs.reverse();
-    openTabs.splice(10, 1000);
-    openTabs.reverse();
-
     // using native JSON functionalities here because of /admin/login/deeplink -> No ExtJS should be loaded
     localStorage.setItem("pimcore_opentabs", JSON.stringify(openTabs));
     if (forceOpenTab) {
@@ -901,6 +911,12 @@ pimcore.helpers.forceOpenMemorizedTabsOnce = function () {
 
 pimcore.helpers.openMemorizedTabs = function () {
     var openTabs = pimcore.helpers.getOpenTab();
+
+    // limit to the latest 10
+    openTabs.reverse();
+    openTabs.splice(10, 1000);
+    openTabs.reverse();
+
     var openedTabs = [];
 
     for (var i = 0; i < openTabs.length; i++) {
@@ -933,7 +949,7 @@ pimcore.helpers.openMemorizedTabs = function () {
     }
 };
 
-pimcore.helpers.assetSingleUploadDialog = function (parent, parentType, success, failure, context) {
+pimcore.helpers.assetSingleUploadDialog = function (parent, parentType, success, failure, context, uploadAssetType) {
 
     var params = {};
     params['parent' + ucfirst(parentType)] = parent;
@@ -943,6 +959,10 @@ pimcore.helpers.assetSingleUploadDialog = function (parent, parentType, success,
         url += "&context=" + Ext.encode(context);
     }
 
+    if(uploadAssetType) {
+        url += "&uploadAssetType=" + uploadAssetType;
+    }
+
     pimcore.helpers.uploadDialog(url, 'Filedata', success, failure);
 };
 
@@ -950,6 +970,8 @@ pimcore.helpers.assetSingleUploadDialog = function (parent, parentType, success,
  * @deprecated
  */
 pimcore.helpers.addCsrfTokenToUrl = function (url) {
+    console.error('pimcore.helpers.addCsrfTokenToUrl() function is deprecated. It will be removed in Pimcore 11.');
+
     // we don't use the CSRF token in the query string
     return url;
 };
@@ -1097,67 +1119,28 @@ pimcore.helpers.sanitizeAllowedTypes = function (data, name) {
     }
 };
 
-
-pimcore.helpers.generatePagePreview = function (id, path, callback) {
-
-    var cb = callback;
-
-    if (pimcore.settings.htmltoimage) {
-        Ext.Ajax.request({
-            url: Routing.generate('pimcore_admin_document_page_generatescreenshot'),
-            method: "POST",
-            ignoreErrors: true,
-            params: {
-                id: id
-            },
-            success: function () {
-                if (typeof cb == "function") {
-                    cb();
-                }
-            }
-        });
-    }
-};
-
 pimcore.helpers.treeNodeThumbnailTimeout = null;
+pimcore.helpers.treeNodeThumbnailHideTimeout = null;
 pimcore.helpers.treeNodeThumbnailLastClose = 0;
 
 pimcore.helpers.treeNodeThumbnailPreview = function (treeView, record, item, index, e, eOpts) {
 
-    if (typeof record.data["thumbnail"] != "undefined" ||
-        typeof record.data["thumbnails"] != "undefined") {
+    if (typeof record.data["thumbnail"] != "undefined") {
 
         // only display thumbnails when dnd is not active
         if (Ext.dd.DragDropMgr.dragCurrent) {
             return;
         }
 
-        var imageHtml = "";
-        var uriPrefix = window.location.protocol + "//" + window.location.host;
-
-        var thumbnails = record.data["thumbnails"];
-        if (thumbnails && thumbnails.length) {
-            imageHtml += '<div class="thumbnails">';
-            for (var i = 0; i < thumbnails.length; i++) {
-                imageHtml += '<div class="thumb small"><img src="' + uriPrefix + thumbnails[i]
-                    + '" onload="this.parentNode.className += \' complete\';" /></div>';
-            }
-            imageHtml += '</div>';
-        }
-
         var thumbnail = record.data["thumbnail"];
+
         if (thumbnail) {
-            var srcset = thumbnail + ' 1x';
-            var thumbnailHdpi = record.data["thumbnailHdpi"];
-            if(thumbnailHdpi) {
-                    srcset += ', ' + thumbnailHdpi + " 2x";
+
+            if (pimcore.helpers.treeNodeThumbnailHideTimeout) {
+                clearTimeout(pimcore.helpers.treeNodeThumbnailHideTimeout);
+                pimcore.helpers.treeNodeThumbnailHideTimeout = null;
             }
 
-            imageHtml = '<div class="thumb big"><img src="' + uriPrefix + thumbnail
-                + '" onload="this.parentNode.className += \' complete\';" srcset="' + srcset + '" /></div>';
-        }
-
-        if (imageHtml) {
             var treeEl = Ext.get("pimcore_panel_tree_" + this.position);
             var position = treeEl.getOffsetsTo(Ext.getBody());
             position = position[0];
@@ -1170,66 +1153,33 @@ pimcore.helpers.treeNodeThumbnailPreview = function (treeView, record, item, ind
 
             var container = Ext.get("pimcore_tree_preview");
             if (!container) {
-                container = Ext.getBody().insertHtml("beforeEnd", '<div id="pimcore_tree_preview"></div>');
+                container = Ext.getBody().insertHtml("beforeEnd", '<div id="pimcore_tree_preview" class="hidden"><div id="pimcore_tree_preview_thumb"></div></div>');
                 container = Ext.get(container);
-                container.addCls("hidden");
             }
 
-            // check for an existing iframe
-            var existingIframe = container.query("iframe")[0];
-            if (existingIframe) {
-                // stop loading the existing iframe (images, etc.)
-                var existingIframeWin = existingIframe.contentWindow;
-                if (typeof existingIframeWin["stop"] == "function") {
-                    existingIframeWin.stop();
-                } else if (typeof existingIframeWin.document["execCommand"] == "function") {
-                    existingIframeWin.document.execCommand('Stop');
-                }
-            }
+            var triggerTime = (new Date()).getTime();
+            var thumbContainer = Ext.get("pimcore_tree_preview_thumb");
+            thumbContainer.update('');
 
-            var styles = "left: " + position + "px";
+            pimcore.helpers.treeNodeThumbnailTimeout = window.setTimeout(function () {
+                let img = document.createElement("img");
+                img.src = thumbnail;
+                img.addEventListener('load', function (ev) {
 
-            // we need to create an iframe so that we can use window.stop();
-            var iframe = document.createElement("iframe");
-            iframe.setAttribute("frameborder", "0");
-            iframe.setAttribute("scrolling", "no");
-            iframe.setAttribute("marginheight", "0");
-            iframe.setAttribute("marginwidth", "0");
-            iframe.setAttribute("style", "width: 100%; height: 2500px;");
+                    if(triggerTime > pimcore.helpers.treeNodeThumbnailLastClose) {
+                        thumbContainer.addCls('complete');
+                        container.removeCls("hidden");
+                    }
+                });
 
-            imageHtml =
-                '<style type="text/css">' +
-                'body { margin:0; padding: 0; } ' +
-                '.thumbnails { width: 410px; } ' +
-                '.thumb { border: 1px solid #999; background: url(' + uriPrefix + '/bundles/pimcoreadmin/img/flat-color-icons/hourglass.svg) no-repeat center center; background-size: 20px 20px; box-sizing: border-box; } ' +
-                '.big { min-height: 300px; } ' +
-                '.complete { border:none; border-radius: 0; background:none; }' +
-                '.small { width: 130px; height: 130px; float: left; overflow: hidden; margin: 0 5px 5px 0; } ' +
-                '.small.complete img { min-width: 100%; max-height: 100%; } ' +
-                '.big.complete img { max-width: 100%; } ' +
-                '/* firefox fix: remove loading/broken image icon */ @-moz-document url-prefix() { img:-moz-loading { visibility: hidden; } img:-moz-broken { -moz-force-broken-image-icon: 0;}} ' +
-                '</style>' +
-                imageHtml;
+                img.addEventListener('error', function (ev) {
+                    container.addCls("hidden");
+                });
 
-            iframe.onload = function () {
-                this.contentWindow.document.body.innerHTML = imageHtml;
-            };
+                container.applyStyles("left: " + position + "px");
+                thumbContainer.dom.appendChild(img);
 
-            container.update(""); // remove all
-            container.clean(true);
-            container.dom.appendChild(iframe);
-            container.applyStyles(styles);
-
-            var date = new Date();
-            if (pimcore.helpers.treeNodeThumbnailLastClose === 0 || (date.getTime() - pimcore.helpers.treeNodeThumbnailLastClose) > 300) {
-                // open deferred
-                pimcore.helpers.treeNodeThumbnailTimeout = window.setTimeout(function () {
-                    container.removeCls("hidden");
-                }, 500);
-            } else {
-                // open immediately
-                container.removeCls("hidden");
-            }
+            }, 300);
         }
     }
 };
@@ -1241,13 +1191,12 @@ pimcore.helpers.treeNodeThumbnailPreviewHide = function () {
         pimcore.helpers.treeNodeThumbnailTimeout = null;
     }
 
-    var container = Ext.get("pimcore_tree_preview");
+    let container = Ext.get("pimcore_tree_preview");
     if (container) {
-        if (!container.hasCls("hidden")) {
-            var date = new Date();
-            pimcore.helpers.treeNodeThumbnailLastClose = date.getTime();
-        }
-        container.addCls("hidden");
+        pimcore.helpers.treeNodeThumbnailLastClose = (new Date()).getTime();
+        pimcore.helpers.treeNodeThumbnailHideTimeout = window.setTimeout(function () {
+            container.addCls("hidden");
+        }, 50);
     }
 };
 
@@ -1844,8 +1793,10 @@ pimcore.helpers.editmode.openLinkEditPanel = function (data, callback) {
         enableKeyEvents: true,
         listeners: {
             keyup: function (el) {
-                if (el.getValue().match(/^www\./)) {
-                    el.setValue("http://" + el.getValue());
+                const value = el.getValue();
+                const pathRegex = new RegExp('^(/|(/[^/]+)+/?)$');
+
+                if(value && !value.match(pathRegex)) {
                     internalTypeField.setValue(null);
                     linkTypeField.setValue("direct");
                 }
@@ -2056,6 +2007,7 @@ pimcore.helpers.editmode.openLinkEditPanel = function (data, callback) {
 
 pimcore.helpers.editmode.openVideoEditPanel = function (data, callback) {
 
+    const allowedTypes = data.allowedTypes;
     var window = null;
     var form = null;
     var fieldPath = new Ext.form.TextField({
@@ -2068,13 +2020,16 @@ pimcore.helpers.editmode.openVideoEditPanel = function (data, callback) {
         enableKeyEvents: true,
         listeners: {
             keyup: function (el) {
-                if ((el.getValue().indexOf("youtu.be") >= 0 || el.getValue().indexOf("youtube.com") >= 0) && el.getValue().indexOf("http") >= 0) {
+                if (allowedTypes.includes("youtube")
+                    && (el.getValue().indexOf("youtu.be") >= 0 || el.getValue().indexOf("youtube.com") >= 0) && el.getValue().indexOf("http") >= 0) {
                     form.getComponent("type").setValue("youtube");
                     updateType("youtube");
-                } else if (el.getValue().indexOf("vimeo") >= 0 && el.getValue().indexOf("http") >= 0) {
+                } else if (allowedTypes.includes("vimeo")
+                    && el.getValue().indexOf("vimeo") >= 0 && el.getValue().indexOf("http") >= 0) {
                     form.getComponent("type").setValue("vimeo");
                     updateType("vimeo");
-                } else if ((el.getValue().indexOf("dai.ly") >= 0 || el.getValue().indexOf("dailymotion") >= 0) && el.getValue().indexOf("http") >= 0) {
+                } else if (allowedTypes.includes("dailymotion")
+                    && (el.getValue().indexOf("dai.ly") >= 0 || el.getValue().indexOf("dailymotion") >= 0) && el.getValue().indexOf("http") >= 0) {
                     form.getComponent("type").setValue("dailymotion");
                     updateType("dailymotion");
                 }
@@ -2150,8 +2105,10 @@ pimcore.helpers.editmode.openVideoEditPanel = function (data, callback) {
         });
     };
 
-    fieldPath.on("render", initDD);
-    poster.on("render", initDD);
+    if (allowedTypes.includes("asset")) {
+        fieldPath.on("render", initDD);
+        poster.on("render", initDD);
+    }
 
     var searchButton = new Ext.Button({
         iconCls: "pimcore_icon_search",
@@ -2178,6 +2135,31 @@ pimcore.helpers.editmode.openVideoEditPanel = function (data, callback) {
         }
     });
 
+    var posterImageSearchButton = new Ext.Button({
+        iconCls: "pimcore_icon_search",
+        handler: function () {
+            pimcore.helpers.itemselector(false, function (item) {
+                if (item) {
+                    poster.setValue(item.fullpath);
+                    return true;
+                }
+            }, {
+                type: ["asset"],
+                subtype: {
+                    asset: ["image"]
+                }
+            });
+        }
+    });
+
+    var posterImageOpenButton = new Ext.Button({
+        iconCls: "pimcore_icon_open",
+        handler: function () {
+            pimcore.helpers.openElement(poster.getValue(), 'asset');
+            window.close();
+        }
+    });
+
     var updateType = function (type) {
         searchButton.enable();
         openButton.enable();
@@ -2191,12 +2173,14 @@ pimcore.helpers.editmode.openVideoEditPanel = function (data, callback) {
 
             poster.hide();
             poster.setValue("");
+            form.getComponent("posterContainer").hide();
             form.getComponent("title").hide();
             form.getComponent("title").setValue("");
             form.getComponent("description").hide();
             form.getComponent("description").setValue("");
         } else {
             poster.show();
+            form.getComponent("posterContainer").show();
             form.getComponent("title").show();
             form.getComponent("description").show();
         }
@@ -2226,7 +2210,7 @@ pimcore.helpers.editmode.openVideoEditPanel = function (data, callback) {
             editable: false,
             width: 270,
             mode: "local",
-            store: ["asset", "youtube", "vimeo", "dailymotion"],
+            store: allowedTypes,
             value: data.type,
             listeners: {
                 select: function (combo) {
@@ -2240,7 +2224,13 @@ pimcore.helpers.editmode.openVideoEditPanel = function (data, callback) {
             border: false,
             itemId: "pathContainer",
             items: [fieldPath, searchButton, openButton]
-        }, poster, {
+        }, {
+            xtype: "fieldcontainer",
+            layout: 'hbox',
+            border: false,
+            itemId: "posterContainer",
+            items: [poster, posterImageSearchButton, posterImageOpenButton]
+        }, {
             xtype: "textfield",
             name: "title",
             itemId: "title",
@@ -2274,7 +2264,6 @@ pimcore.helpers.editmode.openVideoEditPanel = function (data, callback) {
         ]
     });
 
-
     window = new Ext.Window({
         width: 510,
         height: 370,
@@ -2300,7 +2289,7 @@ pimcore.helpers.showAbout = function () {
     html += '<br><b>Version: ' + pimcore.settings.version + '</b>';
     html += '<br><b>Git Hash: <a href="https://github.com/pimcore/pimcore/commit/' + pimcore.settings.build + '" target="_blank">' + pimcore.settings.build + '</a></b>';
     html += '<br><br>&copy; by pimcore GmbH (<a href="https://pimcore.com/" target="_blank">pimcore.com</a>)';
-    html += '<br><br><a href="https://github.com/pimcore/pimcore/blob/master/LICENSE.md" target="_blank">License</a> | ';
+    html += '<br><br><a href="https://github.com/pimcore/pimcore/blob/10.5/LICENSE.md" target="_blank">License</a> | ';
     html += '<a href="https://pimcore.com/en/about/contact" target="_blank">Contact</a>';
     html += '<img src="/bundles/pimcoreadmin/img/austria-heart.svg" style="position:absolute;top:172px;right:45px;width:32px;">';
     html += '</div>';
@@ -2543,7 +2532,7 @@ pimcore.helpers.requestNicePathDataGridDecorator = function (gridView, targets) 
 };
 
 pimcore.helpers.requestNicePathData = function (source, targets, config, fieldConfig, context, decorator, responseHandler) {
-    if (context && context['containerType'] == "batch") {
+    if (context && (context['containerType'] == "batch" || context['containerType'] == "filterByRelationWindow")) {
         return;
     }
 
@@ -2744,7 +2733,14 @@ pimcore.helpers.isValidPassword = function (pass) {
 };
 
 pimcore.helpers.getDeeplink = function (type, id, subtype) {
-    return Routing.generate('pimcore_admin_login_deeplink', {}, true) + '?' + type + "_" + id + "_" + subtype;
+    let target = type + "_" + id + "_" + subtype;
+    let url    = Routing.generate('pimcore_admin_login_deeplink', {}, true) + '?' + target;
+
+    if (pimcore.settings['custom_admin_entrypoint_url'] !== null) {
+        url = pimcore.settings['custom_admin_entrypoint_url'] + '?deeplink=' + target;
+    }
+
+    return url;
 };
 
 pimcore.helpers.showElementHistory = function() {
@@ -2814,13 +2810,6 @@ pimcore.helpers.reports = function() {
     var user = pimcore.globalmanager.get("user");
     if (user.isAllowed("reports")) {
         pimcore.layout.toolbar.prototype.showReports(null);
-    }
-};
-
-pimcore.helpers.tagManager = function() {
-    var user = pimcore.globalmanager.get("user");
-    if (user.isAllowed("tag_snippet_management")) {
-        pimcore.layout.toolbar.prototype.showTagManagement();
     }
 };
 
@@ -3216,4 +3205,48 @@ pimcore.helpers.reloadUserImage = function (userId) {
     if (Ext.getCmp("pimcore_profile_image_" + userId)) {
         Ext.getCmp("pimcore_profile_image_" + userId).setSrc(image);
     }
+};
+
+/**
+ * Takes a number representing seconds and formats it as a human-readable string such as "1:15:05" for 1 hour 15 minutes 5 seconds
+ * @param {int|float} dataDuration duration in seconds
+ * @returns {string|*}
+ */
+pimcore.helpers.formatTimeDuration = function (dataDuration) {
+    if (!is_numeric(dataDuration)) {
+        // Unknown data, return as is
+        return dataDuration;
+    }
+
+    let durationString = '';
+
+    let hours = Math.floor(dataDuration / 3600);
+    dataDuration %= 3600;
+    if (hours > 0) {
+        durationString += hours + ":";
+    }
+
+    durationString += Math.floor(dataDuration / 60) + ":";
+    durationString += ("0" + Math.round(dataDuration % 60)).slice(-2);
+
+    return durationString;
+};
+
+/**
+ * Delete confim dialog box
+ *
+ * @param title
+ * @param name
+ * @param deleteCallback
+ */
+pimcore.helpers.deleteConfirm = function (title, name, deleteCallback) {
+    Ext.Msg.confirm(t('delete'), sprintf(t('delete_message_advanced'),
+            title, name),
+        function (btn) {
+            if (btn == 'yes') {
+                if (typeof deleteCallback == "function") {
+                    deleteCallback();
+                }
+            }
+        }.bind(this))
 };

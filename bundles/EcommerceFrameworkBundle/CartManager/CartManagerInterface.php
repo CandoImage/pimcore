@@ -25,7 +25,7 @@ interface CartManagerInterface extends ComponentInterface
      * Returns cart class name configured in the ecommerce framework config
      *
      * Is also responsible for checking if guest cart class should be used or not,
-     * by calling \Pimcore\Bundle\EcommerceFrameworkBundle\IEnvironment::getUseGuestCart();
+     * by calling \Pimcore\Bundle\EcommerceFrameworkBundle\Environment::getUseGuestCart();
      *
      * @return string
      */
@@ -35,7 +35,7 @@ interface CartManagerInterface extends ComponentInterface
      * Adds item to given cart
      *
      * @param CheckoutableInterface $product - product to add
-     * @param float $count
+     * @param int $count
      * @param string $key            - optional key of cart where the item should be added to
      * @param null|string $itemKey   - optional item key
      * @param bool $replace          - replace item if same key already exists
@@ -114,7 +114,7 @@ interface CartManagerInterface extends ComponentInterface
      *
      * @param array $params - array of cart information
      *
-     * @return string key of new created cart
+     * @return string|int key of new created cart
      */
     public function createCart(array $params);
 
@@ -141,5 +141,3 @@ interface CartManagerInterface extends ComponentInterface
      */
     public function reset();
 }
-
-class_alias(CartManagerInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\ICartManager');

@@ -17,42 +17,57 @@ namespace Pimcore\Model\Element;
 
 use Pimcore\Event\Model\TagEvent;
 use Pimcore\Event\TagEvents;
+use Pimcore\Event\Traits\RecursionBlockingEventDispatchHelperTrait;
 use Pimcore\Model;
 
 /**
  * @method \Pimcore\Model\Element\Tag\Dao getDao()
  */
-class Tag extends Model\AbstractModel
+final class Tag extends Model\AbstractModel
 {
-    /**
-     * @var int
-     */
-    public $id;
+    use RecursionBlockingEventDispatchHelperTrait;
 
     /**
+     * @internal
+     *
+     * @var int|null
+     */
+    protected ?int $id = null;
+
+    /**
+     * @internal
+     *
      * @var string
      */
-    public $name;
+    protected $name;
 
     /**
+     * @internal
+     *
      * @var int
      */
-    public $parentId;
+    protected int $parentId = 0;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $idPath;
+    protected $idPath;
 
     /**
+     * @internal
+     *
      * @var Tag[]
      */
-    public $children;
+    protected $children;
 
     /**
+     * @internal
+     *
      * @var Tag|null
      */
-    public $parent;
+    protected $parent;
 
     /**
      * @static
@@ -68,7 +83,7 @@ class Tag extends Model\AbstractModel
             $tag->getDao()->getById($id);
 
             return $tag;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -101,11 +116,11 @@ class Tag extends Model\AbstractModel
             'elementType' => $cType,
             'elementId' => $cId,
         ]);
-        \Pimcore::getEventDispatcher()->dispatch(TagEvents::PRE_ADD_TO_ELEMENT, $event);
+        $tag->dispatchEvent($event, TagEvents::PRE_ADD_TO_ELEMENT);
 
         $tag->getDao()->addTagToElement($cType, $cId);
 
-        \Pimcore::getEventDispatcher()->dispatch(TagEvents::POST_ADD_TO_ELEMENT, $event);
+        $tag->dispatchEvent($event, TagEvents::POST_ADD_TO_ELEMENT);
     }
 
     /**
@@ -121,11 +136,11 @@ class Tag extends Model\AbstractModel
             'elementType' => $cType,
             'elementId' => $cId,
         ]);
-        \Pimcore::getEventDispatcher()->dispatch(TagEvents::PRE_REMOVE_FROM_ELEMENT, $event);
+        $tag->dispatchEvent($event, TagEvents::PRE_REMOVE_FROM_ELEMENT);
 
         $tag->getDao()->removeTagFromElement($cType, $cId);
 
-        \Pimcore::getEventDispatcher()->dispatch(TagEvents::POST_REMOVE_FROM_ELEMENT, $event);
+        $tag->dispatchEvent($event, TagEvents::POST_REMOVE_FROM_ELEMENT);
     }
 
     /**
@@ -194,35 +209,35 @@ class Tag extends Model\AbstractModel
         $isUpdate = $this->exists();
 
         if ($isUpdate) {
-            \Pimcore::getEventDispatcher()->dispatch(TagEvents::PRE_UPDATE, new TagEvent($this));
+            $this->dispatchEvent(new TagEvent($this), TagEvents::PRE_UPDATE);
         } else {
-            \Pimcore::getEventDispatcher()->dispatch(TagEvents::PRE_ADD, new TagEvent($this));
+            $this->dispatchEvent(new TagEvent($this), TagEvents::PRE_ADD);
         }
 
         $this->correctPath();
         $this->getDao()->save();
 
         if ($isUpdate) {
-            \Pimcore::getEventDispatcher()->dispatch(TagEvents::POST_UPDATE, new TagEvent($this));
+            $this->dispatchEvent(new TagEvent($this), TagEvents::POST_UPDATE);
         } else {
-            \Pimcore::getEventDispatcher()->dispatch(TagEvents::POST_ADD, new TagEvent($this));
+            $this->dispatchEvent(new TagEvent($this), TagEvents::POST_ADD);
         }
     }
 
     /**
-     * @return int
+     * @return int|null
      */
-    public function getId()
+    public function getId(): ?int
     {
         return $this->id;
     }
 
     /**
-     * @param int $id
+     * @param int|null $id
      *
      * @return Tag
      */
-    public function setId($id)
+    public function setId(?int $id)
     {
         $this->id = $id;
 
@@ -252,7 +267,7 @@ class Tag extends Model\AbstractModel
     /**
      * @return int
      */
-    public function getParentId()
+    public function getParentId(): int
     {
         return $this->parentId;
     }
@@ -262,7 +277,7 @@ class Tag extends Model\AbstractModel
      *
      * @return Tag
      */
-    public function setParentId($parentId)
+    public function setParentId(int $parentId)
     {
         $this->parentId = $parentId;
         $this->parent = null;
@@ -272,12 +287,12 @@ class Tag extends Model\AbstractModel
     }
 
     /**
-     * @return Tag
+     * @return Tag|null
      */
-    public function getParent()
+    public function getParent(): ?Tag
     {
-        if ($this->parent == null && $parentId = $this->getParentId()) {
-            $this->parent = Tag::getById($parentId);
+        if ($this->parent === null && $parentId = $this->getParentId()) {
+            $this->parent = self::getById($parentId);
         }
 
         return $this->parent;
@@ -333,10 +348,14 @@ class Tag extends Model\AbstractModel
     public function getChildren()
     {
         if ($this->children == null) {
-            $listing = new Tag\Listing();
-            $listing->setCondition('parentId = ?', $this->getId());
-            $listing->setOrderKey('name');
-            $this->children = $listing->load();
+            if ($this->getId()) {
+                $listing = new Tag\Listing();
+                $listing->setCondition('parentId = ?', $this->getId());
+                $listing->setOrderKey('name');
+                $this->children = $listing->load();
+            } else {
+                $this->children = [];
+            }
         }
 
         return $this->children;
@@ -375,11 +394,11 @@ class Tag extends Model\AbstractModel
      */
     public function delete()
     {
-        \Pimcore::getEventDispatcher()->dispatch(TagEvents::PRE_DELETE, new TagEvent($this));
+        $this->dispatchEvent(new TagEvent($this), TagEvents::PRE_DELETE);
 
         $this->getDao()->delete();
 
-        \Pimcore::getEventDispatcher()->dispatch(TagEvents::POST_DELETE, new TagEvent($this));
+        $this->dispatchEvent(new TagEvent($this), TagEvents::POST_DELETE);
     }
 
     /**

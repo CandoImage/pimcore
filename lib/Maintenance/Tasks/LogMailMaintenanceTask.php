@@ -15,15 +15,19 @@
 
 namespace Pimcore\Maintenance\Tasks;
 
+use Doctrine\DBAL\Connection;
 use Pimcore\Config;
-use Pimcore\Db;
 use Pimcore\Log\Handler\ApplicationLoggerDb;
 use Pimcore\Maintenance\TaskInterface;
+use Symfony\Component\Mime\Address;
 
-final class LogMailMaintenanceTask implements TaskInterface
+/**
+ * @internal
+ */
+class LogMailMaintenanceTask implements TaskInterface
 {
     /**
-     * @var Db\ConnectionInterface
+     * @var Connection
      */
     private $db;
 
@@ -33,9 +37,9 @@ final class LogMailMaintenanceTask implements TaskInterface
     private $config;
 
     /**
-     * @param Db\ConnectionInterface $db
+     * @param Connection $db
      */
-    public function __construct(Db\ConnectionInterface $db, Config $config)
+    public function __construct(Connection $db, Config $config)
     {
         $this->db = $db;
         $this->config = $config;
@@ -59,7 +63,7 @@ final class LogMailMaintenanceTask implements TaskInterface
 
             $query = 'SELECT * FROM '.ApplicationLoggerDb::TABLE_NAME." WHERE maintenanceChecked IS NULL AND priority <= $logLevel order by id desc";
 
-            $rows = $db->fetchAll($query);
+            $rows = $db->fetchAllAssociative($query);
             $limit = 100;
             $rowsProcessed = 0;
 
@@ -82,9 +86,11 @@ final class LogMailMaintenanceTask implements TaskInterface
                     $html = "<pre>$html</pre>";
                     $mail = new \Pimcore\Mail();
                     $mail->setIgnoreDebugMode(true);
-                    $mail->setBodyHtml($html);
-                    $mail->addTo($receivers);
-                    $mail->setSubject('Error Log '.\Pimcore\Tool::getHostUrl());
+                    $mail->html($html);
+                    foreach ($receivers as $receiver) {
+                        $mail->addTo(new Address($receiver, $receiver));
+                    }
+                    $mail->subject('Error Log '.\Pimcore\Tool::getHostUrl());
                     $mail->send();
                 }
             }
@@ -93,6 +99,6 @@ final class LogMailMaintenanceTask implements TaskInterface
         // flag them as checked, regardless if email notifications are enabled or not
         // otherwise, when activating email notifications, you'll receive all log-messages from the past and not
         // since the point when you enabled the notifications
-        $db->query('UPDATE '.ApplicationLoggerDb::TABLE_NAME.' set maintenanceChecked = 1');
+        $db->executeQuery('UPDATE '.ApplicationLoggerDb::TABLE_NAME.' set maintenanceChecked = 1 WHERE maintenanceChecked != 1 OR maintenanceChecked IS NULL');
     }
 }

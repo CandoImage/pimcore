@@ -21,7 +21,7 @@ namespace Pimcore\Model\User;
 class Role extends UserRole
 {
     /**
-     * @var string
+     * {@inheritdoc}
      */
-    public $type = 'role';
+    protected $type = 'role';
 }

@@ -16,28 +16,21 @@
 namespace Pimcore\Http\Request\Resolver;
 
 use Pimcore\Model\Document;
-use Pimcore\Templating\Vars\TemplateVarsProviderInterface;
 use Symfony\Cmf\Bundle\RoutingBundle\Routing\DynamicRouter;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
-class DocumentResolver extends AbstractRequestResolver implements TemplateVarsProviderInterface
+class DocumentResolver extends AbstractRequestResolver
 {
-    /**
-     * @var ViewModelResolver
-     */
-    protected $viewModelResolver;
-
-    public function __construct(RequestStack $requestStack, ViewModelResolver $viewModelResolver)
+    public function __construct(RequestStack $requestStack)
     {
-        $this->viewModelResolver = $viewModelResolver;
         parent::__construct($requestStack);
     }
 
     /**
-     * @param Request $request
+     * @param Request|null $request
      *
-     * @return null|Document|Document\PageSnippet
+     * @return null|Document
      */
     public function getDocument(Request $request = null)
     {
@@ -45,7 +38,7 @@ class DocumentResolver extends AbstractRequestResolver implements TemplateVarsPr
             $request = $this->getCurrentRequest();
         }
 
-        $content = $request->get(DynamicRouter::CONTENT_KEY, null);
+        $content = $request->get(DynamicRouter::CONTENT_KEY);
         if ($content instanceof Document) {
             return $content;
         }
@@ -63,21 +56,5 @@ class DocumentResolver extends AbstractRequestResolver implements TemplateVarsPr
         if ($document->getProperty('language')) {
             $request->setLocale($document->getProperty('language'));
         }
-
-        // update the view model on the current request if exists
-        $viewModel = $this->viewModelResolver->getViewModel($request, false);
-        if ($viewModel) {
-            $viewModel->getParameters()->set('document', $document);
-        }
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function addTemplateVars(Request $request, array $templateVars)
-    {
-        $templateVars['document'] = $this->getDocument($request);
-
-        return $templateVars;
     }
 }

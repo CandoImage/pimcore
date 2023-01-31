@@ -15,69 +15,69 @@
 
 namespace Pimcore\Model;
 
+use Pimcore\Model\Exception\NotFoundException;
+
 /**
- * Class Workflow
+ * @deprecated
  *
  * @method Workflow\Dao getDao()
  * @method void save()
- *
- * @package Pimcore\Model
  */
 class Workflow extends AbstractModel
 {
     /**
-     * @var int $id
+     * @var int|null
      */
-    public $id;
+    protected $id;
 
     /**
      * The name of the workflow
      *
      * @var string
      */
-    public $name;
+    protected $name = '';
 
     /**
      * Cache of valid states in this workflow
      *
      * @var array
      */
-    public $states;
+    protected $states = [];
 
     /**
      * Cache of valid statuses in this workflow
      *
      * @var array
      */
-    public $statuses;
+    protected $statuses = [];
 
     /**
      * Cache of valid actions in this workflow
      *
      * @var array
      */
-    public $actions;
+    protected $actions = [];
 
     /**
      * The actual workflow
      *
      * @var array
      */
-    public $transitionDefinitions;
+    protected $transitionDefinitions = [];
 
     /**
      * The default state of the element
      *
      * @var string
      */
-    public $defaultState;
+    protected $defaultState;
 
     /**
      * The default status of the element
      *
      * @var string
      */
-    public $defaultStatus;
+    protected $defaultStatus;
 
     /**
      * Determines whether or not to allow unpublished elements to
@@ -85,27 +85,27 @@ class Workflow extends AbstractModel
      *
      * @var bool
      */
-    public $allowUnpublished;
+    protected $allowUnpublished = false;
 
     /**
      * @var array
      */
-    public $workflowSubject;
+    protected $workflowSubject = [];
 
     /**
      * @var bool
      */
-    public $enabled;
+    protected $enabled = false;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
      * @param int $id
@@ -117,16 +117,16 @@ class Workflow extends AbstractModel
         $cacheKey = 'workflow_' . $id;
 
         try {
-            $workflow = \Pimcore\Cache\Runtime::get($cacheKey);
+            $workflow = \Pimcore\Cache\RuntimeCache::get($cacheKey);
             if (!$workflow) {
                 throw new \Exception('Workflow in registry is null');
             }
         } catch (\Exception $e) {
             try {
                 $workflow = new self();
-                \Pimcore\Cache\Runtime::set($cacheKey, $workflow);
-                $workflow->getDao()->getById(intval($id));
-            } catch (\Exception $e) {
+                \Pimcore\Cache\RuntimeCache::set($cacheKey, $workflow);
+                $workflow->getDao()->getById((int)$id);
+            } catch (NotFoundException $e) {
                 return null;
             }
         }
@@ -146,7 +146,7 @@ class Workflow extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {
@@ -256,7 +256,7 @@ class Workflow extends AbstractModel
     }
 
     /**
-     * Returns whether or not a state name is valid within the workflow
+     * Returns whether a state name is valid within the workflow
      *
      * @param string $stateName
      *
@@ -351,7 +351,7 @@ class Workflow extends AbstractModel
     /**
      * @param string $stateName
      *
-     * @return bool|mixed
+     * @return mixed
      */
     public function getStateConfig($stateName)
     {
@@ -367,7 +367,7 @@ class Workflow extends AbstractModel
     /**
      * @param string $statusName
      *
-     * @return bool|mixed
+     * @return mixed
      */
     public function getStatusConfig($statusName)
     {
@@ -482,7 +482,6 @@ class Workflow extends AbstractModel
         }
 
         if ($statusName && !$this->isGlobalAction($actionName)) {
-
             //check the status has this action
             if (!array_key_exists($actionName, $this->transitionDefinitions[$statusName]['validActions'])) {
                 throw new \Exception("Cannot merge action configuration [{$actionName}] for status [{$statusName}], action name is not valid in status");
@@ -588,7 +587,7 @@ class Workflow extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -604,7 +603,7 @@ class Workflow extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {

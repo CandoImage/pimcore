@@ -18,6 +18,8 @@ namespace Pimcore\Model\Element\Note\Listing;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Element\Note\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -29,7 +31,11 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function load()
     {
-        $notesData = $this->db->fetchCol('SELECT id FROM notes' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $notesData = $this->db->fetchFirstColumn(
+            'SELECT id FROM notes' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(),
+            $this->model->getConditionVariables(),
+            $this->model->getConditionVariableTypes()
+        );
 
         $notes = [];
         foreach ($notesData as $noteData) {
@@ -48,7 +54,11 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function loadIdList()
     {
-        $notesIds = $this->db->fetchCol('SELECT id FROM notes' . $this->getCondition() . $this->getGroupBy() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $notesIds = $this->db->fetchFirstColumn(
+            'SELECT id FROM notes' . $this->getCondition() . $this->getGroupBy() . $this->getOrder() . $this->getOffsetLimit(),
+            $this->model->getConditionVariables(),
+            $this->model->getConditionVariableTypes()
+        );
 
         return array_map('intval', $notesIds);
     }
@@ -59,7 +69,11 @@ class Dao extends Model\Listing\Dao\AbstractDao
     public function getTotalCount()
     {
         try {
-            return (int) $this->db->fetchOne('SELECT COUNT(*) FROM notes ' . $this->getCondition(), $this->model->getConditionVariables());
+            return (int)$this->db->fetchOne(
+                'SELECT COUNT(*) FROM notes ' . $this->getCondition(),
+                $this->model->getConditionVariables(),
+                $this->model->getConditionVariableTypes()
+            );
         } catch (\Exception $e) {
             return 0;
         }

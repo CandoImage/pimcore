@@ -21,7 +21,15 @@ pimcore.asset.video = Class.create(pimcore.asset.asset, {
         this.setType("video");
         this.addLoadingPanel();
 
-        pimcore.plugin.broker.fireEvent("preOpenAsset", this, "video");
+        const preOpenAssetVideo = new CustomEvent(pimcore.events.preOpenAsset, {
+            detail: {
+                object: this,
+                type: "video"
+            }
+        });
+
+        document.dispatchEvent(preOpenAssetVideo);
+
 
         var user = pimcore.globalmanager.get("user");
 
@@ -125,7 +133,7 @@ pimcore.asset.video = Class.create(pimcore.asset.asset, {
                 detailsData[t("height")] = this.data.customSettings.videoHeight;
             }
             if(this.data.customSettings['duration']) {
-                detailsData[t("duration")] = this.data.customSettings.duration;
+                detailsData[t("duration")] = pimcore.helpers.formatTimeDuration(this.data.customSettings.duration);
             }
 
             var dimensionPanel = new Ext.create('Ext.grid.property.Grid', {
@@ -257,7 +265,7 @@ pimcore.asset.video = Class.create(pimcore.asset.asset, {
                                                     image: data.id,
                                                     width: 265,
                                                     aspectratio: true,
-                                                    settime: true,
+                                                    setimage: true,
                                                     '_dc': date.getTime()
                                                 });
                                                 var cmp = Ext.getCmp("pimcore_asset_video_imagepreview_" + this.id);

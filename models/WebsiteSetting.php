@@ -17,15 +17,16 @@ namespace Pimcore\Model;
 
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Element\Service;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
  * @method \Pimcore\Model\WebsiteSetting\Dao getDao()
  * @method void save()
  */
-class WebsiteSetting extends AbstractModel
+final class WebsiteSetting extends AbstractModel
 {
     /**
-     * @var int
+     * @var int|null
      */
     protected $id;
 
@@ -50,17 +51,17 @@ class WebsiteSetting extends AbstractModel
     protected $data;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $siteId;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $creationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $modificationDate;
 
@@ -86,23 +87,23 @@ class WebsiteSetting extends AbstractModel
     /**
      * @param int $id
      *
-     * @return WebsiteSetting|null
+     * @return self|null
      */
     public static function getById($id)
     {
         $cacheKey = 'website_setting_' . $id;
 
         try {
-            $setting = \Pimcore\Cache\Runtime::get($cacheKey);
+            $setting = \Pimcore\Cache\RuntimeCache::get($cacheKey);
             if (!$setting) {
                 throw new \Exception('Website setting in registry is null');
             }
         } catch (\Exception $e) {
             try {
                 $setting = new self();
-                $setting->getDao()->getById(intval($id));
-                \Pimcore\Cache\Runtime::set($cacheKey, $setting);
-            } catch (\Exception $e) {
+                $setting->getDao()->getById((int)$id);
+                \Pimcore\Cache\RuntimeCache::set($cacheKey, $setting);
+            } catch (NotFoundException $e) {
                 return null;
             }
         }
@@ -116,7 +117,9 @@ class WebsiteSetting extends AbstractModel
      * @param string|null $language language, if property cannot be found the value of property without language is returned
      * @param string|null $fallbackLanguage fallback language
      *
-     * @return null|WebsiteSetting
+     * @return WebsiteSetting|null
+     *
+     * @throws \Exception
      */
     public static function getByName($name, $siteId = null, $language = null, $fallbackLanguage = null)
     {
@@ -132,7 +135,7 @@ class WebsiteSetting extends AbstractModel
 
         try {
             $setting->getDao()->getByName($name, $siteId, $language);
-        } catch (\Exception $e) {
+        } catch (NotFoundException $e) {
             if ($language != $fallbackLanguage) {
                 $result = self::getByName($name, $siteId, $fallbackLanguage, $fallbackLanguage);
 
@@ -154,7 +157,7 @@ class WebsiteSetting extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {
@@ -206,7 +209,7 @@ class WebsiteSetting extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -256,7 +259,7 @@ class WebsiteSetting extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
@@ -276,14 +279,16 @@ class WebsiteSetting extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getSiteId()
     {
-        return (int) $this->siteId;
+        return $this->siteId;
     }
 
     /**
+     * enum('text','document','asset','object','bool')
+     *
      * @param string $type
      *
      * @return $this
@@ -296,6 +301,8 @@ class WebsiteSetting extends AbstractModel
     }
 
     /**
+     * enum('text','document','asset','object','bool')
+     *
      * @return string
      */
     public function getType()
@@ -319,6 +326,9 @@ class WebsiteSetting extends AbstractModel
         $this->language = $language;
     }
 
+    /**
+     * @internal
+     */
     public function clearDependentCache()
     {
         \Pimcore\Cache::clearTag('website_config');
@@ -326,7 +336,7 @@ class WebsiteSetting extends AbstractModel
 
     public function delete(): void
     {
-        $nameCacheKey = static::getCacheKey($this->getName(), $this->getSiteId(), $this->getLanguage());
+        $nameCacheKey = self::getCacheKey($this->getName(), $this->getSiteId(), $this->getLanguage());
 
         // Remove cached element to avoid returning it with e.g. getByName() after if it is deleted
         if (array_key_exists($nameCacheKey, self::$nameIdMappingCache)) {

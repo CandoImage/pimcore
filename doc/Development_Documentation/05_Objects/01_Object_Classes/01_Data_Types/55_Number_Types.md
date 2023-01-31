@@ -47,7 +47,7 @@ In the class editor, it is possible to restrict the list of valid units on a fie
 
 Only those units will be available then.
 
-![Quantity Value Field](../../../img/classes-datatypes-number6.jpg)
+![Quantity Value Field](../../../img/classes-datatypes-number6.png)
 
 The following code snippet shows how to set a value.
 ```php
@@ -89,6 +89,19 @@ $convertedValue = $converter->convert($originalValue, Unit::getByAbbreviation('m
 // $convertedValue is a QuantityValue with value 3000 and unit mm
 ```
 
+Alternatively you can use
+```php
+$originalValue = new QuantityValue(3, Unit::getByAbbreviation('m')->getId());
+$convertedValue = $originalValue->convertTo(Unit::getByAbbreviation('mm'));
+// $convertedValue is a QuantityValue with value 3000 and unit mm
+```
+or
+```php
+$originalValue = new QuantityValue(3, Unit::getByAbbreviation('m')->getId());
+$convertedValue = $originalValue->convertTo('mm');
+// $convertedValue is a QuantityValue with value 3000 and unit mm
+```
+
 Units without base unit are expected to be a base unit itself. That is why in above example configuration meter has no base unit - but of course you can set it to meter to be more explicit.
 
 In quantity value unit configuration there is also the column "offset". This is for unit conversions where addition / subtraction is needed. For example 
@@ -106,7 +119,7 @@ When conversion factors / offsets change over time (e.g. money currencies) or yo
 1. You could periodically update the factors / offsets in quantity value unit configuration
 2. You can create a converter service class
 
-If you prefer the latter you have to create a class which implements  `\Pimcore\Model\DataObject\QuantityValue\QuantityValueConverterInterface` and define a service for this class in your `services.yml`. The service name can then be entered in quantity value unit configuration's column "Converter service" for the base unit.
+If you prefer the latter you have to create a class which implements  `\Pimcore\Model\DataObject\QuantityValue\QuantityValueConverterInterface` and define a service for this class in your `services.yaml`. The service name can then be entered in quantity value unit configuration's column "Converter service" for the base unit.
 
 ## Input Quantity Value
 

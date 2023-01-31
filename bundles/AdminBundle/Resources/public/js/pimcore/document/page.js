@@ -21,7 +21,15 @@ pimcore.document.page = Class.create(pimcore.document.page_snippet, {
         this.setType("page");
         this.addLoadingPanel();
 
-        pimcore.plugin.broker.fireEvent("preOpenDocument", this, "page");
+        const preOpenDocumentPage = new CustomEvent(pimcore.events.preOpenDocument, {
+            detail: {
+                document: this,
+                type: "page"
+            }
+        });
+
+        document.dispatchEvent(preOpenDocumentPage);
+
         this.getData();
 
     },
@@ -43,7 +51,7 @@ pimcore.document.page = Class.create(pimcore.document.page_snippet, {
         }
 
         if (this.isAllowed("properties")) {
-            this.properties = new pimcore.document.properties(this, "document");
+            this.properties = new pimcore.document.properties(this, "document", true);
         }
         if (this.isAllowed("versions")) {
             this.versions = new pimcore.document.versions(this);
@@ -182,20 +190,6 @@ pimcore.document.page = Class.create(pimcore.document.page_snippet, {
         }
 
         return parameters;
-    },
-
-    createScreenshot: function () {
-
-        if(!pimcore.settings.document_generatepreviews) {
-            return;
-        }
-
-        var date = new Date();
-        var path = this.data.path + this.data.key + "?pimcore_preview=true&time=" + date.getTime();
-
-        window.setTimeout(function () {
-            pimcore.helpers.generatePagePreview(this.id, path);
-        }.bind(this), 5000);
     }
 
 });

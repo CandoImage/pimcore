@@ -20,24 +20,12 @@ use Pimcore\Model\Paginator\PaginateListingInterface;
 
 /**
  * @method Token[] load()
- * @method Token current()
+ * @method Token|false current()
  * @method int getTotalCount()
  * @method \Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Token\Listing\Dao getDao()
  */
 class Listing extends \Pimcore\Model\Listing\AbstractListing implements PaginateListingInterface
 {
-    /**
-     * @var Token[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    public $tokens;
-
-    public function __construct()
-    {
-        $this->tokens = & $this->data;
-    }
-
     /**
      * @param string $key
      *
@@ -79,11 +67,11 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
                 $this->addConditionParam('length = ?', $filter['length']);
             }
 
-            if (isset($filter['creation_from'])) {
+            if (!empty($filter['creation_from'])) {
                 $this->addConditionParam("DATE(timestamp) >= STR_TO_DATE(?,'%Y-%m-%d')", $filter['creation_from']);
             }
 
-            if (isset($filter['creation_to'])) {
+            if (!empty($filter['creation_to'])) {
                 $this->addConditionParam("DATE(timestamp) <= STR_TO_DATE(?,'%Y-%m-%d')", $filter['creation_to']);
             }
 
@@ -170,7 +158,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
         }
 
         try {
-            $codes = $db->fetchAll($query, array_values($queryParams));
+            $codes = $db->fetchAllAssociative($query, array_values($queryParams));
         } catch (\Exception $e) {
             return false;
         }
@@ -232,7 +220,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
 
     /**
      * @param int $length
-     * @param null|string $seriesId
+     * @param string|int|null $seriesId
      *
      * @return null|string
      */
@@ -362,20 +350,12 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
 
     /**
      * @param array $tokens
+     *
+     * @return $this
      */
     public function setTokens($tokens)
     {
         return $this->setData($tokens);
-    }
-
-    /**
-     * @deprecated will be removed in Pimcore 10
-     *
-     * @return self
-     */
-    public function getPaginatorAdapter()
-    {
-        return $this;
     }
 
     /**
@@ -395,17 +375,10 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Count elements of an object
-     *
-     * @link http://php.net/manual/en/countable.count.php
-     *
-     * @return int The custom count as an integer.
-     * </p>
-     * <p>
-     * The return value is cast to an integer.
+     * @return int
      */
-    public function count()
+    #[\ReturnTypeWillChange]
+    public function count()// : int
     {
         return $this->getTotalCount();
     }

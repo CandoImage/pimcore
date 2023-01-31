@@ -24,5 +24,3 @@ class RendererNotFoundException extends \InvalidArgumentException
         return new static(sprintf('The navigation renderer "%s" was not found', $name));
     }
 }
-
-class_alias(RendererNotFoundException::class, 'Pimcore\Templating\Helper\Navigation\Exception\RendererNotFoundException');

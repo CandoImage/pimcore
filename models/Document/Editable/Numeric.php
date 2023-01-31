@@ -25,14 +25,14 @@ class Numeric extends Model\Document\Editable
     /**
      * Contains the current number, or an empty string if not set
      *
+     * @internal
+     *
      * @var string
      */
-    public $number = '';
+    protected $number = '';
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -40,9 +40,7 @@ class Numeric extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -50,9 +48,17 @@ class Numeric extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
+     * @see EditableInterface::getData
      *
      * @return string
+     */
+    public function getNumber()
+    {
+        return $this->getData();
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -60,11 +66,7 @@ class Numeric extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -74,11 +76,7 @@ class Numeric extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -88,7 +86,7 @@ class Numeric extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -98,26 +96,4 @@ class Numeric extends Model\Document\Editable
 
         return empty($this->number);
     }
-
-    /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-        if (empty($data->number) or is_numeric($data->number)) {
-            $this->number = $data->number;
-        } else {
-            throw new \Exception('cannot get values from web service import - invalid data');
-        }
-    }
 }
-
-class_alias(Numeric::class, 'Pimcore\Model\Document\Tag\Numeric');

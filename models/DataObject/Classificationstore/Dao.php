@@ -15,6 +15,7 @@
 
 namespace Pimcore\Model\DataObject\Classificationstore;
 
+use Pimcore\Db\Helper;
 use Pimcore\Element\MarshallerService;
 use Pimcore\Logger;
 use Pimcore\Model;
@@ -22,6 +23,8 @@ use Pimcore\Model\DataObject;
 use Pimcore\Normalizer\NormalizerInterface;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Classificationstore $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -62,7 +65,11 @@ class Dao extends Model\Dao\AbstractDao
         $dataTable = $this->getDataTableName();
         $fieldname = $this->model->getFieldname();
 
-        $this->db->delete($dataTable, ['o_id' => $objectId, 'fieldname' => $fieldname]);
+        $dataExists = $this->db->fetchOne('SELECT `o_id` FROM `'.$dataTable."` WHERE
+         `o_id` = '".$objectId."' AND `fieldname` = '".$fieldname."' LIMIT 1");
+        if ($dataExists) {
+            $this->db->delete($dataTable, ['o_id' => $objectId, 'fieldname' => $fieldname]);
+        }
 
         $items = $this->model->getItems();
         $activeGroups = $this->model->getActiveGroups();
@@ -107,31 +114,23 @@ class Dao extends Model\Dao\AbstractDao
                         } else {
                             $encodedData['value'] = $normalizedData;
                         }
-                    } else {
-                        if ($fd instanceof DataObject\ClassDefinition\Data\Password) {
-                            $value = $fd->getDataForResource($value, null, []);
-                            $this->model->setLocalizedKeyValue($groupId, $keyId, $value, $language);
-                        } elseif ($fd instanceof DataObject\ClassDefinition\Data\EncryptedField) {
-                            $value = $fd->getDataForResource($value, $object, ['skipEncryption' => true]);
-                            $delegate = $fd->getDelegate();
-                            $value = new DataObject\Data\EncryptedField($delegate, $value);
-                        } elseif ($fd instanceof DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface) {
-                            $value = $fd->getDataForResource($value, $this->model->getObject());
-                        }
-                        $encodedData = $fd->marshal($value, $object);
                     }
 
                     $data['value'] = $encodedData['value'] ?? null;
                     $data['value2'] = $encodedData['value2'] ?? null;
 
-                    $this->db->insertOrUpdate($dataTable, $data);
+                    Helper::insertOrUpdate($this->db, $dataTable, $data);
                 }
             }
         }
 
         $groupsTable = $this->getGroupsTableName();
 
-        $this->db->delete($groupsTable, ['o_id' => $objectId, 'fieldname' => $fieldname]);
+        $dataExists = $this->db->fetchOne('SELECT `o_id` FROM `'.$groupsTable."` WHERE
+         `o_id` = '".$objectId."' AND `fieldname` = '".$fieldname."' LIMIT 1");
+        if ($dataExists) {
+            $this->db->delete($groupsTable, ['o_id' => $objectId, 'fieldname' => $fieldname]);
+        }
 
         if (is_array($activeGroups)) {
             foreach ($activeGroups as $activeGroupId => $enabled) {
@@ -141,7 +140,7 @@ class Dao extends Model\Dao\AbstractDao
                         'groupId' => $activeGroupId,
                         'fieldname' => $fieldname,
                     ];
-                    $this->db->insertOrUpdate($groupsTable, $data);
+                    Helper::insertOrUpdate($this->db, $groupsTable, $data);
                 }
             }
         }
@@ -164,7 +163,6 @@ class Dao extends Model\Dao\AbstractDao
      */
     public function load()
     {
-        /** @var DataObject\Classificationstore $classificationStore */
         $classificationStore = $this->model;
         $object = $this->model->getObject();
         $dataTableName = $this->getDataTableName();
@@ -174,7 +172,7 @@ class Dao extends Model\Dao\AbstractDao
 
         $query = 'SELECT * FROM ' . $groupsTableName . ' WHERE o_id = ' . $this->db->quote($objectId) . ' AND fieldname = ' . $this->db->quote($fieldname);
 
-        $data = $this->db->fetchAll($query);
+        $data = $this->db->fetchAllAssociative($query);
         $list = [];
 
         foreach ($data as $item) {
@@ -183,7 +181,7 @@ class Dao extends Model\Dao\AbstractDao
 
         $query = 'SELECT * FROM ' . $dataTableName . ' WHERE o_id = ' . $this->db->quote($objectId) . ' AND fieldname = ' . $this->db->quote($fieldname);
 
-        $data = $this->db->fetchAll($query);
+        $data = $this->db->fetchAllAssociative($query);
 
         $groupCollectionMapping = [];
 
@@ -227,11 +225,6 @@ class Dao extends Model\Dao\AbstractDao
                     'object' => $object,
                     'fieldDefinition' => $fd,
                 ]);
-            } else {
-                $value = $fd->unmarshal($value, $object);
-                if ($fd instanceof DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface) {
-                    $value = $fd->getDataFromResource($value, $object, ['skipDecryption' => true]);
-                }
             }
 
             $language = $item['language'];
@@ -248,15 +241,16 @@ class Dao extends Model\Dao\AbstractDao
         $groupsTable = $this->getGroupsTableName();
         $dataTable = $this->getDataTableName();
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $groupsTable . '` (
-            `o_id` BIGINT(20) NOT NULL,
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $groupsTable . '` (
+            `o_id` INT(11) UNSIGNED NOT NULL,
             `groupId` BIGINT(20) NOT NULL,
             `fieldname` VARCHAR(70) NOT NULL,
-            PRIMARY KEY (`o_id`, `fieldname`, `groupId`)
+            PRIMARY KEY (`o_id`, `fieldname`, `groupId`),
+            CONSTRAINT `'.self::getForeignKeyName($groupsTable, 'o_id').'` FOREIGN KEY (`o_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
         ) DEFAULT CHARSET=utf8mb4;');
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $dataTable . '` (
-            `o_id` BIGINT(20) NOT NULL,
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $dataTable . '` (
+            `o_id` INT(11) UNSIGNED NOT NULL,
             `collectionId` BIGINT(20) NULL,
             `groupId` BIGINT(20) NOT NULL,
             `keyId` BIGINT(20) NOT NULL,
@@ -267,7 +261,8 @@ class Dao extends Model\Dao\AbstractDao
             `type` VARCHAR(50) NULL,
             PRIMARY KEY (`o_id`, `fieldname`, `groupId`, `keyId`, `language`),
             INDEX `keyId` (`keyId`),
-            INDEX `language` (`language`)
+            INDEX `language` (`language`),
+            CONSTRAINT `'.self::getForeignKeyName($dataTable, 'o_id').'` FOREIGN KEY (`o_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
         ) DEFAULT CHARSET=utf8mb4;');
 
         $this->tableDefinitions = null;

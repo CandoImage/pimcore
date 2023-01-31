@@ -23,14 +23,14 @@ use Pimcore\Model;
 class Embed extends Model\Document\Editable
 {
     /**
+     * @internal
+     *
      * @var string
      */
-    public $url;
+    protected $url;
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -38,9 +38,7 @@ class Embed extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -50,7 +48,15 @@ class Embed extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * @return string
+     */
+    public function getUrl()
+    {
+        return $this->url;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function getDataForResource()
     {
@@ -60,9 +66,7 @@ class Embed extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -94,7 +98,7 @@ class Embed extends Model\Document\Editable
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function admin()
     {
@@ -108,11 +112,7 @@ class Embed extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -126,11 +126,7 @@ class Embed extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -142,7 +138,7 @@ class Embed extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -152,24 +148,4 @@ class Embed extends Model\Document\Editable
 
         return true;
     }
-
-    /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $wsElement->value;
-        if ($data->url) {
-            $this->url = $data->url;
-        }
-    }
 }
-
-class_alias(Embed::class, 'Pimcore\Model\Document\Tag\Embed');

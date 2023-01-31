@@ -19,46 +19,48 @@ use Pimcore\Model;
 use Pimcore\Tool\Session;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Element\Editlock\Dao getDao()
  * @method void delete()
  * @method void save()
  */
-class Editlock extends Model\AbstractModel
+final class Editlock extends Model\AbstractModel
 {
     /**
      * @var int
      */
-    public $id;
+    protected $id;
 
     /**
      * @var int
      */
-    public $cid;
+    protected $cid;
 
     /**
      * @var string
      */
-    public $ctype;
+    protected $ctype;
 
     /**
      * @var int
      */
-    public $userId;
+    protected $userId;
 
     /**
      * @var string
      */
-    public $sessionId;
+    protected $sessionId;
 
     /**
      * @var int
      */
-    public $date;
+    protected $date;
 
     /**
      * @var string
      */
-    public $cpath;
+    protected $cpath;
 
     /**
      * @param int $cid
@@ -95,7 +97,7 @@ class Editlock extends Model\AbstractModel
             $lock->getDao()->getByElement($cid, $ctype);
 
             return $lock;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -125,7 +127,6 @@ class Editlock extends Model\AbstractModel
      */
     public static function lock($cid, $ctype)
     {
-
         // try to get user
         if (!$user = \Pimcore\Tool\Admin::getCurrentUser()) {
             return false;

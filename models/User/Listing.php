@@ -24,9 +24,9 @@ use Pimcore\Model\User;
 class Listing extends Listing\AbstractListing
 {
     /**
-     * @var string
+     * {@inheritdoc}
      */
-    public $type = 'user';
+    protected $type = 'user';
 
     /**
      * Alias for $this->getItems()

@@ -15,6 +15,9 @@
 
 namespace Pimcore\Model\Element\Traits;
 
+/**
+ * @internal
+ */
 trait DirtyIndicatorTrait
 {
     /**
@@ -68,6 +71,3 @@ trait DirtyIndicatorTrait
         $this->o_dirtyFields = null;
     }
 }
-
-//TODO: remove in Pimcore 10
-class_alias(DirtyIndicatorTrait::class, 'Pimcore\Model\DataObject\Traits\DirtyIndicatorTrait');

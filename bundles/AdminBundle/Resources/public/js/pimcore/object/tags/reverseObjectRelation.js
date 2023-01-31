@@ -14,7 +14,7 @@
 pimcore.registerNS("pimcore.object.tags.reverseObjectRelation");
 pimcore.object.tags.reverseObjectRelation = Class.create(pimcore.object.tags.manyToManyObjectRelation, {
 
-    pathProperty: "path",
+    pathProperty: "fullpath",
 
     initialize: function (data, fieldConfig) {
         this.data = [];
@@ -110,11 +110,11 @@ pimcore.object.tags.reverseObjectRelation = Class.create(pimcore.object.tags.man
     getLayoutEdit: function () {
 
         var autoHeight = false;
-        if (intval(this.fieldConfig.height) < 15) {
+        if (!this.fieldConfig.height) {
             autoHeight = true;
         }
 
-        var cls = 'object_field object_field_type_' + this.type;
+        var cls = this.getWrapperClassNames();
 
         var classStore = pimcore.globalmanager.get("object_types_store");
         var record = classStore.getAt(classStore.findExact('text', this.fieldConfig.ownerClassName));
@@ -145,8 +145,7 @@ pimcore.object.tags.reverseObjectRelation = Class.create(pimcore.object.tags.man
                 },
                 items: [
                     {text: 'ID', dataIndex: 'id', flex: 50},
-                    {text: t("reference"), dataIndex: 'path', flex: 200, renderer:this.fullPathRenderCheck.bind(this)
-                    },
+                    {text: t("reference"), dataIndex: 'fullpath', flex: 200, renderer: this.fullPathRenderCheck.bind(this)},
                     {text: t("class"), dataIndex: 'classname', flex: 100},
                     {
                         xtype: 'actioncolumn',
@@ -319,17 +318,16 @@ pimcore.object.tags.reverseObjectRelation = Class.create(pimcore.object.tags.man
         allowedClasses.push(record.data.text);
 
 
-        pimcore.helpers.itemselector(true, this.addDataFromSelector.bind(this), {
-            type: ["object"],
-            subtype: [
-                {
+        pimcore.helpers.itemselector(true, this.addDataFromSelector.bind(this),
+            {
+                type: ["object"],
+                subtype: {
                     object: ["object", "variant"]
+                },
+                specific: {
+                    classes: allowedClasses
                 }
-            ],
-            specific: {
-                classes: allowedClasses
-            }
-        },
+            },
             {
                 context: Ext.apply({scope: "objectEditor"}, this.getContext())
             });
@@ -423,6 +421,3 @@ pimcore.object.tags.reverseObjectRelation = Class.create(pimcore.object.tags.man
 
 });
 
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.tags.nonownerobjects = pimcore.object.tags.reverseObjectRelation;
-pimcore.object.tags.reverseManyToManyObjectRelation = pimcore.object.tags.reverseObjectRelation;

@@ -65,16 +65,18 @@ pimcore.object.tags.classificationstore = Class.create(pimcore.object.tags.abstr
                 var currentLanguage = this.frontendLanguages[i];
 
                 var metadataForLanguage = this.metaData[currentLanguage];
-                var dataKeys = Object.keys(metadataForLanguage);
+                if (metadataForLanguage) {
+                    var dataKeys = Object.keys(metadataForLanguage);
 
-                for (var k = 0; k < dataKeys.length; k++) {
-                    var dataKey = dataKeys[k];
-                    var metadataForKey = metadataForLanguage[dataKey];
-                    if (metadataForKey.inherited) {
-                        this.keysToWatch.push({
-                            lang: currentLanguage,
-                            key: dataKey
-                        });
+                    for (var k = 0; k < dataKeys.length; k++) {
+                        var dataKey = dataKeys[k];
+                        var metadataForKey = metadataForLanguage[dataKey];
+                        if (metadataForKey.inherited) {
+                            this.keysToWatch.push({
+                                lang: currentLanguage,
+                                key: dataKey
+                            });
+                        }
                     }
                 }
             }
@@ -99,8 +101,7 @@ pimcore.object.tags.classificationstore = Class.create(pimcore.object.tags.abstr
         var wrapperConfig = {
             bodyCls: "pimcore_object_tag_classification_store",
             border: true,
-            style: "margin-bottom: 10px",
-            layout: "fit"
+            style: "margin-bottom: 10px"
         };
 
         if(this.fieldConfig.width) {
@@ -211,6 +212,10 @@ pimcore.object.tags.classificationstore = Class.create(pimcore.object.tags.abstr
 
                 if (this.fieldConfig.labelWidth) {
                     item.labelWidth = this.fieldConfig.labelWidth;
+                }
+
+                if (this.fieldConfig.labelAlign) {
+                    item.labelAlign = this.fieldConfig.labelAlign;
                 }
 
                 panelConf.items.push(item);
@@ -438,7 +443,8 @@ pimcore.object.tags.classificationstore = Class.create(pimcore.object.tags.abstr
         var config = {
             title: groupTitle,
             items: groupedChildItems,
-            collapsible: true
+            collapsible: true,
+            layout: "vbox"
         };
 
         var tools = [];
@@ -528,39 +534,42 @@ pimcore.object.tags.classificationstore = Class.create(pimcore.object.tags.abstr
     },
 
     deleteGroup: function(groupId) {
-        var currentLanguage;
+        Ext.Msg.confirm(t('delete'), t('delete_group_message'), function(btn) {
+            if (btn == 'yes') {
+                var currentLanguage;
 
-        this.groupModified = true;
+                this.groupModified = true;
 
-        for (var i=0; i < this.frontendLanguages.length; i++) {
+                for (var i = 0; i < this.frontendLanguages.length; i++) {
 
-            currentLanguage = this.frontendLanguages[i];
+                    currentLanguage = this.frontendLanguages[i];
 
-            var fieldset = this.groupElements[currentLanguage][groupId];
-            if (fieldset) {
-                fieldset.destroy();
-                var languagePanel = this.languagePanels[currentLanguage];
-                languagePanel.updateLayout();
-            } else {
-                console.log("no fieldset???");
-            }
+                    var fieldset = this.groupElements[currentLanguage][groupId];
+                    if (fieldset) {
+                        fieldset.destroy();
+                        var languagePanel = this.languagePanels[currentLanguage];
+                        languagePanel.updateLayout();
+                    } else {
+                        console.log("no fieldset???");
+                    }
 
-            delete this.groupElements[currentLanguage][groupId];
+                    delete this.groupElements[currentLanguage][groupId];
 
-            for (var j = this.languageElements[currentLanguage].length - 1; j >= 0; j--) {
-                var element = this.languageElements[currentLanguage][j];
-                if (element.fieldConfig.csGroupId == groupId) {
-                    this.languageElements[currentLanguage].splice(j, 1);
+                    for (var j = this.languageElements[currentLanguage].length - 1; j >= 0; j--) {
+                        var element = this.languageElements[currentLanguage][j];
+                        if (element.fieldConfig.csGroupId == groupId) {
+                            this.languageElements[currentLanguage].splice(j, 1);
+                        }
+
+                    }
                 }
 
+                this.component.updateLayout();
+
+                delete this.activeGroups[groupId];
+                delete this.groupCollectionMapping[groupId];
             }
-        }
-
-        this.component.updateLayout();
-
-        delete this.activeGroups[groupId];
-        delete this.groupCollectionMapping[groupId];
-
+        }.bind(this));
     },
 
     handleAddGroups: function (response) {
@@ -574,11 +583,15 @@ pimcore.object.tags.classificationstore = Class.create(pimcore.object.tags.abstr
 
         var newGroupIds = [];
 
-        for (var groupId in data) {
+        var dataArray = Object.values(data);
+        dataArray.sort((a, b) => (a.sorter > b.sorter) ? 1 : -1);
+
+        dataArray.forEach(function(groupData) {
+            var groupId = groupData.id;
             if (!this.activeGroups[groupId]) {
                 newGroupIds.push(groupId);
             }
-        }
+        }, this);
 
         if (
             this.fieldConfig.maxItems > 0 &&

@@ -23,68 +23,95 @@ use Pimcore\Tool\Serialize;
 /**
  * @method \Pimcore\Model\Document\Editable\Dao getDao()
  */
-class Image extends Model\Document\Editable
+class Image extends Model\Document\Editable implements IdRewriterInterface, EditmodeDataInterface
 {
     /**
      * ID of the referenced image
      *
+     * @internal
+     *
      * @var int
      */
-    public $id;
+    protected $id;
 
     /**
      * The ALT text of the image
      *
+     * @internal
+     *
      * @var string
      */
-    public $alt;
+    protected $alt;
 
     /**
      * Contains the imageobject itself
      *
+     * @internal
+     *
      * @var Asset\Image|null
      */
-    public $image;
+    protected $image;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $cropPercent = false;
+    protected $cropPercent = false;
 
     /**
-     * @var float
-     */
-    public $cropWidth;
-
-    /**
-     * @var float
-     */
-    public $cropHeight;
-
-    /**
-     * @var float
-     */
-    public $cropTop;
-
-    /**
-     * @var float
-     */
-    public $cropLeft;
-
-    /**
-     * @var array
-     */
-    public $hotspots = [];
-
-    /**
-     * @var array
-     */
-    public $marker = [];
-
-    /**
-     * @see EditableInterface::getType
+     * @internal
      *
-     * @return string
+     * @var float
+     */
+    protected $cropWidth;
+
+    /**
+     * @internal
+     *
+     * @var float
+     */
+    protected $cropHeight;
+
+    /**
+     * @internal
+     *
+     * @var float
+     */
+    protected $cropTop;
+
+    /**
+     * @internal
+     *
+     * @var float
+     */
+    protected $cropLeft;
+
+    /**
+     * @internal
+     *
+     * @var array
+     */
+    protected $hotspots = [];
+
+    /**
+     * @internal
+     *
+     * @var array
+     */
+    protected $marker = [];
+
+    /**
+     * The Thumbnail config of the image
+     *
+     * @internal
+     *
+     * @var string
+     */
+    protected $thumbnail;
+
+    /**
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -92,9 +119,7 @@ class Image extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return array
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -108,11 +133,12 @@ class Image extends Model\Document\Editable
             'cropLeft' => $this->cropLeft,
             'hotspots' => $this->hotspots,
             'marker' => $this->marker,
+            'thumbnail' => $this->thumbnail,
         ];
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function getDataForResource()
     {
@@ -126,15 +152,14 @@ class Image extends Model\Document\Editable
             'cropLeft' => $this->cropLeft,
             'hotspots' => $this->hotspots,
             'marker' => $this->marker,
+            'thumbnail' => $this->thumbnail,
         ];
     }
 
     /**
-     * Converts the data so it's suitable for the editmode
-     *
-     * @return array|null
+     * {@inheritdoc}
      */
-    public function getDataEditmode()
+    public function getDataEditmode() /** : mixed */
     {
         $image = $this->getImage();
 
@@ -147,6 +172,15 @@ class Image extends Model\Document\Editable
                 foreach ($data as &$element) {
                     if (array_key_exists('data', $element) && is_array($element['data']) && count($element['data']) > 0) {
                         foreach ($element['data'] as &$metaData) {
+                            if ($metaData instanceof Element\Data\MarkerHotspotItem) {
+                                $metaData = get_object_vars($metaData);
+                            }
+
+                            if (in_array($metaData['type'], ['object', 'asset', 'document'])
+                            && $el = Element\Service::getElementById($metaData['type'], $metaData['value'])) {
+                                $metaData['value'] = $el;
+                            }
+
                             if ($metaData['value'] instanceof Element\ElementInterface) {
                                 $metaData['value'] = $metaData['value']->getRealFullPath();
                             }
@@ -160,12 +194,9 @@ class Image extends Model\Document\Editable
             $marker = $rewritePath($this->marker);
             $hotspots = $rewritePath($this->hotspots);
 
-            $marker = object2array($marker);
-            $hotspots = object2array($hotspots);
-
             return [
                 'id' => $this->id,
-                'path' => $image->getFullPath(),
+                'path' => $image->getRealFullPath(),
                 'alt' => $this->alt,
                 'cropPercent' => $this->cropPercent,
                 'cropWidth' => $this->cropWidth,
@@ -174,6 +205,7 @@ class Image extends Model\Document\Editable
                 'cropLeft' => $this->cropLeft,
                 'hotspots' => $hotspots,
                 'marker' => $marker,
+                'thumbnail' => $this->thumbnail,
                 'predefinedDataTemplates' => $this->getConfig()['predefinedDataTemplates'] ?? null,
             ];
         }
@@ -182,7 +214,7 @@ class Image extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function getConfig()
     {
@@ -205,9 +237,7 @@ class Image extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -265,16 +295,14 @@ class Image extends Model\Document\Editable
             }
 
             // thumbnail's HTML is always generated by the thumbnail itself
-            return $thumbnail->getHtml($attributes, $removeAttributes);
+            return $thumbnail->getHtml($attributes);
         }
 
         return '';
     }
 
     /**
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -318,14 +346,13 @@ class Image extends Model\Document\Editable
         $this->cropLeft = $data['cropLeft'] ?? null;
         $this->marker = $data['marker'] ?? null;
         $this->hotspots = $data['hotspots'] ?? null;
+        $this->thumbnail = $data['thumbnail'] ?? null;
 
         return $this;
     }
 
     /**
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -367,6 +394,7 @@ class Image extends Model\Document\Editable
             $this->cropLeft = $data['cropLeft'] ?? null;
             $this->marker = $data['marker'] ?? null;
             $this->hotspots = $data['hotspots'] ?? null;
+            $this->thumbnail = $data['thumbnail'] ?? null;
         }
 
         return $this;
@@ -394,6 +422,14 @@ class Image extends Model\Document\Editable
     public function getAlt()
     {
         return $this->getText();
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getThumbnailConfig()
+    {
+        return $this->thumbnail;
     }
 
     /**
@@ -483,7 +519,7 @@ class Image extends Model\Document\Editable
     /**
      * @param Asset\Image\Thumbnail\Config $thumbConfig
      */
-    protected function applyCustomCropping($thumbConfig)
+    private function applyCustomCropping($thumbConfig)
     {
         $cropConfig = [
             'width' => $this->cropWidth,
@@ -503,7 +539,7 @@ class Image extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -516,17 +552,10 @@ class Image extends Model\Document\Editable
     }
 
     /**
-     * @param Model\Document\PageSnippet $ownerDocument
-     * @param array $tags
-     *
-     * @return array|mixed
-     *
-     * @internal param array $blockedTags
+     * {@inheritdoc}
      */
-    public function getCacheTags($ownerDocument, $tags = [])
+    public function getCacheTags(Model\Document\PageSnippet $ownerDocument, array $tags = []): array
     {
-        $tags = is_array($tags) ? $tags : [];
-
         $image = $this->getImage();
 
         if ($image instanceof Asset) {
@@ -543,6 +572,10 @@ class Image extends Model\Document\Editable
             foreach ($data as $element) {
                 if (array_key_exists('data', $element) && is_array($element['data']) && count($element['data']) > 0) {
                     foreach ($element['data'] as $metaData) {
+                        if ($metaData instanceof Element\Data\MarkerHotspotItem) {
+                            $metaData = get_object_vars($metaData);
+                        }
+
                         if ($metaData['value'] instanceof Element\ElementInterface) {
                             if (!array_key_exists($metaData['value']->getCacheTag(), $tags)) {
                                 $tags = $metaData['value']->getCacheTags($tags);
@@ -562,7 +595,7 @@ class Image extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function resolveDependencies()
     {
@@ -586,6 +619,10 @@ class Image extends Model\Document\Editable
             foreach ($data as $element) {
                 if (array_key_exists('data', $element) && is_array($element['data']) && count($element['data']) > 0) {
                     foreach ($element['data'] as $metaData) {
+                        if ($metaData instanceof Element\Data\MarkerHotspotItem) {
+                            $metaData = get_object_vars($metaData);
+                        }
+
                         if ($metaData['value'] instanceof Element\ElementInterface) {
                             $dependencies[$metaData['type'] . '_' . $metaData['value']->getId()] = [
                                 'id' => $metaData['value']->getId(),
@@ -603,46 +640,6 @@ class Image extends Model\Document\Editable
         $dependencies = $getMetaDataDependencies($this->hotspots, $dependencies);
 
         return $dependencies;
-    }
-
-    /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-        if ($data->id !== null) {
-            $this->alt = $data->alt;
-            $this->id = $data->id;
-
-            if ($idMapper) {
-                $this->id = $idMapper->getMappedId('asset', $data->id);
-            }
-
-            if (is_numeric($this->id)) {
-                $image = $this->getImage();
-                if (!$image instanceof Asset\Image) {
-                    if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                        $idMapper->recordMappingFailure('document', $this->getDocumentId(), 'asset', $data->id);
-                    } else {
-                        throw new \Exception('cannot get values from web service import - referenced image with id [ ' . $this->id . ' ] is unknown');
-                    }
-                }
-            } else {
-                if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                    $idMapper->recordMappingFailure('document', $this->getDocumentId(), 'asset', $data->id);
-                } else {
-                    throw new \Exception('cannot get values from web service import - id is not valid');
-                }
-            }
-        }
     }
 
     /**
@@ -778,21 +775,11 @@ class Image extends Model\Document\Editable
     }
 
     /**
-     * Rewrites id from source to target, $idMapping contains
-     * array(
-     *  "document" => array(
-     *      SOURCE_ID => TARGET_ID,
-     *      SOURCE_ID => TARGET_ID
-     *  ),
-     *  "object" => array(...),
-     *  "asset" => array(...)
-     * )
-     *
-     * @param array $idMapping
+     * { @inheritdoc }
      */
-    public function rewriteIds($idMapping)
+    public function rewriteIds($idMapping) /** : void */
     {
-        if (array_key_exists('asset', $idMapping) and array_key_exists($this->getId(), $idMapping['asset'])) {
+        if (array_key_exists('asset', $idMapping) && array_key_exists($this->getId(), $idMapping['asset'])) {
             $this->setId($idMapping['asset'][$this->getId()]);
 
             // reset marker & hotspot information
@@ -819,5 +806,3 @@ class Image extends Model\Document\Editable
         return $finalVars;
     }
 }
-
-class_alias(Image::class, 'Pimcore\Model\Document\Tag\Image');

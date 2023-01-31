@@ -21,8 +21,12 @@ use Pimcore\Bundle\CoreBundle\EventListener\Frontend\ElementListener;
 use Pimcore\Document\Renderer\DocumentRenderer;
 use Pimcore\Http\Request\Resolver\EditmodeResolver;
 use Pimcore\Model\Document;
+use Pimcore\Model\Document\Editable\Block;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
+/**
+ * @internal
+ */
 class EditableUsageResolver
 {
     /**
@@ -30,26 +34,20 @@ class EditableUsageResolver
      */
     protected $subscriber;
 
+    /**
+     * @var EventDispatcherInterface
+     */
     protected $dispatcher;
 
+    /**
+     * @var DocumentRenderer
+     */
     protected $renderer;
 
     public function __construct(EventDispatcherInterface $eventDispatcher, DocumentRenderer $documentRenderer)
     {
         $this->dispatcher = $eventDispatcher;
         $this->renderer = $documentRenderer;
-    }
-
-    /**
-     * @param Document\PageSnippet $document
-     *
-     * @return array
-     *
-     * @deprecated since 6.8 and will be removed in Pimcore 10. Use getUsedEditableNames() instead.
-     */
-    public function getUsedTagnames(Document\PageSnippet $document)
-    {
-        return $this->getUsedEditableNames($document);
     }
 
     /**
@@ -63,7 +61,11 @@ class EditableUsageResolver
 
         // we render in editmode, so that we can ensure all elements that can be edited are present in the export
         // this is especially necessary when lazy loading certain elements on a page (eg. using ajax-include and similar solutions)
-        $this->renderer->render($document, [EditmodeResolver::ATTRIBUTE_EDITMODE => true, ElementListener::FORCE_ALLOW_PROCESSING_UNPUBLISHED_ELEMENTS => true]);
+        $this->renderer->render($document, [
+            EditmodeResolver::ATTRIBUTE_EDITMODE => true,
+            ElementListener::FORCE_ALLOW_PROCESSING_UNPUBLISHED_ELEMENTS => true,
+            Block::ATTRIBUTE_IGNORE_EDITMODE_INDICES => true,
+            ]);
         $names = $this->subscriber->getRecordedEditableNames();
         $this->unregisterEventSubscriber();
 
@@ -88,5 +90,3 @@ class EditableUsageResolver
         }
     }
 }
-
-class_alias(EditableUsageResolver::class, 'Pimcore\Document\Tag\TagUsageResolver');

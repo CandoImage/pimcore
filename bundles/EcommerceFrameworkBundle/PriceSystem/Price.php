@@ -74,7 +74,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function isMinPrice(): bool
     {
@@ -82,7 +82,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function setAmount(Decimal $amount, string $priceMode = self::PRICE_MODE_GROSS, bool $recalc = false)
     {
@@ -101,7 +101,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getAmount(): Decimal
     {
@@ -117,7 +117,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getCurrency(): Currency
     {
@@ -125,7 +125,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getGrossAmount(): Decimal
     {
@@ -133,7 +133,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getNetAmount(): Decimal
     {
@@ -149,7 +149,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getTaxEntryCombinationMode(): string
     {
@@ -157,7 +157,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function setGrossAmount(Decimal $grossAmount, bool $recalc = false)
     {
@@ -169,7 +169,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function setNetAmount(Decimal $netAmount, bool $recalc = false)
     {
@@ -181,7 +181,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function setTaxEntries(array $taxEntries)
     {
@@ -189,7 +189,7 @@ class Price implements PriceInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function setTaxEntryCombinationMode(string $taxEntryCombinationMode)
     {

@@ -24,23 +24,23 @@ use Symfony\Component\DependencyInjection\Reference;
 
 /**
  * Adds tagged navigation renderers to navigation helper
+ *
+ * @internal
  */
-class LongRunningHelperPass implements CompilerPassInterface
+final class LongRunningHelperPass implements CompilerPassInterface
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function process(ContainerBuilder $container)
     {
-        if ($container->has(LongRunningHelper::class)) {
-            $helperDefinition = $container->getDefinition(LongRunningHelper::class);
-            foreach ($container->getDefinitions() as $serviceId => $definition) {
-                if (strpos($serviceId, 'monolog.handler.') === 0) {
-                    $class = $container->getParameterBag()->resolveValue($definition->getClass());
-                    if (is_a($class, 'Monolog\Handler\BufferHandler', true)
-                        || is_a($class, 'Monolog\Handler\FingersCrossedHandler', true)) {
-                        $helperDefinition->addMethodCall('addMonologHandler', [new Reference($serviceId)]);
-                    }
+        $helperDefinition = $container->getDefinition(LongRunningHelper::class);
+        foreach ($container->getDefinitions() as $serviceId => $definition) {
+            if (strpos($serviceId, 'monolog.handler.') === 0) {
+                $class = $container->getParameterBag()->resolveValue($definition->getClass());
+                if (is_a($class, 'Monolog\Handler\BufferHandler', true)
+                    || is_a($class, 'Monolog\Handler\FingersCrossedHandler', true)) {
+                    $helperDefinition->addMethodCall('addMonologHandler', [new Reference($serviceId)]);
                 }
             }
         }

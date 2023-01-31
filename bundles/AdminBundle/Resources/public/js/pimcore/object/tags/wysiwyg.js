@@ -85,7 +85,7 @@ pimcore.object.tags.wysiwyg = Class.create(pimcore.object.tags.abstract, {
             iconCls = "pimcore_icon_droptarget";
         }
 
-        var html = '<div class="pimcore_tag_wysiwyg" id="' + this.editableDivId + '" contenteditable="true">' + this.data + '</div>';
+        var html = '<div class="pimcore_editable_wysiwyg" id="' + this.editableDivId + '" contenteditable="true">' + this.data + '</div>';
         var pConf = {
             iconCls: iconCls,
             title: this.fieldConfig.title,
@@ -185,20 +185,33 @@ pimcore.object.tags.wysiwyg = Class.create(pimcore.object.tags.abstract, {
         else
             eConfig.removePlugins = "tableresize";
 
-        if (intval(this.fieldConfig.width) > 1) {
-            eConfig.width = this.fieldConfig.width;
-        }
-        if (intval(this.fieldConfig.height) > 1) {
-            eConfig.height = this.fieldConfig.height;
-        }
-
         if(typeof(pimcore.object.tags.wysiwyg.defaultEditorConfig) == 'object'){
             eConfig = mergeObject(eConfig, pimcore.object.tags.wysiwyg.defaultEditorConfig);
         }
 
         if(this.fieldConfig.toolbarConfig) {
+            const useNativeJson = Ext.USE_NATIVE_JSON;
+            Ext.USE_NATIVE_JSON = false;
             var elementCustomConfig = Ext.decode(this.fieldConfig.toolbarConfig);
+            Ext.USE_NATIVE_JSON = useNativeJson;
             eConfig = mergeObject(eConfig, elementCustomConfig);
+        }
+
+        if(!isNaN(this.fieldConfig.maxCharacters) && this.fieldConfig.maxCharacters > 0) {
+            var maxChars = this.fieldConfig.maxCharacters;
+            eConfig.wordcount = {
+                showParagraphs: false,
+                showWordCount: false,
+                showCharCount: true,
+                maxCharCount: maxChars
+            }
+        } else {
+            eConfig.wordcount = {
+                showParagraphs: false,
+                showWordCount: false,
+                showCharCount: true,
+                maxCharCount: -1
+            }
         }
 
         try {

@@ -25,32 +25,32 @@ use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 class Environment implements EnvironmentInterface
 {
     /**
-     * @var CartInterface
+     * @var CartInterface|null
      */
     protected $cart;
 
     /**
-     * @var CartItemInterface
+     * @var CartItemInterface|null
      */
     protected $cartItem;
 
     /**
-     * @var CheckoutableInterface
+     * @var CheckoutableInterface|null
      */
     protected $product;
 
     /**
-     * @var VisitorInfo
+     * @var VisitorInfo|null
      */
     protected $visitorInfo;
 
     /**
-     * @var RuleInterface
+     * @var RuleInterface|null
      */
     protected $rule;
 
     /**
-     * @var PriceInfoInterface
+     * @var PriceInfoInterface|null
      */
     protected $priceInfo;
 
@@ -60,7 +60,7 @@ class Environment implements EnvironmentInterface
     protected $categories = [];
 
     /**
-     * @var AttributeBagInterface
+     * @var AttributeBagInterface|null
      */
     protected $session;
 
@@ -84,7 +84,7 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @return CartInterface
+     * @return CartInterface|null
      */
     public function getCart()
     {
@@ -92,7 +92,7 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @return CartItemInterface
+     * @return CartItemInterface|null
      */
     public function getCartItem()
     {
@@ -112,7 +112,7 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @param CheckoutableInterface $product
+     * @param CheckoutableInterface|null $product
      *
      * @return EnvironmentInterface
      */
@@ -124,7 +124,7 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @return CheckoutableInterface
+     * @return CheckoutableInterface|null
      */
     public function getProduct()
     {
@@ -144,7 +144,7 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @return VisitorInfo
+     * @return VisitorInfo|null
      */
     public function getVisitorInfo()
     {
@@ -164,7 +164,7 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @return RuleInterface
+     * @return RuleInterface|null
      */
     public function getRule()
     {
@@ -184,7 +184,7 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @return PriceInfoInterface
+     * @return PriceInfoInterface|null
      */
     public function getPriceInfo()
     {
@@ -212,14 +212,24 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @return AttributeBagInterface
+     * @deprecated
+     *
+     * @return AttributeBagInterface|null
      */
     public function getSession()
     {
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.5',
+            sprintf('Calling setSession and getSession on Environment is deprecated. It will be removed in Pimcore 11.')
+        );
+
         return $this->session;
     }
 
     /**
+     * @deprecated
+     *
      * @param AttributeBagInterface $session
      *
      * @return EnvironmentInterface
@@ -231,11 +241,17 @@ class Environment implements EnvironmentInterface
         return $this;
     }
 
+    /**
+     * @param string $executionMode
+     */
     public function setExecutionMode($executionMode)
     {
         $this->executionMode = $executionMode;
     }
 
+    /**
+     * @return string
+     */
     public function getExecutionMode()
     {
         return $this->executionMode;

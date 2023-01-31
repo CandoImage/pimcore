@@ -22,38 +22,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 class AbstractInstaller implements InstallerInterface
 {
     /**
-     * @deprecated
-     *
-     * @var OutputWriterInterface
+     * @var BufferedOutput
      */
-    protected $outputWriter;
+    protected $output;
 
-    /**
-     * @param OutputWriterInterface $outputWriter
-     */
-    public function __construct(OutputWriterInterface $outputWriter = null)
+    public function __construct()
     {
-        if (null === $outputWriter) {
-            $outputWriter = new OutputWriter();
-        }
-
-        $this->setOutputWriter($outputWriter);
-    }
-
-    /**
-     * @deprecated Will be removed in Pimcore 10
-     */
-    public function setOutputWriter(OutputWriterInterface $outputWriter)
-    {
-        $this->outputWriter = $outputWriter;
-    }
-
-    /**
-     * @deprecated Will be removed in Pimcore 10
-     */
-    public function getOutputWriter(): OutputWriterInterface
-    {
-        return $this->outputWriter;
+        $this->output = new BufferedOutput(Output::VERBOSITY_NORMAL, true);
     }
 
     /**
@@ -103,28 +78,10 @@ class AbstractInstaller implements InstallerInterface
     }
 
     /**
-     * @deprecated
-     * @inheritDoc
+     * @return OutputInterface
      */
-    public function canBeUpdated()
-    {
-        return false;
-    }
-
-    /**
-     * @deprecated
-     * @inheritDoc
-     */
-    public function update()
-    {
-    }
-
     public function getOutput(): OutputInterface
     {
-        if ($this->getOutputWriter() instanceof OutputWriter) {
-            return $this->getOutputWriter()->getOutputInstance();
-        }
-
-        return new BufferedOutput(Output::VERBOSITY_NORMAL, true);
+        return $this->output;
     }
 }

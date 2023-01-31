@@ -15,12 +15,13 @@
 
 namespace Pimcore\Bundle\AdminBundle\Security\Guard;
 
-use Pimcore\Bundle\AdminBundle\Security\Authentication\Token\TwoFactorRequiredToken;
+use Pimcore\Bundle\AdminBundle\Security\Authentication\Token\LegacyTwoFactorRequiredToken;
 use Pimcore\Bundle\AdminBundle\Security\BruteforceProtectionHandler;
 use Pimcore\Bundle\AdminBundle\Security\User\User;
-use Pimcore\Cache\Runtime;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Event\Admin\Login\LoginCredentialsEvent;
 use Pimcore\Event\Admin\Login\LoginFailedEvent;
+use Pimcore\Event\Admin\Login\LoginRedirectEvent;
 use Pimcore\Event\AdminEvents;
 use Pimcore\Model\User as UserModel;
 use Pimcore\Tool\Admin;
@@ -44,6 +45,11 @@ use Symfony\Component\Security\Guard\AbstractGuardAuthenticator;
 use Symfony\Component\Security\Http\HttpUtils;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+/**
+ * @internal
+ *
+ * @deprecated will be removed in Pimcore 11
+ */
 class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -109,7 +115,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function supports(Request $request)
     {
@@ -118,7 +124,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function start(Request $request, AuthenticationException $authException = null)
     {
@@ -130,13 +136,16 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
             return $response;
         }
 
-        $url = $this->router->generate('pimcore_admin_login', ['perspective' => strip_tags($request->get('perspective'))]);
+        $event = new LoginRedirectEvent('pimcore_admin_login', ['perspective' => strip_tags($request->get('perspective', ''))]);
+        $this->dispatcher->dispatch($event, AdminEvents::LOGIN_REDIRECT);
+
+        $url = $this->router->generate($event->getRouteName(), $event->getRouteParams());
 
         return new RedirectResponse($url);
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getCredentials(Request $request)
     {
@@ -163,7 +172,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
             }
 
             $event = new LoginCredentialsEvent($request, $credentials);
-            $this->dispatcher->dispatch(AdminEvents::LOGIN_CREDENTIALS, $event);
+            $this->dispatcher->dispatch($event, AdminEvents::LOGIN_CREDENTIALS);
 
             return $event->getCredentials();
         } else {
@@ -178,7 +187,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getUser($credentials, UserProviderInterface $userProvider)
     {
@@ -208,7 +217,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
                 } else {
                     // trigger LOGIN_FAILED event if user could not be authenticated via username/password
                     $event = new LoginFailedEvent($credentials);
-                    $this->dispatcher->dispatch(AdminEvents::LOGIN_FAILED, $event);
+                    $this->dispatcher->dispatch($event, AdminEvents::LOGIN_FAILED);
 
                     if ($event->hasUser()) {
                         $user = new User($event->getUser());
@@ -258,7 +267,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function checkCredentials($credentials, UserInterface $user)
     {
@@ -271,7 +280,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception)
     {
@@ -285,7 +294,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, $providerKey)
     {
@@ -297,7 +306,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
         $this->translator->setLocale($user->getLanguage());
 
         // set user on runtime cache for legacy compatibility
-        Runtime::set('pimcore_admin_user', $user);
+        RuntimeCache::set('pimcore_admin_user', $user);
 
         if ($user->isAdmin()) {
             if (Admin::isMaintenanceModeScheduledForLogin()) {
@@ -322,13 +331,13 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
         } else {
             $url = $this->router->generate('pimcore_admin_index', [
                 '_dc' => time(),
-                'perspective' => strip_tags($request->get('perspective')),
+                'perspective' => strip_tags($request->get('perspective', '')),
             ]);
         }
 
         if ($url) {
             $response = new RedirectResponse($url);
-            $response->headers->setCookie(new Cookie('pimcore_admin_sid', true, 0, '/', null, false, true));
+            $response->headers->setCookie(new Cookie('pimcore_admin_sid', true));
 
             return $response;
         }
@@ -337,7 +346,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function supportsRememberMe()
     {
@@ -347,7 +356,7 @@ class AdminAuthenticator extends AbstractGuardAuthenticator implements LoggerAwa
     public function createAuthenticatedToken(UserInterface $user, $providerKey)
     {
         if ($this->twoFactorRequired) {
-            return new TwoFactorRequiredToken(
+            return new LegacyTwoFactorRequiredToken(
                 $user,
                 $providerKey,
                 $user->getRoles()

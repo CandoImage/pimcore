@@ -19,11 +19,14 @@ namespace Pimcore\Console;
 
 use Symfony\Component\Console\Formatter\OutputFormatterInterface;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
+use Symfony\Component\Console\Output\ConsoleSectionOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Implements a ConsoleOutput with configurable output. Useful when needing to catch both output
  * and error output in a buffered output.
+ *
+ * @internal
  */
 class ConsoleOutputDecorator implements OutputInterface, ConsoleOutputInterface
 {
@@ -58,27 +61,27 @@ class ConsoleOutputDecorator implements OutputInterface, ConsoleOutputInterface
         $this->output->setVerbosity($level);
     }
 
-    public function getVerbosity()
+    public function getVerbosity(): int
     {
         return $this->output->getVerbosity();
     }
 
-    public function isQuiet()
+    public function isQuiet(): bool
     {
         return $this->output->isQuiet();
     }
 
-    public function isVerbose()
+    public function isVerbose(): bool
     {
         return $this->output->isVerbose();
     }
 
-    public function isVeryVerbose()
+    public function isVeryVerbose(): bool
     {
         return $this->output->isVeryVerbose();
     }
 
-    public function isDebug()
+    public function isDebug(): bool
     {
         return $this->output->isDebug();
     }
@@ -88,7 +91,7 @@ class ConsoleOutputDecorator implements OutputInterface, ConsoleOutputInterface
         $this->output->setDecorated($decorated);
     }
 
-    public function isDecorated()
+    public function isDecorated(): bool
     {
         return $this->output->isDecorated();
     }
@@ -98,7 +101,7 @@ class ConsoleOutputDecorator implements OutputInterface, ConsoleOutputInterface
         $this->output->setFormatter($formatter);
     }
 
-    public function getFormatter()
+    public function getFormatter(): OutputFormatterInterface
     {
         return $this->output->getFormatter();
     }
@@ -108,7 +111,7 @@ class ConsoleOutputDecorator implements OutputInterface, ConsoleOutputInterface
         return $this->output;
     }
 
-    public function getErrorOutput()
+    public function getErrorOutput(): OutputInterface
     {
         return $this->errorOutput;
     }
@@ -116,5 +119,13 @@ class ConsoleOutputDecorator implements OutputInterface, ConsoleOutputInterface
     public function setErrorOutput(OutputInterface $error)
     {
         $this->errorOutput = $error;
+    }
+
+    public function section(): ConsoleSectionOutput
+    {
+        $sections = [];
+        $stream = @fopen('php://stdout', 'w') ?: fopen('php://output', 'w');
+
+        return new ConsoleSectionOutput($stream, $sections, $this->getVerbosity(), $this->isDecorated(), $this->getFormatter());
     }
 }

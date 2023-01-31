@@ -29,9 +29,7 @@ use Pimcore\Model\DataObject\Exception\InheritanceParentNotFoundException;
 abstract class AbstractData extends Model\AbstractModel implements Model\DataObject\LazyLoadedFieldsInterface, Model\Element\ElementDumpStateInterface, Model\Element\DirtyIndicatorInterface
 {
     use Model\DataObject\Traits\LazyLoadedRelationTrait;
-
     use Model\Element\ElementDumpStateTrait;
-
     use Model\Element\Traits\DirtyIndicatorTrait;
 
     /**
@@ -42,35 +40,35 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     protected $type;
 
     /**
-     * @var string
+     * @var string|null
      */
     protected $fieldname;
 
     /**
      * @var bool
      */
-    protected $doDelete;
+    protected $doDelete = false;
 
     /**
-     * @var Model\DataObject\Concrete
+     * @var Concrete|Model\Element\ElementDescriptor|null
      */
     protected $object;
 
     /**
-     * @var int
+     * @var int|null
      */
-    protected $objectId;
+    protected ?int $objectId = null;
 
     /**
-     * @param DataObject\Concrete $object
+     * @param Concrete $object
      */
-    public function __construct(DataObject\Concrete $object)
+    public function __construct(Concrete $object)
     {
         $this->setObject($object);
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getFieldname()
     {
@@ -78,7 +76,7 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @param string $fieldname
+     * @param string|null $fieldname
      *
      * @return $this
      */
@@ -115,7 +113,7 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     public function setDoDelete($doDelete)
     {
         $this->flushContainer();
-        $this->doDelete = $doDelete;
+        $this->doDelete = (bool)$doDelete;
 
         return $this;
     }
@@ -147,6 +145,7 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
+     * @internal
      * Flushes the already collected items of the container object
      */
     protected function flushContainer()
@@ -190,11 +189,11 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @param DataObject\Concrete $object
+     * @param Concrete|null $object
      *
      * @return $this
      */
-    public function setObject($object)
+    public function setObject(?Concrete $object)
     {
         $this->objectId = $object ? $object->getId() : null;
         $this->object = $object;
@@ -203,9 +202,9 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @return DataObject\Concrete
+     * @return Concrete|null
      */
-    public function getObject()
+    public function getObject(): ?Concrete
     {
         if ($this->objectId && !$this->object) {
             $this->setObject(Concrete::getById($this->objectId));
@@ -252,15 +251,16 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @inheritdoc
+     * @internal
+     *
+     * @return array
      */
     protected function getLazyLoadedFieldNames(): array
     {
         $lazyLoadedFieldNames = [];
         $fields = $this->getDefinition()->getFieldDefinitions(['suppressEnrichment' => true]);
         foreach ($fields as $field) {
-            if (($field instanceof LazyLoadingSupportInterface || method_exists($field, 'getLazyLoading'))
-                            && $field->getLazyLoading()) {
+            if ($field instanceof LazyLoadingSupportInterface && $field->getLazyLoading()) {
                 $lazyLoadedFieldNames[] = $field->getName();
             }
         }
@@ -269,7 +269,7 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function isAllLazyKeysMarkedAsLoaded(): bool
     {

@@ -23,46 +23,50 @@ use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\Redirect;
 use Pimcore\Normalizer\NormalizerInterface;
 
-class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoadingSupportInterface, TypeDeclarationSupportInterface, EqualComparisonInterface, VarExporterInterface, NormalizerInterface
+class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoadingSupportInterface, TypeDeclarationSupportInterface, EqualComparisonInterface, VarExporterInterface, NormalizerInterface, PreGetDataInterface, PreSetDataInterface
 {
     use Extension\ColumnType;
-
     use Model\DataObject\Traits\ContextPersistenceTrait;
 
     /**
      * Static type of this element
+     *
+     * @internal
      *
      * @var string
      */
     public $fieldtype = 'urlSlug';
 
     /**
-     * @var int|null
+     * @internal
+     *
+     * @var string|int
      */
-    public $width;
+    public $width = 0;
 
     /**
+     * @internal
+     *
      * @var int|null
      */
     public $domainLabelWidth;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $action;
 
-    /** @var null|int[] */
+    /**
+     * @internal
+     *
+     * @var null|int[]
+     */
     public $availableSites;
 
     /**
-     * Type for the generated phpdoc
-     *
-     * @var string
-     */
-    public $phpdocType = '\\Pimcore\\Model\\DataObject\\Data\\UrlSlug[]';
-
-    /**
-     * @return int
+     * @return string|int
      */
     public function getWidth()
     {
@@ -70,12 +74,15 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @param int|null $width
+     * @param string|int $width
      *
      * @return $this
      */
     public function setWidth($width)
     {
+        if (is_numeric($width)) {
+            $width = (int)$width;
+        }
         $this->width = $width;
 
         return $this;
@@ -108,19 +115,19 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
                         'domain' => $site ? $site->getMainDomain() : null,
                     ];
 
-                    $result[] = $resultItem;
+                    $result[$slug->getSiteId()] = $resultItem;
                 }
             }
         }
         ksort($result);
 
-        return $result;
+        return array_values($result);
     }
 
     /**
      * @see Data::getDataFromEditmode
      *
-     * @param string $data
+     * @param mixed $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
@@ -159,14 +166,9 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         if ($data && !is_array($data)) {
             throw new Model\Element\ValidationException('Invalid slug data');
@@ -223,10 +225,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @param Model\DataObject\Concrete|Model\DataObject\Objectbrick\Data\AbstractData|Model\DataObject\Fieldcollection\Data\AbstractData|Model\DataObject\Localizedfield $object
-     * @param array $params
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
     public function save($object, $params = [])
     {
@@ -245,7 +244,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
         ];
         $this->enrichDataRow($object, $params, $classId, $deleteDescriptor, 'objectId');
         $conditionParts = Model\DataObject\Service::buildConditionPartsFromDescriptor($deleteDescriptor);
-        $db->query('DELETE FROM object_url_slugs WHERE ' . implode(' AND ', $conditionParts));
+        $db->executeQuery('DELETE FROM ' . Model\DataObject\Data\UrlSlug::TABLE_NAME . ' WHERE ' . implode(' AND ', $conditionParts));
         // now save the new data
         if (is_array($slugs) && !empty($slugs)) {
             /** @var Model\DataObject\Data\UrlSlug $slug */
@@ -258,11 +257,10 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
 
                 // relation needs to be an array with src_id, dest_id, type, fieldname
                 try {
-                    $db->insert('object_url_slugs', $slug);
+                    $db->insert(Model\DataObject\Data\UrlSlug::TABLE_NAME, $slug);
                 } catch (\Exception $e) {
-                    Logger::error($e);
+                    Logger::error((string) $e);
                     if ($e instanceof UniqueConstraintViolationException) {
-
                         // check if the slug action can be resolved.
 
                         $existingSlug = Model\DataObject\Data\UrlSlug::resolveSlug($slug['slug'], $slug['siteId']);
@@ -272,14 +270,14 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
                             try {
                                 $existingSlug->getAction();
                             } catch (\Exception $e) {
-                                $db->insert('object_url_slugs', $slug);
+                                $db->insert(Model\DataObject\Data\UrlSlug::TABLE_NAME, $slug);
 
                                 return;
                             }
 
                             // if now exception is thrown then the slug is owned by a diffrent object/field
-                            throw new \Exception('Unique constraint violated. Slug alreay used by object '
-                                . $existingSlug->getFieldname() . ', fieldname: ' . $existingSlug->getFieldname());
+                            throw new \Exception('Unique constraint violated. Slug "' . $slug['slug'] . '" is already used by object '
+                                . $existingSlug->getObjectId() . ', fieldname: ' . $existingSlug->getFieldname());
                         }
                     }
 
@@ -330,7 +328,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @param null|Model\DataObject\Data\UrlSlug[] $data
+     * @param mixed $data
      * @param Model\DataObject\Concrete|Model\DataObject\Fieldcollection\Data\AbstractData|Model\DataObject\Objectbrick\Data\AbstractData|Model\DataObject\Localizedfield $object
      * @param array $params
      *
@@ -351,8 +349,6 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
         }
 
         if (is_array($data) && count($data) > 0) {
-
-            /** @var Model\DataObject\Data\UrlSlug $slugItem */
             foreach ($data as $slugItem) {
                 if ($slugItem instanceof Model\DataObject\Data\UrlSlug) {
                     $return[] = [
@@ -374,10 +370,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @param Model\DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return mixed|void
+     * {@inheritdoc}
      */
     public function load($object, $params = [])
     {
@@ -416,15 +409,22 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @param Model\DataObject\Concrete $object
-     * @param array $params
+     * {@inheritdoc}
      */
     public function delete($object, $params = [])
     {
         if (!isset($params['isUpdate']) || !$params['isUpdate']) {
             $db = Db::get();
-            $db->delete('object_url_slugs', ['objectId' => $object->getId()]);
+            $db->delete(Model\DataObject\Data\UrlSlug::TABLE_NAME, ['objectId' => $object->getId()]);
         }
+    }
+
+    /**
+     * @return bool
+     */
+    public function getUnique()
+    {
+        return true;
     }
 
     /**
@@ -436,10 +436,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @param Model\DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getDataForSearchIndex($object, $params = [])
     {
@@ -482,7 +479,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function supportsDirtyDetection()
     {
@@ -507,65 +504,6 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
         }
 
         return true;
-    }
-
-    /**
-     * converts data to be exposed via webservices
-     *
-     * @deprecated
-     *
-     * @param Model\DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return mixed
-     */
-    public function getForWebserviceExport($object, $params = [])
-    {
-        $data = $this->getDataFromObjectParam($object, $params);
-
-        if (is_array($data)) {
-            $result = [];
-
-            /** @var Model\DataObject\Data\UrlSlug $slug */
-            foreach ($data as $slug) {
-                $result[] = $slug->getObjectVars();
-            }
-
-            return $result;
-        }
-
-        return null;
-    }
-
-    /**
-     * converts data to be imported via webservices
-     *
-     * @deprecated
-     *
-     * @param mixed $value
-     * @param null|Model\DataObject\Concrete $object
-     * @param mixed $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @return mixed
-     */
-    public function getFromWebserviceImport($value, $object = null, $params = [], $idMapper = null)
-    {
-        if (is_array($value)) {
-            $result = [];
-            foreach ($value as $dataItem) {
-                $dataItem = (array)$dataItem;
-                $slug = new Model\DataObject\Data\UrlSlug($dataItem['slug']);
-                foreach ($dataItem as $var => $value) {
-                    $slug->setObjectVar($var, $value, true);
-                }
-                $result[] = $slug;
-            }
-
-            return $result;
-        }
-
-        return null;
     }
 
     /**
@@ -622,7 +560,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function isFilterable(): bool
     {
@@ -691,73 +629,64 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @param Model\DataObject\Concrete|Model\DataObject\Localizedfield|Model\DataObject\Objectbrick\Data\AbstractData|Model\DataObject\Fieldcollection\Data\AbstractData $object
-     * @param array $params
-     *
-     * @return array
+     * { @inheritdoc }
      */
-    public function preGetData($object, $params = [])
+    public function preGetData(/** mixed */ $container, /** array */ $params = []) // : mixed
     {
         $data = null;
-        if ($object instanceof Model\DataObject\Concrete) {
-            $data = $object->getObjectVar($this->getName());
-            if ($this->getLazyLoading() && !$object->isLazyKeyLoaded($this->getName())) {
-                $data = $this->load($object);
+        if ($container instanceof Model\DataObject\Concrete) {
+            $data = $container->getObjectVar($this->getName());
+            if ($this->getLazyLoading() && !$container->isLazyKeyLoaded($this->getName())) {
+                $data = $this->load($container);
 
-                $object->setObjectVar($this->getName(), $data);
-                $this->markLazyloadedFieldAsLoaded($object);
+                $container->setObjectVar($this->getName(), $data);
+                $this->markLazyloadedFieldAsLoaded($container);
 
-                if ($object instanceof Model\Element\DirtyIndicatorInterface) {
-                    $object->markFieldDirty($this->getName(), false);
+                if ($container instanceof Model\Element\DirtyIndicatorInterface) {
+                    $container->markFieldDirty($this->getName(), false);
                 }
             }
-        } elseif ($object instanceof Model\DataObject\Localizedfield) {
+        } elseif ($container instanceof Model\DataObject\Localizedfield) {
             $data = $params['data'];
-        } elseif ($object instanceof Model\DataObject\Fieldcollection\Data\AbstractData) {
-            if ($this->getLazyLoading() && $object->getObject()) {
-                /** @var Model\DataObject\Fieldcollection $container */
-                $container = $object->getObject()->getObjectVar($object->getFieldname());
-                if ($container) {
-                    $container->loadLazyField($object->getObject(), $object->getType(), $object->getFieldname(), $object->getIndex(), $this->getName());
+        } elseif ($container instanceof Model\DataObject\Fieldcollection\Data\AbstractData) {
+            if ($this->getLazyLoading() && $container->getObject()) {
+                $subContainer = $container->getObject()->getObjectVar($container->getFieldname());
+                if ($subContainer instanceof Model\DataObject\Fieldcollection) {
+                    $subContainer->loadLazyField($container->getObject(), $container->getType(), $container->getFieldname(), $container->getIndex(), $this->getName());
                 } else {
                     // if container is not available we assume that it is a newly set item
-                    $object->markLazyKeyAsLoaded($this->getName());
+                    $container->markLazyKeyAsLoaded($this->getName());
                 }
             }
 
-            $data = $object->getObjectVar($this->getName());
-        } elseif ($object instanceof Model\DataObject\Objectbrick\Data\AbstractData) {
-            if ($this->getLazyLoading() && $object->getObject()) {
-                $brickGetter = 'get' . ucfirst($object->getFieldname());
-                /** @var Model\DataObject\Objectbrick $container */
-                $container = $object->getObject()->$brickGetter();
-                if ($container) {
-                    $container->loadLazyField($object->getType(), $object->getFieldname(), $this->getName());
+            $data = $container->getObjectVar($this->getName());
+        } elseif ($container instanceof Model\DataObject\Objectbrick\Data\AbstractData) {
+            if ($this->getLazyLoading() && $container->getObject()) {
+                $brickGetter = 'get' . ucfirst($container->getFieldname());
+                $subContainer = $container->getObject()->$brickGetter();
+                if ($subContainer instanceof Model\DataObject\Objectbrick) {
+                    $subContainer->loadLazyField($container->getType(), $container->getFieldname(), $this->getName());
                 } else {
-                    $object->markLazyKeyAsLoaded($this->getName());
+                    $container->markLazyKeyAsLoaded($this->getName());
                 }
             }
 
-            $data = $object->getObjectVar($this->getName());
+            $data = $container->getObjectVar($this->getName());
         }
 
         return is_array($data) ? $data : [];
     }
 
     /**
-     * @param Model\DataObject\Concrete|Model\DataObject\Localizedfield|Model\DataObject\Objectbrick\Data\AbstractData|Model\DataObject\Fieldcollection\Data\AbstractData $object
-     * @param Model\DataObject\Data\UrlSlug[]|null $data
-     * @param array $params
-     *
-     * @return array|null
+     * { @inheritdoc }
      */
-    public function preSetData($object, $data, $params = [])
+    public function preSetData(/** mixed */ $container, /**  mixed */ $data, /** array */ $params = []) // : mixed
     {
         if ($data === null) {
             $data = [];
         }
 
-        $this->markLazyloadedFieldAsLoaded($object);
+        $this->markLazyloadedFieldAsLoaded($container);
 
         return $data;
     }
@@ -771,12 +700,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * converts object data to a simple string value or CSV Export
-     *
-     * @param Model\DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getForCsvExport($object, $params = [])
     {
@@ -794,33 +718,15 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|Model\DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
+    public function supportsInheritance()
     {
-        $result = [];
-        if (strlen($importValue) > 0) {
-            $items = explode(',', $importValue);
-            if (is_array($items)) {
-                foreach ($items as $item) {
-                    $parts = explode(':', $item);
-                    $slug = new Model\DataObject\Data\UrlSlug($parts[0], $parts[1]);
-                    $result[] = $slug;
-                }
-            }
-        }
-
-        return $result;
+        return false;
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function getParameterTypeDeclaration(): ?string
     {
@@ -828,20 +734,31 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function getReturnTypeDeclaration(): ?string
     {
         return '?array';
     }
 
-    public function supportsInheritance()
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
     {
-        return false;
+        return '\\' . Model\DataObject\Data\UrlSlug::class . '[]';
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return '\\' . Model\DataObject\Data\UrlSlug::class . '[]';
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function normalize($value, $params = [])
     {
@@ -862,7 +779,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function denormalize($value, $params = [])
     {

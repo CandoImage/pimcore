@@ -16,11 +16,12 @@
 namespace Pimcore;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
+use Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle;
 use FOS\JsRoutingBundle\FOSJsRoutingBundle;
+use League\FlysystemBundle\FlysystemBundle;
 use Pimcore\Bundle\AdminBundle\PimcoreAdminBundle;
 use Pimcore\Bundle\CoreBundle\PimcoreCoreBundle;
-use Pimcore\Bundle\GeneratorBundle\PimcoreGeneratorBundle;
-use Pimcore\Cache\Runtime;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Config\BundleConfigLocator;
 use Pimcore\Event\SystemEvents;
 use Pimcore\Extension\Bundle\Config\StateConfig;
@@ -30,26 +31,36 @@ use Pimcore\HttpKernel\BundleCollection\LazyLoadedItem;
 use Presta\SitemapBundle\PrestaSitemapBundle;
 use Scheb\TwoFactorBundle\SchebTwoFactorBundle;
 use Sensio\Bundle\FrameworkExtraBundle\SensioFrameworkExtraBundle;
-use Sensio\Bundle\GeneratorBundle\SensioGeneratorBundle;
 use Symfony\Bundle\DebugBundle\DebugBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
+use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\MonologBundle\MonologBundle;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
-use Symfony\Bundle\SwiftmailerBundle\SwiftmailerBundle;
 use Symfony\Bundle\TwigBundle\TwigBundle;
 use Symfony\Bundle\WebProfilerBundle\WebProfilerBundle;
 use Symfony\Cmf\Bundle\RoutingBundle\CmfRoutingBundle;
-use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\Config\Resource\FileExistenceResource;
 use Symfony\Component\Config\Resource\FileResource;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\EventDispatcher\GenericEvent;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Component\HttpKernel\Kernel as SymfonyKernel;
+use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
 abstract class Kernel extends SymfonyKernel
 {
+    use MicroKernelTrait {
+        registerContainerConfiguration as microKernelRegisterContainerConfiguration;
+
+        registerBundles as microKernelRegisterBundles;
+    }
+
     /**
+     * @deprecated will be removed in Pimcore 11
+     *
      * @var Extension\Config
      */
     protected $extensionConfig;
@@ -60,35 +71,89 @@ abstract class Kernel extends SymfonyKernel
     private $bundleCollection;
 
     /**
-     * {@inheritdoc}
+     * @deprecated
      */
     public function getRootDir()
     {
-        return PIMCORE_APP_ROOT;
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.3',
+            'Kernel::getRootDir() is deprecated and will be removed in Pimcore 11. Use Kernel::getProjectDir() instead.',
+        );
+
+        return PIMCORE_PROJECT_ROOT;
     }
 
     /**
      * {@inheritdoc}
+     *
+     * @return string
      */
-    public function getProjectDir()
+    #[\ReturnTypeWillChange]
+    public function getProjectDir()// : string
     {
         return PIMCORE_PROJECT_ROOT;
     }
 
     /**
      * {@inheritdoc}
+     *
+     * @return string
      */
-    public function getCacheDir()
+    #[\ReturnTypeWillChange]
+    public function getCacheDir()// : string
     {
-        return PIMCORE_SYMFONY_CACHE_DIRECTORY . '/' . $this->getEnvironment();
+        if (isset($_SERVER['APP_CACHE_DIR'])) {
+            return $_SERVER['APP_CACHE_DIR'].'/'.$this->environment;
+        }
+
+        return PIMCORE_SYMFONY_CACHE_DIRECTORY . '/' . $this->environment;
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @return string
+     */
+    #[\ReturnTypeWillChange]
+    public function getLogDir()// : string
+    {
+        return PIMCORE_LOG_DIRECTORY;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getLogDir()
+    protected function configureContainer(ContainerConfigurator $container): void
     {
-        return PIMCORE_LOG_DIRECTORY;
+        $projectDir = realpath($this->getProjectDir());
+
+        $container->import($projectDir . '/config/{packages}/*.yaml');
+        $container->import($projectDir . '/config/{packages}/'.$this->environment.'/*.yaml');
+
+        if (is_file($projectDir . '/config/services.yaml')) {
+            $container->import($projectDir . '/config/services.yaml');
+            $container->import($projectDir . '/config/{services}_'.$this->environment.'.yaml');
+        } elseif (is_file($path = $projectDir . '/config/services.php')) {
+            (require $path)($container->withPath($path), $this);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function configureRoutes(RoutingConfigurator $routes): void
+    {
+        $projectDir = realpath($this->getProjectDir());
+
+        $routes->import($projectDir . '/config/{routes}/'.$this->environment.'/*.yaml');
+        $routes->import($projectDir . '/config/{routes}/*.yaml');
+
+        if (is_file($projectDir . '/config/routes.yaml')) {
+            $routes->import($projectDir . '/config/routes.yaml');
+        } elseif (is_file($path = $projectDir . '/config/routes.php')) {
+            (require $path)($routes->withPath($path), $this);
+        }
     }
 
     /**
@@ -100,24 +165,79 @@ abstract class Kernel extends SymfonyKernel
             $this->registerExtensionConfigFileResources($container);
         });
 
+        $bundleConfigLocator = new BundleConfigLocator($this);
+        foreach ($bundleConfigLocator->locate('config') as $bundleConfig) {
+            $loader->load($bundleConfig);
+        }
+
+        $this->microKernelRegisterContainerConfiguration($loader);
+
         //load system configuration
         $systemConfigFile = Config::locateConfigFile('system.yml');
         if (file_exists($systemConfigFile)) {
             $loader->load($systemConfigFile);
         }
 
-        $bundleConfigLocator = new BundleConfigLocator($this);
-        foreach ($bundleConfigLocator->locate('config') as $bundleConfig) {
-            $loader->load($bundleConfig);
-        }
+        $configArray = [
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_IMAGE_THUMBNAILS',
+                'defaultStorageDirectoryName' => 'image-thumbnails',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_VIDEO_THUMBNAILS',
+                'defaultStorageDirectoryName' => 'video-thumbnails',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_CUSTOM_REPORTS',
+                'defaultStorageDirectoryName' => 'custom-reports',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_DOCUMENT_TYPES',
+                'defaultStorageDirectoryName' => 'document-types',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_WEB_TO_PRINT',
+                'defaultStorageDirectoryName' => 'web-to-print',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_PREDEFINED_PROPERTIES',
+                'defaultStorageDirectoryName' => 'predefined-properties',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_PREDEFINED_ASSET_METADATA',
+                'defaultStorageDirectoryName' => 'predefined-asset-metadata',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_STATICROUTES',
+                'defaultStorageDirectoryName' => 'staticroutes',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_PERSPECTIVES',
+                'defaultStorageDirectoryName' => 'perspectives',
+            ],
+            [
+                'storageDirectoryEnvVariableName' => 'PIMCORE_CONFIG_STORAGE_DIR_CUSTOM_VIEWS',
+                'defaultStorageDirectoryName' => 'custom-views',
+            ],
+        ];
 
-        $configRealPath = realpath($this->getRootDir() . '/config/config_' . $this->getEnvironment() . '.yml');
-        if ($configRealPath === false) {
-            throw new InvalidConfigurationException('File ' . $this->getRootDir() . '/config/config_' . $this->getEnvironment() . '.yml  cannot be found.');
+        foreach ($configArray as $config) {
+            $configDir = rtrim($_SERVER[$config['storageDirectoryEnvVariableName']] ?? PIMCORE_CONFIGURATION_DIRECTORY . '/' . $config['defaultStorageDirectoryName'], '/\\');
+            $configDir = "$configDir/";
+            if (is_dir($configDir)) {
+                // @phpstan-ignore-next-line
+                $loader->import($configDir);
+            }
         }
-        $loader->load($configRealPath);
     }
 
+    /**
+     * @param ContainerBuilder $container
+     *
+     * @return void
+     *
+     * @deprecated Remove in Pimcore 11
+     */
     private function registerExtensionConfigFileResources(ContainerBuilder $container)
     {
         $filenames = [
@@ -144,7 +264,7 @@ abstract class Kernel extends SymfonyKernel
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function boot()
     {
@@ -165,7 +285,7 @@ abstract class Kernel extends SymfonyKernel
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function shutdown()
     {
@@ -174,18 +294,18 @@ abstract class Kernel extends SymfonyKernel
             $this->container->get(\Pimcore\Helper\LongRunningHelper::class)->cleanUp();
         }
 
-        return parent::shutdown();
+        parent::shutdown();
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function initializeContainer()
     {
         parent::initializeContainer();
 
         // initialize runtime cache (defined as synthetic service)
-        Runtime::getInstance();
+        RuntimeCache::getInstance();
 
         // set the extension config on the container
         $this->getContainer()->set(Extension\Config::class, $this->extensionConfig);
@@ -197,10 +317,14 @@ abstract class Kernel extends SymfonyKernel
         register_shutdown_function(function () {
             // check if container still exists at this point as it could already
             // be cleared (e.g. when running tests which boot multiple containers)
-            if (null !== $container = $this->getContainer()) {
-                $container->get('event_dispatcher')->dispatch(SystemEvents::SHUTDOWN);
+            try {
+                $container = $this->getContainer();
+            } catch (\LogicException) {
+                // Container is cleared. Allow tests to finish.
             }
-
+            if (isset($container) && $container instanceof ContainerInterface) {
+                $container->get('event_dispatcher')->dispatch(new GenericEvent(), SystemEvents::SHUTDOWN);
+            }
             \Pimcore::shutdown();
         });
     }
@@ -213,6 +337,12 @@ abstract class Kernel extends SymfonyKernel
     public function registerBundles(): array
     {
         $collection = $this->createBundleCollection();
+
+        if (is_file($this->getProjectDir().'/config/bundles.php')) {
+            $flexBundles = [];
+            array_push($flexBundles, ...$this->microKernelRegisterBundles());
+            $collection->addBundles($flexBundles);
+        }
 
         // core bundles (Symfony, Pimcore)
         $this->registerCoreBundlesToCollection($collection);
@@ -264,13 +394,14 @@ abstract class Kernel extends SymfonyKernel
             new SecurityBundle(),
             new TwigBundle(),
             new MonologBundle(),
-            new SwiftmailerBundle(),
             new DoctrineBundle(),
+            new DoctrineMigrationsBundle(),
             new SensioFrameworkExtraBundle(),
             new CmfRoutingBundle(),
             new PrestaSitemapBundle(),
             new SchebTwoFactorBundle(),
             new FOSJsRoutingBundle(),
+            new FlysystemBundle(),
         ], 100);
 
         // pimcore bundles
@@ -285,14 +416,6 @@ abstract class Kernel extends SymfonyKernel
                 new DebugBundle(),
                 new WebProfilerBundle(),
             ], 80);
-
-            // PimcoreGeneratorBundle depends on SensioGeneratorBundle
-            $generatorEnvironments = $this->getEnvironmentsForDevGeneratorBundles();
-            $collection->addBundle(
-                new PimcoreGeneratorBundle(),
-                60,
-                $generatorEnvironments
-            );
         }
     }
 
@@ -301,13 +424,10 @@ abstract class Kernel extends SymfonyKernel
         return ['dev', 'test'];
     }
 
-    protected function getEnvironmentsForDevGeneratorBundles(): array
-    {
-        return ['dev'];
-    }
-
     /**
      * Registers bundles enabled via extension manager
+     *
+     * @deprecated will be removed in Pimcore 11
      *
      * @param BundleCollection $collection
      */
@@ -359,15 +479,12 @@ abstract class Kernel extends SymfonyKernel
         }
 
         //@ini_set("memory_limit", "1024M");
-        @ini_set('max_execution_time', $maxExecutionTime);
+        @ini_set('max_execution_time', (string) $maxExecutionTime);
         @set_time_limit($maxExecutionTime);
         ini_set('default_charset', 'UTF-8');
 
         // set internal character encoding to UTF-8
         mb_internal_encoding('UTF-8');
-
-        // this is for simple_dom_html
-        ini_set('pcre.recursion-limit', 100000);
 
         // zlib.output_compression conflicts with while (@ob_end_flush()) ;
         // see also: https://github.com/pimcore/pimcore/issues/291
@@ -380,12 +497,25 @@ abstract class Kernel extends SymfonyKernel
         if (!$defaultTimezone) {
             date_default_timezone_set('UTC'); // UTC -> default timezone
         }
+    }
 
-        // check some system variables
-        $requiredVersion = '7.2';
-        if (version_compare(PHP_VERSION, $requiredVersion, '<')) {
-            $m = "pimcore requires at least PHP version $requiredVersion your PHP version is: " . PHP_VERSION;
-            Tool::exitWithError($m);
+    /**
+     * {@inheritdoc}
+     */
+    public function locateResource(string $name)
+    {
+        // BC layer for supporting both presta/sitemap-bundle": "^2.1 || ^3.2
+        // @TODO to be removed in Pimcore 11
+        if ($name === '@PrestaSitemapBundle/Resources/config/routing.yml') {
+            try {
+                // try the new location of v3 first, as most probably this is used
+                return parent::locateResource('@PrestaSitemapBundle/config/routing.yml');
+            } catch (\InvalidArgumentException $e) {
+                // if the file doesnt exist in the new location, try the v2 location
+                return parent::locateResource($name);
+            }
         }
+
+        return parent::locateResource($name);
     }
 }

@@ -15,45 +15,58 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-use Pimcore\Translation\Translator;
+use Symfony\Contracts\Translation\LocaleAwareInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-class TranslateValue extends AbstractOperator
+/**
+ * @internal
+ */
+final class TranslateValue extends AbstractOperator
 {
     /**
-     * @var Translator
+     * @var TranslatorInterface|LocaleAwareInterface
      */
     private $translator;
 
-    /** @var string */
+    /**
+     * @var string
+     */
     private $prefix;
 
-    /** @var string|null */
+    /**
+     * @var string|null
+     */
     private $locale;
 
-    public function __construct(TranslatorInterface $translator, \stdClass $config, $context = null)
+    /**
+     * {@inheritdoc}
+     */
+    public function __construct(TranslatorInterface $translator, \stdClass $config, array $context = [])
     {
         parent::__construct($config, $context);
 
         $this->translator = $translator;
         $this->prefix = $config->prefix ?? '';
-        if (null != $context && isset($context['language'])) {
+        if (isset($context['language'])) {
             $this->locale = $context['language'];
         }
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $childs = $this->getChilds();
         if (isset($childs[0])) {
             $value = $childs[0]->getLabeledValue($element);
-            if (strval($value->value) != '') {
+            if ((string)$value->value != '') {
                 $currentLocale = $this->translator->getLocale();
                 if (null != $this->locale) {
                     $this->translator->setLocale($this->locale);
                 }
 
-                $value->value = $this->translator->trans($this->prefix . strval($value->value), []);
+                $value->value = $this->translator->trans($this->prefix .(string)$value->value, []);
 
                 $this->translator->setLocale($currentLocale);
             }

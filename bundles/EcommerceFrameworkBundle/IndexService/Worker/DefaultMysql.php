@@ -15,17 +15,20 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Worker;
 
+use Doctrine\DBAL\Connection;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config\MysqlConfigInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Interpreter\RelationInterpreterInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\ProductListInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\IndexableInterface;
-use Pimcore\Db\ConnectionInterface;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @property MysqlConfigInterface $tenantConfig
+ *
+ * @method MysqlConfigInterface getTenantConfig()
  */
 class DefaultMysql extends AbstractWorker implements WorkerInterface
 {
@@ -39,7 +42,7 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
      */
     protected $mySqlHelper;
 
-    public function __construct(MysqlConfigInterface $tenantConfig, ConnectionInterface $db, EventDispatcherInterface $eventDispatcher)
+    public function __construct(MysqlConfigInterface $tenantConfig, Connection $db, EventDispatcherInterface $eventDispatcher)
     {
         parent::__construct($tenantConfig, $db, $eventDispatcher);
 
@@ -71,10 +74,10 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
 
     protected function doDeleteFromIndex($subObjectId, IndexableInterface $object = null)
     {
-        $this->db->deleteWhere($this->tenantConfig->getTablename(), 'o_id = ' . $this->db->quote($subObjectId));
-        $this->db->deleteWhere($this->tenantConfig->getRelationTablename(), 'src = ' . $this->db->quote($subObjectId));
+        $this->db->delete($this->tenantConfig->getTablename(), ['o_id' => $subObjectId]);
+        $this->db->delete($this->tenantConfig->getRelationTablename(), ['src' => $subObjectId]);
         if ($this->tenantConfig->getTenantRelationTablename()) {
-            $this->db->deleteWhere($this->tenantConfig->getTenantRelationTablename(), 'o_id = ' . $this->db->quote($subObjectId));
+            $this->db->delete($this->tenantConfig->getTenantRelationTablename(), ['o_id' => $subObjectId]);
         }
     }
 
@@ -122,7 +125,7 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
 
                 $virtualProductId = $subObjectId;
                 $virtualProductActive = $object->isActive();
-                if ($object->getOSIndexType() == 'variant') {
+                if ($object->getOSIndexType() == ProductListInterface::PRODUCT_TYPE_VARIANT) {
                     $virtualProductId = $this->tenantConfig->createVirtualParentIdForSubId($object, $subObjectId);
                 }
 
@@ -192,7 +195,7 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
                 }
 
                 try {
-                    $this->db->deleteWhere($this->tenantConfig->getRelationTablename(), 'src = ' . $this->db->quote($subObjectId));
+                    $this->db->delete($this->tenantConfig->getRelationTablename(), ['src' => $subObjectId]);
                     foreach ($relationData as $rd) {
                         $this->db->insert($this->tenantConfig->getRelationTablename(), $rd);
                     }
@@ -203,20 +206,20 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
                 Logger::info("Don't adding product " . $subObjectId . ' to index.');
 
                 try {
-                    $this->db->deleteWhere($this->tenantConfig->getTablename(), 'o_id = ' . $this->db->quote($subObjectId));
+                    $this->db->delete($this->tenantConfig->getTablename(), ['o_id' => $subObjectId]);
                 } catch (\Exception $e) {
                     Logger::warn('Error during updating index table: ' . $e);
                 }
 
                 try {
-                    $this->db->deleteWhere($this->tenantConfig->getRelationTablename(), 'src = ' . $this->db->quote($subObjectId));
+                    $this->db->delete($this->tenantConfig->getRelationTablename(), ['src' => $subObjectId]);
                 } catch (\Exception $e) {
                     Logger::warn('Error during updating index relation table: ' . $e);
                 }
 
                 try {
                     if ($this->tenantConfig->getTenantRelationTablename()) {
-                        $this->db->deleteWhere($this->tenantConfig->getTenantRelationTablename(), 'o_id = ' . $this->db->quote($subObjectId));
+                        $this->db->delete($this->tenantConfig->getTenantRelationTablename(), ['o_id' => $subObjectId]);
                     }
                 } catch (\Exception $e) {
                     Logger::warn('Error during updating index tenant relation table: ' . $e);
@@ -246,9 +249,7 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
     }
 
     /**
-     * returns product list implementation valid and configured for this worker/tenant
-     *
-     * @return mixed
+     * @return \Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\DefaultMysql
      */
     public function getProductList()
     {

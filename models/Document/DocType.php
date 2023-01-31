@@ -18,21 +18,27 @@ namespace Pimcore\Model\Document;
 use Pimcore\Model;
 
 /**
- * @method DocType\Dao getDao()
- * @method void save()
+ * @method bool isWriteable()
+ * @method string getWriteTarget()
+ * @method \Pimcore\Model\Document\DocType\Dao getDao()
  * @method void delete()
+ * @method void save()
  */
 class DocType extends Model\AbstractModel
 {
     /**
      * ID of the document-type
      *
-     * @var int
+     * @internal
+     *
+     * @var string|null
      */
     protected $id;
 
     /**
      * Name of the document-type
+     *
+     * @internal
      *
      * @var string
      */
@@ -41,72 +47,83 @@ class DocType extends Model\AbstractModel
     /**
      * Group of document-types
      *
+     * @internal
+     *
      * @var string
      */
     protected $group;
 
     /**
-     * @deprecated
-     *
-     * @var string
-     */
-    protected $module;
-
-    /**
      * The specified controller
+     *
+     * @internal
      *
      * @var string
      */
     protected $controller;
 
     /**
-     * @deprecated
-     *
-     * @var string
-     */
-    protected $action;
-
-    /**
      * The specified template
      *
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
     protected $template;
 
     /**
      * Type, must be one of the following: page,snippet,email
      *
+     * @internal
+     *
      * @var string
      */
     protected $type;
 
     /**
+     * @internal
+     *
      * @var int
      */
     protected $priority = 0;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
     protected $creationDate;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var int|null
      */
     protected $modificationDate;
 
     /**
+     * @internal
+     *
+     * @var null|int
+     */
+    protected $staticGeneratorEnabled;
+
+    /**
      * Static helper to retrieve an instance of Document\DocType by the given ID
      *
-     * @param int $id
+     * @param string $id
      *
      * @return self|null
      */
     public static function getById($id)
     {
+        if (empty($id)) {
+            return null;
+        }
+
         try {
             $docType = new self();
-            $docType->getDao()->getById(intval($id));
+            $docType->getDao()->getById($id);
 
             return $docType;
         } catch (\Exception $e) {
@@ -128,16 +145,6 @@ class DocType extends Model\AbstractModel
     }
 
     /**
-     * @deprecated
-     *
-     * @return string
-     */
-    public function getAction()
-    {
-        return $this->action;
-    }
-
-    /**
      * @return string
      */
     public function getController()
@@ -146,7 +153,7 @@ class DocType extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return string
      */
     public function getId()
     {
@@ -178,20 +185,6 @@ class DocType extends Model\AbstractModel
     }
 
     /**
-     * @deprecated
-     *
-     * @param string $action
-     *
-     * @return $this
-     */
-    public function setAction($action)
-    {
-        $this->action = $action;
-
-        return $this;
-    }
-
-    /**
      * @param string $controller
      *
      * @return $this
@@ -204,13 +197,13 @@ class DocType extends Model\AbstractModel
     }
 
     /**
-     * @param int $id
+     * @param string $id
      *
      * @return $this
      */
     public function setId($id)
     {
-        $this->id = (int) $id;
+        $this->id = $id;
 
         return $this;
     }
@@ -292,30 +285,6 @@ class DocType extends Model\AbstractModel
     }
 
     /**
-     * @deprecated
-     *
-     * @param string $module
-     *
-     * @return $this
-     */
-    public function setModule($module)
-    {
-        $this->module = $module;
-
-        return $this;
-    }
-
-    /**
-     * @deprecated
-     *
-     * @return string
-     */
-    public function getModule()
-    {
-        return $this->module;
-    }
-
-    /**
      * @param int $modificationDate
      *
      * @return $this
@@ -328,7 +297,7 @@ class DocType extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
@@ -348,10 +317,34 @@ class DocType extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
         return $this->creationDate;
+    }
+
+    /**
+     * @return null|int
+     */
+    public function getStaticGeneratorEnabled(): ?int
+    {
+        return $this->staticGeneratorEnabled;
+    }
+
+    /**
+     * @param null|int $staticGeneratorEnabled
+     */
+    public function setStaticGeneratorEnabled(?int $staticGeneratorEnabled): void
+    {
+        $this->staticGeneratorEnabled = $staticGeneratorEnabled;
+    }
+
+    public function __clone()
+    {
+        if ($this->dao) {
+            $this->dao = clone $this->dao;
+            $this->dao->setModel($this);
+        }
     }
 }

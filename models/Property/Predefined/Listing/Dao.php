@@ -19,28 +19,29 @@ use Pimcore\Model;
 use Pimcore\Model\Property;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Property\Predefined\Listing $model
  */
-class Dao extends Model\Dao\PhpArrayTable
+class Dao extends Model\Property\Predefined\Dao
 {
-    public function configure()
-    {
-        parent::configure();
-        $this->setFile('predefined-properties');
-    }
-
     /**
      * Loads a list of predefined properties for the specicifies parameters, returns an array of Property\Predefined elements
      *
-     * @return array
+     * @return Model\Property\Predefined[]
      */
-    public function load()
+    public function loadList()
     {
         $properties = [];
-        $propertiesData = $this->db->fetchAll($this->model->getFilter(), $this->model->getOrder());
 
-        foreach ($propertiesData as $propertyData) {
-            $properties[] = Property\Predefined::getById($propertyData['id']);
+        foreach ($this->loadIdList() as $id) {
+            $properties[] = Model\Property\Predefined::getById($id);
+        }
+        if ($this->model->getFilter()) {
+            $properties = array_filter($properties, $this->model->getFilter());
+        }
+        if ($this->model->getOrder()) {
+            usort($properties, $this->model->getOrder());
         }
 
         $this->model->setProperties($properties);
@@ -53,9 +54,6 @@ class Dao extends Model\Dao\PhpArrayTable
      */
     public function getTotalCount()
     {
-        $data = $this->db->fetchAll($this->model->getFilter(), $this->model->getOrder());
-        $amount = count($data);
-
-        return $amount;
+        return count($this->loadList());
     }
 }

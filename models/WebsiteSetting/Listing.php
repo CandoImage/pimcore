@@ -16,21 +16,24 @@
 namespace Pimcore\Model\WebsiteSetting;
 
 use Pimcore\Model;
+use Pimcore\Model\WebsiteSetting;
 
 /**
- * @method \Pimcore\Model\WebsiteSetting\Listing\Dao getDao()
- * @method \Pimcore\Model\WebsiteSetting[] load()
+ * @method WebsiteSetting\Listing\Dao getDao()
+ * @method WebsiteSetting[] load()
  * @method int getTotalCount()
  */
-class Listing extends Model\Listing\JsonListing
+class Listing extends Model\Listing\AbstractListing
 {
     /**
-     * @var array|null
+     * @internal
+     *
+     * @var WebsiteSetting[]|null
      */
     protected $settings = null;
 
     /**
-     * @param array $settings
+     * @param WebsiteSetting[]|null $settings
      */
     public function setSettings($settings)
     {
@@ -38,7 +41,7 @@ class Listing extends Model\Listing\JsonListing
     }
 
     /**
-     * @return \Pimcore\Model\WebsiteSetting[]
+     * @return WebsiteSetting[]
      */
     public function getSettings()
     {

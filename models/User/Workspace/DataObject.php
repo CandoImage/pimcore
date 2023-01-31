@@ -18,29 +18,39 @@ namespace Pimcore\Model\User\Workspace;
 class DataObject extends AbstractWorkspace
 {
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $save = false;
+    protected $save = false;
 
     /**
+     * @internal
+     *
      * @var bool
      */
-    public $unpublish = false;
+    protected $unpublish = false;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $lEdit = null;
+    protected $lEdit = null;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $lView = null;
+    protected $lView = null;
 
     /**
+     * @internal
+     *
      * @var string
      */
-    public $layouts = null;
+    protected $layouts = null;
 
     /**
      * @param bool $save

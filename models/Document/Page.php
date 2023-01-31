@@ -15,8 +15,8 @@
 
 namespace Pimcore\Model\Document;
 
+use Pimcore\Messenger\GeneratePagePreviewMessage;
 use Pimcore\Model\Redirect;
-use Pimcore\Model\Site;
 use Pimcore\Model\Tool\Targeting\TargetGroup;
 
 /**
@@ -27,6 +27,8 @@ class Page extends TargetingDocument
     /**
      * Contains the title of the page (meta-title)
      *
+     * @internal
+     *
      * @var string
      */
     protected $title = '';
@@ -34,23 +36,27 @@ class Page extends TargetingDocument
     /**
      * Contains the description of the page (meta-description)
      *
+     * @internal
+     *
      * @var string
      */
     protected $description = '';
 
     /**
+     * @internal
+     *
      * @var array
      */
     protected $metaData = [];
 
     /**
-     * Static type of the document
-     *
-     * @var string
+     * {@inheritdoc}
      */
-    protected $type = 'page';
+    protected string $type = 'page';
 
     /**
+     * @internal
+     *
      * @var string|null
      */
     protected $prettyUrl;
@@ -58,12 +64,14 @@ class Page extends TargetingDocument
     /**
      * Comma separated IDs of target groups
      *
+     * @internal
+     *
      * @var string
      */
     protected $targetGroupIds = '';
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     protected function doDelete()
     {
@@ -74,10 +82,6 @@ class Page extends TargetingDocument
 
         foreach ($redirects->getRedirects() as $redirect) {
             $redirect->delete();
-        }
-
-        if ($site = Site::getByRootId($this->getId())) {
-            $site->delete();
         }
 
         parent::doDelete();
@@ -144,7 +148,7 @@ class Page extends TargetingDocument
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getFullPath(bool $force = false)
     {
@@ -163,15 +167,19 @@ class Page extends TargetingDocument
     }
 
     /**
-     * @param string $prettyUrl
+     * @param string|null $prettyUrl
      *
      * @return $this
      */
     public function setPrettyUrl($prettyUrl)
     {
-        $this->prettyUrl = '/' . trim($prettyUrl, ' /');
-        if (strlen($this->prettyUrl) < 2) {
+        if (!$prettyUrl) {
             $this->prettyUrl = null;
+        } else {
+            $this->prettyUrl = '/' . trim($prettyUrl, ' /');
+            if (strlen($this->prettyUrl) < 2) {
+                $this->prettyUrl = null;
+            }
         }
 
         return $this;
@@ -228,8 +236,6 @@ class Page extends TargetingDocument
             } elseif ($targetGroup instanceof TargetGroup) {
                 return $targetGroup->getId();
             }
-
-            return null;
         }, $targetGroups);
 
         $ids = array_filter($ids, function ($id) {
@@ -251,7 +257,7 @@ class Page extends TargetingDocument
         $targetGroups = array_map(function ($id) {
             $id = trim($id);
             if (!empty($id)) {
-                $targetGroup = TargetGroup::getById($id);
+                $targetGroup = TargetGroup::getById((int) $id);
                 if ($targetGroup) {
                     return $targetGroup;
                 }
@@ -264,17 +270,25 @@ class Page extends TargetingDocument
     }
 
     /**
-     * @param bool $hdpi
-     *
      * @return string
      */
-    public function getPreviewImageFilesystemPath($hdpi = false)
+    public function getPreviewImageFilesystemPath()
     {
-        $suffix = '';
-        if ($hdpi) {
-            $suffix = '@2x';
+        return PIMCORE_SYSTEM_TEMP_DIRECTORY . '/document-page-previews/document-page-screenshot-' . $this->getId() . '@2x.jpg';
+    }
+
+    public function save()
+    {
+        $response = parent::save(...func_get_args());
+
+        // Dispatch page preview message, if preview is enabled.
+        $documentsConfig = \Pimcore\Config::getSystemConfiguration('documents');
+        if ($documentsConfig['generate_preview'] ?? false) {
+            \Pimcore::getContainer()->get('messenger.bus.pimcore-core')->dispatch(
+                new GeneratePagePreviewMessage($this->getId(), \Pimcore\Tool::getHostUrl())
+            );
         }
 
-        return PIMCORE_SYSTEM_TEMP_DIRECTORY . '/document-page-previews/document-page-screenshot-' . $this->getId() . $suffix . '.jpg';
+        return $response;
     }
 }

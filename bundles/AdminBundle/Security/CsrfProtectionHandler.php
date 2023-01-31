@@ -15,14 +15,17 @@
 
 namespace Pimcore\Bundle\AdminBundle\Security;
 
-use Pimcore\Templating\PhpEngine;
 use Pimcore\Tool\Session;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Twig\Environment;
 
+/**
+ * @internal
+ */
 class CsrfProtectionHandler implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -32,18 +35,18 @@ class CsrfProtectionHandler implements LoggerAwareInterface
     protected $csrfToken = null;
 
     /**
-     * @var PhpEngine
+     * @var Environment
      */
-    protected $phpTemplatingEngine;
+    protected $twig;
 
     /**
      * @param array $excludedRoutes
-     * @param PhpEngine $phpTemplatingEngine
+     * @param Environment $twig
      */
-    public function __construct($excludedRoutes, PhpEngine $phpTemplatingEngine)
+    public function __construct($excludedRoutes, Environment $twig)
     {
         $this->excludedRoutes = $excludedRoutes;
-        $this->phpTemplatingEngine = $phpTemplatingEngine;
+        $this->twig = $twig;
     }
 
     /**
@@ -74,34 +77,29 @@ class CsrfProtectionHandler implements LoggerAwareInterface
         if (!$this->csrfToken) {
             $this->csrfToken = Session::getReadOnly()->get('csrfToken');
             if (!$this->csrfToken) {
-                $this->csrfToken = Session::useSession(function (AttributeBagInterface $adminSession) {
-                    if (!$adminSession->has('csrfToken') && !$adminSession->get('csrfToken')) {
-                        $adminSession->set('csrfToken', sha1(generateRandomSymfonySecret()));
-                    }
-
-                    return $adminSession->get('csrfToken');
-                });
+                $this->regenerateCsrfToken(false);
             }
         }
 
         return $this->csrfToken;
     }
 
-    public function regenerateCsrfToken()
+    public function regenerateCsrfToken(bool $force = true)
     {
-        $this->csrfToken = Session::useSession(function (AttributeBagInterface $adminSession) {
-            $token = sha1(generateRandomSymfonySecret());
-            $adminSession->set('csrfToken', $token);
+        $this->csrfToken = Session::useSession(function (AttributeBagInterface $adminSession) use ($force) {
+            if ($force || !$adminSession->get('csrfToken')) {
+                $adminSession->set('csrfToken', sha1(generateRandomSymfonySecret()));
+            }
 
-            return $token;
+            return $adminSession->get('csrfToken');
         });
 
-        $this->phpTemplatingEngine->addGlobal('csrfToken', $this->csrfToken);
+        $this->twig->addGlobal('csrfToken', $this->csrfToken);
     }
 
     public function generateCsrfToken()
     {
-        $this->phpTemplatingEngine->addGlobal('csrfToken', $this->getCsrfToken());
+        $this->twig->addGlobal('csrfToken', $this->getCsrfToken());
     }
 
     /**

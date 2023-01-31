@@ -22,6 +22,9 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
+/**
+ * @internal
+ */
 class CacheClearer
 {
     /**
@@ -69,7 +72,7 @@ class CacheClearer
             $resolver->setAllowedTypes($option, 'bool');
         }
 
-        return $this->runCommand('cache:clear', [], $resolver->resolve($options));
+        return $this->runCommand('cache:clear', $resolver->resolve($options));
     }
 
     public function warmup(string $environment, array $options = []): Process
@@ -86,20 +89,20 @@ class CacheClearer
             $resolver->setAllowedTypes($option, 'bool');
         }
 
-        return $this->runCommand('cache:warmup', [], $resolver->resolve($options));
+        return $this->runCommand('cache:warmup', $resolver->resolve($options));
     }
 
     /**
-     * @param \Closure $runCallback
+     * @param \Closure|null $runCallback
      */
     public function setRunCallback(\Closure $runCallback = null)
     {
         $this->runCallback = $runCallback;
     }
 
-    private function runCommand(string $command, array $arguments = [], array $options = [])
+    private function runCommand(string $command, array $arguments = [])
     {
-        $process = $this->buildProcess($command, $arguments, $options);
+        $process = $this->buildProcess($command, $arguments);
         $process->run($this->runCallback);
 
         if (!$process->isSuccessful()) {
@@ -109,7 +112,7 @@ class CacheClearer
         return $process;
     }
 
-    private function buildProcess(string $command, array $arguments = [], array $options = []): Process
+    private function buildProcess(string $command, array $arguments = []): Process
     {
         $preparedOptions = [];
         foreach ($arguments as $optionKey => $optionValue) {

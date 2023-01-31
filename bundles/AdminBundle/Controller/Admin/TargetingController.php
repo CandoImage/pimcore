@@ -16,24 +16,28 @@
 namespace Pimcore\Bundle\AdminBundle\Controller\Admin;
 
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
-use Pimcore\Cache\Core\CoreHandlerInterface;
-use Pimcore\Controller\EventedControllerInterface;
-use Pimcore\Event\Model\TargetGroupEvent;
-use Pimcore\Event\TargetGroupEvents;
+use Pimcore\Cache\Core\CoreCacheHandler;
+use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Model\Tool\Targeting;
 use Pimcore\Model\Tool\Targeting\TargetGroup;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * @Route("/targeting")
+ *
+ * @internal
  */
-class TargetingController extends AdminController implements EventedControllerInterface
+class TargetingController extends AdminController implements KernelControllerEventInterface
 {
     // RULES
+
+    private function correctName(string $name): string
+    {
+        return preg_replace('/[#?*:\\\\<>|"%&@=;+]/', '-', $name);
+    }
 
     /**
      * @Route("/rule/list", name="pimcore_admin_targeting_rulelist", methods={"GET"})
@@ -50,11 +54,10 @@ class TargetingController extends AdminController implements EventedControllerIn
         $list->setOrderKey('prio');
         $list->setOrder('ASC');
 
-        /** @var Targeting\Rule $target */
         foreach ($list->load() as $target) {
             $targets[] = [
                 'id' => $target->getId(),
-                'text' => $target->getName(),
+                'text' => htmlspecialchars($target->getName()),
                 'active' => $target->getActive(),
                 'qtip' => 'ID: ' . $target->getId(),
             ];
@@ -73,7 +76,7 @@ class TargetingController extends AdminController implements EventedControllerIn
     public function ruleAddAction(Request $request)
     {
         $target = new Targeting\Rule();
-        $target->setName($request->get('name'));
+        $target->setName($this->correctName($request->get('name')));
         $target->save();
 
         return $this->adminJson(['success' => true, 'id' => $target->getId()]);
@@ -90,7 +93,7 @@ class TargetingController extends AdminController implements EventedControllerIn
     {
         $success = false;
 
-        $target = Targeting\Rule::getById($request->get('id'));
+        $target = Targeting\Rule::getById((int) $request->get('id'));
         if ($target) {
             $target->delete();
             $success = true;
@@ -108,7 +111,11 @@ class TargetingController extends AdminController implements EventedControllerIn
      */
     public function ruleGetAction(Request $request)
     {
-        $target = Targeting\Rule::getById($request->get('id'));
+        $target = Targeting\Rule::getById((int) $request->get('id'));
+        if (!$target) {
+            throw $this->createNotFoundException();
+        }
+        $target = $target->getObjectVars();
 
         return $this->adminJson($target);
     }
@@ -124,9 +131,12 @@ class TargetingController extends AdminController implements EventedControllerIn
     {
         $data = $this->decodeJson($request->get('data'));
 
-        /** @var Targeting\Rule|Targeting\Rule\Dao $target */
-        $target = Targeting\Rule::getById($request->get('id'));
+        $target = Targeting\Rule::getById((int) $request->get('id'));
+        if (!$target) {
+            throw $this->createNotFoundException();
+        }
         $target->setValues($data['settings']);
+        $target->setName($this->correctName($target->getName()));
         $target->setConditions($data['conditions']);
         $target->setActions($data['actions']);
         $target->save();
@@ -153,12 +163,11 @@ class TargetingController extends AdminController implements EventedControllerIn
         /** @var Targeting\Rule[] $changedRules */
         $changedRules = [];
         foreach ($rules as $id => $prio) {
-            /** @var Targeting\Rule $rule */
             $rule = Targeting\Rule::getById((int)$id);
             $prio = (int)$prio;
 
             if ($rule) {
-                if ((int)$rule->getPrio() !== $prio) {
+                if ($rule->getPrio() !== $prio) {
                     $rule->setPrio((int)$prio);
                     $changedRules[] = $rule;
                 }
@@ -204,11 +213,10 @@ class TargetingController extends AdminController implements EventedControllerIn
             ];
         }
 
-        /** @var TargetGroup $targetGroup */
         foreach ($list->load() as $targetGroup) {
             $targetGroups[] = [
                 'id' => $targetGroup->getId(),
-                'text' => $targetGroup->getName(),
+                'text' => htmlspecialchars($targetGroup->getName()),
                 'active' => $targetGroup->getActive(),
                 'qtip' => $targetGroup->getId(),
             ];
@@ -221,19 +229,16 @@ class TargetingController extends AdminController implements EventedControllerIn
      * @Route("/target-group/add", name="pimcore_admin_targeting_targetgroupadd", methods={"POST"})
      *
      * @param Request $request
-     * @param CoreHandlerInterface $cache
+     * @param CoreCacheHandler $cache
      *
      * @return JsonResponse
      */
-    public function targetGroupAddAction(Request $request, CoreHandlerInterface $cache)
+    public function targetGroupAddAction(Request $request, CoreCacheHandler $cache)
     {
         /** @var TargetGroup|TargetGroup\Dao $targetGroup */
         $targetGroup = new TargetGroup();
-        $targetGroup->setName($request->get('name'));
+        $targetGroup->setName($this->correctName($request->get('name')));
         $targetGroup->save();
-
-        $event = new TargetGroupEvent($targetGroup);
-        \Pimcore::getEventDispatcher()->dispatch(TargetGroupEvents::POST_ADD, $event);
 
         $cache->clearTag('target_groups');
 
@@ -244,22 +249,18 @@ class TargetingController extends AdminController implements EventedControllerIn
      * @Route("/target-group/delete", name="pimcore_admin_targeting_targetgroupdelete", methods={"DELETE"})
      *
      * @param Request $request
-     * @param CoreHandlerInterface $cache
+     * @param CoreCacheHandler $cache
      *
      * @return JsonResponse
      */
-    public function targetGroupDeleteAction(Request $request, CoreHandlerInterface $cache)
+    public function targetGroupDeleteAction(Request $request, CoreCacheHandler $cache)
     {
         $success = false;
 
-        /** @var TargetGroup|TargetGroup\Dao $targetGroup */
-        $targetGroup = TargetGroup::getById($request->get('id'));
+        $targetGroup = TargetGroup::getById((int) $request->get('id'));
         if ($targetGroup) {
-            $event = new TargetGroupEvent($targetGroup);
             $targetGroup->delete();
             $success = true;
-
-            \Pimcore::getEventDispatcher()->dispatch(TargetGroupEvents::POST_DELETE, $event);
         }
 
         $cache->clearTag('target_groups');
@@ -276,8 +277,11 @@ class TargetingController extends AdminController implements EventedControllerIn
      */
     public function targetGroupGetAction(Request $request)
     {
-        /** @var TargetGroup|TargetGroup\Dao $targetGroup */
-        $targetGroup = TargetGroup::getById($request->get('id'));
+        $targetGroup = TargetGroup::getById((int) $request->get('id'));
+        if (!$targetGroup) {
+            throw $this->createNotFoundException();
+        }
+        $targetGroup = $targetGroup->getObjectVars();
 
         return $this->adminJson($targetGroup);
     }
@@ -286,21 +290,21 @@ class TargetingController extends AdminController implements EventedControllerIn
      * @Route("/target-group/save", name="pimcore_admin_targeting_targetgroupsave", methods={"PUT"})
      *
      * @param Request $request
-     * @param CoreHandlerInterface $cache
+     * @param CoreCacheHandler $cache
      *
      * @return JsonResponse
      */
-    public function targetGroupSaveAction(Request $request, CoreHandlerInterface $cache)
+    public function targetGroupSaveAction(Request $request, CoreCacheHandler $cache)
     {
         $data = $this->decodeJson($request->get('data'));
 
-        /** @var TargetGroup|TargetGroup\Dao $targetGroup */
-        $targetGroup = TargetGroup::getById($request->get('id'));
+        $targetGroup = TargetGroup::getById((int) $request->get('id'));
+        if (!$targetGroup) {
+            throw $this->createNotFoundException();
+        }
         $targetGroup->setValues($data['settings']);
+        $targetGroup->setName($this->correctName($targetGroup->getName()));
         $targetGroup->save();
-
-        $event = new TargetGroupEvent($targetGroup);
-        \Pimcore::getEventDispatcher()->dispatch(TargetGroupEvents::POST_UPDATE, $event);
 
         $cache->clearTag('target_groups');
 
@@ -308,24 +312,15 @@ class TargetingController extends AdminController implements EventedControllerIn
     }
 
     /**
-     * @param FilterControllerEvent $event
+     * @param ControllerEvent $event
      */
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelControllerEvent(ControllerEvent $event)
     {
-        $isMasterRequest = $event->isMasterRequest();
-        if (!$isMasterRequest) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
         // check permissions
         $this->checkActionPermission($event, 'targeting', ['targetGroupListAction']);
-    }
-
-    /**
-     * @param FilterResponseEvent $event
-     */
-    public function onKernelResponse(FilterResponseEvent $event)
-    {
-        // nothing to do
     }
 }

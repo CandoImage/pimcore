@@ -21,8 +21,10 @@ use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\Document;
 use Pimcore\Model\Element;
-use Pimcore\Model\Listing\AbstractListing;
 
+/**
+ * @internal
+ */
 class Warming
 {
     /**
@@ -61,7 +63,7 @@ class Warming
     public static function objects($types = null, $classes = null)
     {
         if (empty($types)) {
-            $types = ['object', 'folder', 'variant'];
+            $types = DataObject::$types;
         }
 
         $classesCondition = '';
@@ -100,13 +102,13 @@ class Warming
     public static function loadElementToCache($element)
     {
         $cacheKey = Element\Service::getElementType($element) . '_' . $element->getId();
-        Cache::save($element, $cacheKey, [], null, null, true);
+        Cache::save($element, $cacheKey, [], null, 0, true);
     }
 
     /**
      * @param Document\Listing|Asset\Listing|DataObject\Listing $list
      */
-    protected static function loadToCache(AbstractListing $list)
+    protected static function loadToCache(Document\Listing|Asset\Listing|DataObject\Listing $list)
     {
         $totalCount = $list->getTotalCount();
         $iterations = ceil($totalCount / self::getPerIteration());

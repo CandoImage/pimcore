@@ -15,27 +15,24 @@
 
 namespace Pimcore\Templating\Renderer;
 
+use Pimcore\Document\Editable\EditmodeEditableDefinitionCollector;
 use Pimcore\Http\Request\Resolver\EditmodeResolver;
 use Pimcore\Model\Document\Editable;
+use Pimcore\Model\Document\Editable\LazyLoadingInterface;
 use Pimcore\Model\Document\Editable\Loader\EditableLoaderInterface;
 use Pimcore\Model\Document\PageSnippet;
-use Pimcore\Templating\Model\ViewModel;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 
+/**
+ * @internal
+ */
 class EditableRenderer implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
     /**
      * @var EditableLoaderInterface
-     *
-     * @deprecated since v6.8 and will be removed in Pimcore 10. Use $editableLoader instead.
-     */
-    protected $tagLoader;
-
-    /**
-     * @var Editable\Loader\EditableLoader
      */
     protected $editableLoader;
 
@@ -44,27 +41,18 @@ class EditableRenderer implements LoggerAwareInterface
      */
     protected $editmodeResolver;
 
+    protected ?EditmodeEditableDefinitionCollector $configCollector;
+
     /**
      * @param EditableLoaderInterface $editableLoader
      * @param EditmodeResolver $editmodeResolver
+     * @param EditmodeEditableDefinitionCollector $configCollector
      */
-    public function __construct(EditableLoaderInterface $editableLoader, EditmodeResolver $editmodeResolver)
+    public function __construct(EditableLoaderInterface $editableLoader, EditmodeResolver $editmodeResolver, EditmodeEditableDefinitionCollector $configCollector)
     {
         $this->editableLoader = $editableLoader;
-        $this->tagLoader = & $this->editableLoader;
         $this->editmodeResolver = $editmodeResolver;
-    }
-
-    /**
-     * @param string $type
-     *
-     * @return bool
-     *
-     * @deprecated since v6.8 and will be removed in Pimcore 10. Use editableExists() instead.
-     */
-    public function tagExists($type)
-    {
-        return $this->editableExists($type);
+        $this->configCollector = $configCollector;
     }
 
     /**
@@ -78,92 +66,62 @@ class EditableRenderer implements LoggerAwareInterface
     }
 
     /**
-     * Loads a document tag
-     *
      * @param PageSnippet $document
      * @param string $type
-     * @param string $inputName
-     * @param array $options
-     * @param bool|null $editmode
-     *
-     * @return Editable|null
-     *
-     * @deprecated since v6.8 and will be removed in Pimcore 10. Use editableExists() instead.
-     */
-    public function getTag(PageSnippet $document, $type, $inputName, array $options = [], bool $editmode = null)
-    {
-        return $this->getEditable($document, $type, $inputName, $options, $editmode);
-    }
-
-    /**
-     * Loads a document tag
-     *
-     * @param PageSnippet $document
-     * @param string $type
-     * @param string $inputName
+     * @param string $name
      * @param array $config
      * @param bool|null $editmode
      *
-     * @throws \Exception
+     * @return Editable\EditableInterface
      *
-     * @return Editable|null
+     * @throws \Exception
      */
-    public function getEditable(PageSnippet $document, $type, $inputName, array $config = [], bool $editmode = null)
+    public function getEditable(PageSnippet $document, string $type, string $name, array $config = [], bool $editmode = null): Editable\EditableInterface
     {
         $type = strtolower($type);
 
-        $name = Editable::buildEditableName($type, $inputName, $document);
-        $realName = Editable::buildEditableRealName($inputName, $document);
+        $originalName = $name;
+        $name = Editable::buildEditableName($type, $originalName, $document);
+        $realName = Editable::buildEditableRealName($originalName, $document);
 
         if (null === $editmode) {
             $editmode = $this->editmodeResolver->isEditmode();
         }
 
-        try {
-            $editable = null;
-
-            if ($document instanceof PageSnippet) {
-                $view = new ViewModel([
-                    'editmode' => $editmode,
-                    'document' => $document,
-                ]);
-
-                $editable = $document->getEditable($name);
-
-                // @TODO: BC layer, to be removed in Pimcore 10
-                $aliases = [
-                    'href' => 'relation',
-                    'multihref' => 'relations',
-                ];
-                if (isset($aliases[$type])) {
-                    $type = $aliases[$type];
+        $editable = $document->getEditable($name);
+        if ($editable instanceof Editable\EditableInterface && $editable->getType() === $type) {
+            // call the load() method if it exists to reinitialize the data (eg. from serializing, ...)
+            //TODO Pimcore 11: remove method_exists BC layer
+            if ($editable instanceof LazyLoadingInterface || method_exists($editable, 'load')) {
+                if (!$editable instanceof LazyLoadingInterface) {
+                    trigger_deprecation('pimcore/pimcore', '10.3',
+                        sprintf('Usage of method_exists is deprecated since version 10.3 and will be removed in Pimcore 11.' .
+                            'Implement the %s interface instead.', LazyLoadingInterface::class));
                 }
-
-                if ($editable instanceof Editable && $editable->getType() === $type) {
-                    // call the load() method if it exists to reinitialize the data (eg. from serializing, ...)
-                    if (method_exists($editable, 'load')) {
-                        $editable->load();
-                    }
-
-                    $editable->setView($view);
-                    $editable->setEditmode($editmode);
-                    $editable->setConfig($config);
-                    $editable->setDocument($document);
-                } else {
-                    $editable = Editable::factory($type, $name, $document->getId(), $config, null, $view, $editmode);
-                    $document->setEditable($editable);
-                }
-
-                // set the real name of this editable, without the prefixes and suffixes from blocks and areablocks
-                $editable->setRealName($realName);
+                $editable->load();
             }
+        } else {
+            $editable = $this->editableLoader->build($type);
+            $editable->setName($name);
+            $document->setEditable($editable);
 
-            return $editable;
-        } catch (\Exception $e) {
-            $this->logger->warning($e);
-
-            return null;
+            //set default value on initial build
+            if (isset($config['defaultValue'])) {
+                $editable->setDataFromResource($config['defaultValue']);
+            }
         }
+
+        $editable->setDocument($document);
+        $editable->setEditmode($editmode);
+        // set the real name of this editable, without the prefixes and suffixes from blocks and areablocks
+        $editable->setRealName($realName);
+        $editable->setConfig($config);
+
+        if ($editmode) {
+            $editable->setEditableDefinitionCollector($this->configCollector);
+        }
+
+        return $editable;
     }
 
     /**
@@ -171,22 +129,16 @@ class EditableRenderer implements LoggerAwareInterface
      *
      * @param PageSnippet $document
      * @param string $type
-     * @param string $inputName
+     * @param string $name
      * @param array $options
      * @param bool|null $editmode
      *
-     * @return Editable|string
+     * @return Editable\EditableInterface
+     *
+     * @throws \Exception
      */
-    public function render(PageSnippet $document, $type, $inputName, array $options = [], bool $editmode = null)
+    public function render(PageSnippet $document, string $type, string $name, array $options = [], bool $editmode = null)
     {
-        $editable = $this->getEditable($document, $type, $inputName, $options, $editmode);
-
-        if ($editable) {
-            return $editable;
-        }
-
-        return '';
+        return $this->getEditable($document, $type, $name, $options, $editmode);
     }
 }
-
-class_alias(EditableRenderer::class, 'Pimcore\Templating\Renderer\TagRenderer');

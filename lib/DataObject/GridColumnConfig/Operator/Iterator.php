@@ -15,13 +15,14 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class Iterator extends AbstractOperator
+/**
+ * @internal
+ */
+final class Iterator extends AbstractOperator
 {
-    public function __construct(\stdClass $config, $context = null)
-    {
-        parent::__construct($config, $context);
-    }
-
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($elements)
     {
         $result = new \stdClass();

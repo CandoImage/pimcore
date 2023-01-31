@@ -15,6 +15,7 @@ pimcore.registerNS("pimcore.plugin.broker");
 pimcore.plugin.broker = {
 
     plugins: [],
+    printedWarns: [],
 
     initialize: function() {
 
@@ -37,6 +38,14 @@ pimcore.plugin.broker = {
 
     executePlugin: function (plugin, event, params) {
         if (typeof plugin[event] == "function") {
+            let warnText = `Plugins are deprecated. Please use event listener - ${event}`;
+            if(typeof plugin.getClassName === "function") {
+                warnText = `Plugins are deprecated. Please use event listener - ${plugin.getClassName()}::${event}`;
+            }
+            if(!this.printedWarns.includes(warnText)) {
+                console.warn(warnText);
+                this.printedWarns.push(warnText);
+            }
             params.push(this);
             plugin[event].apply(plugin, params);
         }
@@ -47,20 +56,46 @@ pimcore.plugin.broker = {
         var size = this.pluginsAvailable();
         var args = Array.from(arguments);
         args.splice(0, 1);
+        const event = args.pop();
 
         for (var i = 0; i < size; i++) {
             plugin = this.plugins[i];
             try {
                 this.executePlugin(plugin, e, args);
             } catch (e) {
+                event.preventDefault();
+                event.stopPropagation();
                 if (
                     e instanceof pimcore.error.ValidationException
-                    || e instanceof pimcore.error.ActionCancelledException
                 ) {
-                    throw e;
+                    pimcore.helpers.showPrettyError('object', t("error"), t("saving_failed"), e.message);
+                } else if (e instanceof pimcore.error.ActionCancelledException) {
+                    pimcore.helpers.showNotification(t("Info"), t("saving_failed") + ' ' + e.message, 'info');
                 }
                 console.error(e);
             }
         }
     }
 };
+
+
+
+//TODO: delete in Pimcore11
+/*
+ * Backwards compatibility
+ */
+function addEventListenerCompatibilityForPlugins(eventMappings) {
+    for (let oldKey in eventMappings) {
+        document.addEventListener(eventMappings[oldKey], (e) => {
+            let parameters = []
+
+            for (let key in e.detail) {
+                parameters.push(e.detail[key]);
+            }
+
+            pimcore.plugin.broker.fireEvent(oldKey, ...parameters, e);
+        });
+    }
+}
+
+addEventListenerCompatibilityForPlugins(pimcore.events.eventMappings)

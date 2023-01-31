@@ -19,20 +19,40 @@ use Pimcore\Tool\Serialize;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
+/**
+ * @internal
+ */
 class ReferenceLoopNormalizer implements NormalizerInterface
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function normalize($object, $format = null, array $context = [])
+    public function normalize($object, $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
     {
-        return Serialize::removeReferenceLoops($object);
+        $object = Serialize::removeReferenceLoops($object);
+
+        if ($object instanceof \JsonSerializable) {
+            return $object->jsonSerialize();
+        }
+
+        if (is_object($object)) {
+            $propCollection = get_object_vars($object);
+
+            $array = [];
+            foreach ($propCollection as $name => $propValue) {
+                $array[$name] = $propValue;
+            }
+
+            return $array;
+        }
+
+        return $object;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function supportsNormalization($data, $format = null)
+    public function supportsNormalization($data, $format = null): bool
     {
         return $format === JsonEncoder::FORMAT;
     }

@@ -39,5 +39,3 @@ interface ExportableTokenManagerInterface
      */
     public function exportPlain(array $params);
 }
-
-class_alias(ExportableTokenManagerInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\TokenManager\IExportableTokenManager');

@@ -216,8 +216,15 @@ pimcore.log.admin = Class.create({
                 },{
                     text: t("log_relatedobject"),
                     dataIndex: 'relatedobject',
-                    flex: 20,
-                    sortable: false
+                    flex: 35,
+                    sortable: false,
+                    renderer: function (value, p, record) {
+                        if (value) {
+                            return Ext.String.format('<a href="#" onclick="pimcore.helpers.openElement({0}, \'{1}\')">{2}</a>', value, record.get('relatedobjecttype'), record.get('relatedobjecttype')+' '+value);
+                        }
+
+                        return '';
+                    },
                 },{
                     text: t("log_component"),
                     dataIndex: 'component',
@@ -236,7 +243,8 @@ pimcore.log.admin = Class.create({
                     // loadMask: false,
                     getRowClass: function(record) {
                         return 'log-type-' + record.get('priority');
-                    }
+                    },
+                    enableTextSelection: true
                 },
 
                 listeners: {
@@ -274,7 +282,6 @@ pimcore.log.admin = Class.create({
                 xtype: 'timefield'
             });
 
-            var formSearch = this.find.bind(this);
             this.searchpanel = new Ext.FormPanel({
                 region: "east",
                 title: t("log_search_form"),
@@ -294,14 +301,6 @@ pimcore.log.admin = Class.create({
                     handler: this.find.bind(this),
                     iconCls: "pimcore_icon_search"
                 }],
-                listeners: {
-                    afterRender: function(formCmp) {
-                        this.keyNav = Ext.create('Ext.util.KeyNav', formCmp.el, {
-                            enter: formSearch,
-                            scope: this
-                        });
-                    }
-                },
                 items: [ {
                     xtype:'fieldset',
                     autoHeight:true,

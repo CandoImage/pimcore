@@ -23,9 +23,13 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractVoucherTokenType;
 use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Reservation;
 use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Statistic;
 use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Token;
+use Pimcore\Logger;
 use Pimcore\Model\DataObject\Fieldcollection\Data\VoucherTokenTypeSingle;
 use Pimcore\Model\DataObject\OnlineShopVoucherToken;
 
+/**
+ * @property \Pimcore\Model\DataObject\Fieldcollection\Data\VoucherTokenTypeSingle $configuration
+ */
 class Single extends AbstractTokenManager implements ExportableTokenManagerInterface
 {
     protected $template;
@@ -34,7 +38,7 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
     {
         parent::__construct($configuration);
         if ($configuration instanceof VoucherTokenTypeSingle) {
-            $this->template = 'PimcoreEcommerceFrameworkBundle:voucher:voucher_code_tab_single.html.twig';
+            $this->template = '@PimcoreEcommerceFramework/voucher/voucher_code_tab_single.html.twig';
         } else {
             throw new InvalidConfigException('Invalid Configuration Class for type VoucherTokenTypeSingle.');
         }
@@ -70,25 +74,26 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
      */
     public function prepareConfigurationView(&$viewParamsBag, $params)
     {
-        if ($this->getConfiguration()->getToken() != $this->getCodes()[0]['token']) {
+        $codes = $this->getCodes();
+        if ($codes && $this->getConfiguration()->getToken() != $codes[0]['token']) {
             $viewParamsBag['generateWarning'] = 'bundle_ecommerce_voucherservice_msg-error-overwrite-single';
-            $viewParamsBag['settings']['Original Token'] = $this->getCodes()[0];
+            $viewParamsBag['settings']['Original Token'] = $codes[0];
         }
 
-        if ($codes = $this->getCodes()) {
+        if ($codes) {
             /** @var PaginatorInterface $paginator */
             $paginator = \Pimcore::getContainer()->get(\Knp\Component\Pager\PaginatorInterface::class);
             $paginator = $paginator->paginate(
                 (array)$codes,
                 $params['page'] ?? 1,
-                $params['tokensPerPage'] ? (int)$params['tokensPerPage'] : 25
+                isset($params['tokensPerPage']) ? (int)$params['tokensPerPage'] : 25
             );
             $viewParamsBag['paginator'] = $paginator;
             $viewParamsBag['count'] = count($codes);
         }
 
-        $viewParamsBag['msg']['error'] = $params['error'] ?? '';
-        $viewParamsBag['msg']['success'] = $params['success'] ?? '';
+        $viewParamsBag['msg']['error'] = $params['error'] ?? null;
+        $viewParamsBag['msg']['success'] = $params['success'] ?? null;
 
         $viewParamsBag['settings'] = [
             'bundle_ecommerce_voucherservice_settings-token' => $this->getConfiguration()->getToken(),
@@ -145,11 +150,11 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
                 'INSERT INTO ' . Token\Dao::TABLE_NAME . '(token,length,voucherSeriesId) VALUES (?,?,?)
                     ON DUPLICATE KEY UPDATE token = ?, length = ?';
 
-            $db->query($query, [trim($this->configuration->getToken()), $this->getFinalTokenLength(), $this->getSeriesId(), trim($this->configuration->getToken()), $this->getFinalTokenLength()]);
+            $db->executeQuery($query, [trim($this->configuration->getToken()), $this->getFinalTokenLength(), $this->getSeriesId(), trim($this->configuration->getToken()), $this->getFinalTokenLength()]);
 
             return trim($this->configuration->getToken());
         } catch (\Exception $e) {
-            return false;
+            Logger::error((string) $e);
         }
 
         return false;
@@ -182,9 +187,10 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
      */
     public function getStatistics($usagePeriod = null)
     {
+        $token = Token::getByCode($this->configuration->getToken());
         $overallCount = $this->configuration->getUsages();
-        $usageCount = Token::getByCode($this->configuration->getToken())->getUsages();
-        $reservedTokenCount = Token\Listing::getCountByReservation($this->seriesId);
+        $usageCount = $token ? $token->getUsages() : 0;
+        $reservedTokenCount = (int) Token\Listing::getCountByReservation($this->seriesId);
 
         $usage = Statistic::getBySeriesId($this->seriesId, $usagePeriod);
         $this->prepareUsageStatisticData($usage, $usagePeriod);
@@ -206,7 +212,7 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
      */
     public function reserveToken($code, CartInterface $cart)
     {
-        if ($token = Token::getByCode($code)) {
+        if (Token::getByCode($code)) {
             if (Reservation::create($code, $cart)) {
                 return true;
             }
@@ -236,7 +242,7 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
                         $orderToken->setVoucherSeries($series);
                         $orderToken->setParent($series);        // TODO set correct parent for applied tokens
                         $orderToken->setKey(\Pimcore\File::getValidFilename($token->getToken()));
-                        $orderToken->setPublished(1);
+                        $orderToken->setPublished(true);
                         $orderToken->save();
                     }
 
@@ -311,7 +317,7 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
     }
 
     /**
-     * @return mixed
+     * @return string|int|null
      */
     public function getSeriesId()
     {
@@ -319,7 +325,7 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
     }
 
     /**
-     * @param mixed $seriesId
+     * @param string|int|null $seriesId
      */
     public function setSeriesId($seriesId)
     {

@@ -18,6 +18,7 @@ pimcore.object.tags.objectbricks = Class.create(pimcore.object.tags.abstract, {
     dirty: false,
     addedTypes: {},
     preventDelete: {},
+    inheritedCount: 0,
 
     initialize: function (data, fieldConfig) {
 
@@ -68,7 +69,7 @@ pimcore.object.tags.objectbricks = Class.create(pimcore.object.tags.abstract, {
             autoHeight: true,
             border: this.fieldConfig.border,
             style: "margin-bottom: 10px",
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             items: [this.tabpanel]
         };
 
@@ -84,10 +85,11 @@ pimcore.object.tags.objectbricks = Class.create(pimcore.object.tags.abstract, {
         this.layoutDefinitions = bricksData.layoutDefinitions;
 
         this.component.insert(0, this.getControls());
-        if (this.data.length > 0) {
-            for (var i = 0; i < this.data.length; i++) {
-                if (this.data[i] != null) {
-                    this.preventDelete[this.data[i].type] = this.data[i].inherited;
+        for (var i = 0; i < this.data.length; i++) {
+            if (this.data[i] != null) {
+                this.preventDelete[this.data[i].type] = this.data[i].inherited;
+
+                if (this.fieldConfig.allowedTypes.length === 0 || this.fieldConfig.allowedTypes.indexOf(this.data[i].type) > -1) {
                     this.addBlockElement(i, this.data[i].type, this.data[i], true, this.data[i].title, false);
                 }
             }
@@ -106,6 +108,10 @@ pimcore.object.tags.objectbricks = Class.create(pimcore.object.tags.abstract, {
 
                 var elementData = data[i];
                 if (this.addedTypes[elementData.key]) {
+                    continue;
+                }
+
+                if (elementData.leaf === true && this.fieldConfig.allowedTypes.length > 0 && this.fieldConfig.allowedTypes.indexOf(elementData.key) === -1) {
                     continue;
                 }
 
@@ -231,7 +237,12 @@ pimcore.object.tags.objectbricks = Class.create(pimcore.object.tags.abstract, {
             if (!this.layoutDefinitions[type]) {
                 return;
             }
-            if (this.fieldConfig.maxItems && this.getCurrentElementsCount() >= this.fieldConfig.maxItems) {
+
+            if(blockData && blockData.inherited) {
+                this.inheritedCount++;
+            }
+
+            if (this.fieldConfig.maxItems && this.getCurrentElementsCount() >= this.fieldConfig.maxItems + this.inheritedCount) {
                 Ext.Msg.alert(t("error"), t("limit_reached"));
                 return;
             }
@@ -261,7 +272,7 @@ pimcore.object.tags.objectbricks = Class.create(pimcore.object.tags.abstract, {
                         // this is especially for localized fields which get aggregated here into one field definition
                         // in the case that there are more than one localized fields in the class definition
                         // see also ClassDefinition::extractDataDefinitions();
-                        if(typeof dataFields[name]["addReferencedField"]){
+                        if (typeof dataFields[name]['addReferencedField'] === 'function') {
                             dataFields[name].addReferencedField(field);
                         }
                     } else {

@@ -17,10 +17,13 @@ declare(strict_types=1);
 
 namespace Pimcore\Model\Notification\Listing;
 
+use Doctrine\DBAL\Exception;
 use Pimcore\Model\Listing\Dao\AbstractDao;
 use Pimcore\Model\Notification;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Notification\Listing $model
  */
 class Dao extends AbstractDao
@@ -51,7 +54,7 @@ class Dao extends AbstractDao
     /**
      * @return array
      *
-     * @throws \Doctrine\DBAL\DBALException
+     * @throws Exception
      */
     public function load(): array
     {
@@ -64,7 +67,7 @@ class Dao extends AbstractDao
             $this->getOffsetLimit()
         );
 
-        $ids = $this->db->fetchCol($sql, $this->getModel()->getConditionVariables());
+        $ids = $this->db->fetchFirstColumn($sql, $this->getModel()->getConditionVariables());
 
         foreach ($ids as $id) {
             $notification = Notification::getById((int) $id);

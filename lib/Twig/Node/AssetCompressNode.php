@@ -20,6 +20,9 @@ namespace Pimcore\Twig\Node;
 use Twig\Compiler;
 use Twig\Node\Node;
 
+/**
+ * @internal
+ */
 class AssetCompressNode extends Node
 {
     public function __construct(Node $body, $lineno, $tag = 'pimcoreassetcompress')
@@ -33,6 +36,6 @@ class AssetCompressNode extends Node
             ->addDebugInfo($this)
             ->write("ob_start();\n")
             ->subcompile($this->getNode('body'))
-            ->write("\n; echo trim(str_replace(\"\n\", '', ob_get_clean())); \n");
+            ->write("\n; echo trim(str_replace(\"\n\", '', ob_get_clean()));\n");
     }
 }

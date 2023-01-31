@@ -15,18 +15,33 @@
 
 namespace Pimcore\Model\DataObject\Data;
 
-use Pimcore\Model\DataObject\OwnerAwareFieldInterface;
 use Pimcore\Model\DataObject\QuantityValue\Unit;
-use Pimcore\Model\DataObject\Traits\OwnerAwareFieldTrait;
 
-class InputQuantityValue extends QuantityValue implements OwnerAwareFieldInterface
+class InputQuantityValue extends AbstractQuantityValue
 {
-    use OwnerAwareFieldTrait;
-
     /**
-     * @var null|string
+     * @var string|null
      */
     protected $value;
+
+    /**
+     * @param string|null $value
+     * @param Unit|string|null $unit
+     */
+    public function __construct($value = null, $unit = null)
+    {
+        $this->value = $value;
+        parent::__construct($unit);
+    }
+
+    /**
+     * @param string $value
+     */
+    public function setValue($value)
+    {
+        $this->value = $value;
+        $this->markMeDirty();
+    }
 
     /**
      * @return string
@@ -45,7 +60,8 @@ class InputQuantityValue extends QuantityValue implements OwnerAwareFieldInterfa
     {
         $value = $this->getValue();
         if ($this->getUnit() instanceof Unit) {
-            $value .= ' ' . $this->getUnit()->getAbbreviation();
+            $translator = \Pimcore::getContainer()->get('translator');
+            $value .= ' ' . $translator->trans($this->getUnit()->getAbbreviation(), [], 'admin');
         }
 
         return $value;

@@ -12,13 +12,13 @@ To use vouchers, following steps are necessary:
 A voucher series contains basic information of the voucher and settings for creating the voucher tokens. It is 
 represented by `OnlineShopVoucherSeries` objects. The corresponding class is added to the system during installation 
 of the E-Commerce Framework. 
-![Creating Voucher Series](../../img/voucher-series.jpg)
+![Creating Voucher Series](../../img/voucher-series.png)
  
 Currently there are two types of vouchers supported - Single and Pattern.
 - Single: One single token is defined that can be used multiple times. 
 ![Voucher Series Settings Single](../../img/voucher-series-single.jpg)
 - Pattern: Tokens are generated based on a certain pattern definition. 
-![Voucher Series Settings Pattern](../../img/voucher-series-pattern.jpg)
+![Voucher Series Settings Pattern](../../img/voucher-series-pattern.png)
 
 
 #### Create tokens based on the `OnlineShopVoucherSeries`
@@ -28,7 +28,7 @@ Depending on the token type there are different functions for managing the token
 ![Create Tokens Simple](../../img/voucher-series-single-2.jpg)
 - Pattern: Create tokens based on the defined pattern, export created tokens as csv and get an overview of created tokens 
 and their usages. 
-![Create Tokens Pattern](../../img/voucher-series-pattern-2.jpg)
+![Create Tokens Pattern](../../img/voucher-series-pattern-2.png)
 
 
 #### Create a Pricing Rule for the `OnlineShopVoucherSeries`
@@ -48,10 +48,10 @@ A voucher token is always applied to a cart. To do so, use following snippet.
 ```php
 <?php
 
-if($token = strip_tags($request->get('voucher-code'))) {
+if ($token = strip_tags($request->get('voucher-code', ''))) {
     try {
         $success = $cart->addVoucherToken($token);
-        if($success) {
+        if ($success) {
             $this->addFlash('success', $translator->trans('cart.voucher-code-added'));
         } else {
             $this->addFlash('danger', $translator->trans('cart.voucher-code-cound-not-be-added'));
@@ -100,7 +100,7 @@ See an sample snippet to display the voucher information to the customer:
 ```twig
 <form method="post" action="{{ path('shop-cart-apply-voucher') }}" class="card p-2 mb-4">
 
-    {% if(cart.pricingManagerTokenInformationDetails | length > 0) %}
+    {% if (cart.pricingManagerTokenInformationDetails | length > 0) %}
 
         <ul class="list-group pb-3">
 

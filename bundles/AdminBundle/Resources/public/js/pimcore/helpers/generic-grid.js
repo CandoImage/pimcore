@@ -22,6 +22,7 @@ pimcore.helpers.grid.buildDefaultStore = function (url, fields, itemsPerPage, cu
     }
 
     var proxy = new Ext.data.proxy.Ajax({
+        timeout: 120000,
         batchActions: false,
         type: 'ajax',
         reader: {
@@ -91,7 +92,8 @@ pimcore.helpers.grid.buildDefaultPagingToolbar = function (store, options) {
         store: store,
         displayInfo: true,
         displayMsg: '{0} - {1} / {2}',
-        emptyMsg: t("no_items_found")
+        emptyMsg: t("no_items_found"),
+        scrollable: true
     };
     if (typeof options !== "undefined") {
         config = Ext.applyIf(options, config);
@@ -137,5 +139,5 @@ pimcore.helpers.grid.buildDefaultPagingToolbar = function (store, options) {
 };
 
 pimcore.helpers.grid.getTranslationColumnRenderer = function (value, metaData, record, rowIndex, colIndex, store) {
-    return t(value);
+    return Ext.util.Format.htmlEncode(t(value));
 };

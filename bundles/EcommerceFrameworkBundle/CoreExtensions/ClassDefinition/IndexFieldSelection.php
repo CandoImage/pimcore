@@ -21,8 +21,9 @@ use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Model\DataObject\ClassDefinition\Data\QueryResourcePersistenceAwareInterface;
 use Pimcore\Model\DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface;
 use Pimcore\Model\DataObject\Concrete;
+use Pimcore\Normalizer\NormalizerInterface;
 
-class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterface, QueryResourcePersistenceAwareInterface
+class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterface, QueryResourcePersistenceAwareInterface, NormalizerInterface
 {
     use Data\Extension\ColumnType;
     use Data\Extension\QueryColumnType;
@@ -55,13 +56,6 @@ class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterf
         'field' => 'varchar(200)',
         'preSelect' => 'text',
     ];
-
-    /**
-     * Type for the generated phpdoc
-     *
-     * @var string
-     */
-    public $phpdocType = '\\Pimcore\\Bundle\\EcommerceFrameworkBundle\\CoreExtensions\\ObjectData\\IndexFieldSelection';
 
     public $width;
 
@@ -162,7 +156,7 @@ class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterf
      * @param null|\Pimcore\Model\DataObject\AbstractObject $object
      * @param mixed $params
      *
-     * @return mixed
+     * @return ObjectData\IndexFieldSelection|null
      */
     public function getDataFromResource($data, $object = null, $params = [])
     {
@@ -234,7 +228,7 @@ class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterf
     /**
      * @see Data::getVersionPreview
      *
-     * @param IndexFieldSelection|null $data
+     * @param ObjectData\IndexFieldSelection|null $data
      * @param Concrete|null $object
      * @param mixed $params
      *
@@ -250,14 +244,9 @@ class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterf
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         if (!$omitMandatoryCheck && $this->getMandatory() &&
             ($data === null || $data->getField() === null)) {
@@ -268,7 +257,7 @@ class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterf
     /**
      * converts object data to a simple string value or CSV Export
      *
-     * @abstract
+     * @internal
      *
      * @param DataObject\Concrete|DataObject\Localizedfield|DataObject\Objectbrick\Data\AbstractData|DataObject\Fieldcollection\Data\AbstractData $object
      * @param array $params
@@ -289,87 +278,6 @@ class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterf
         }
 
         return '';
-    }
-
-    /**
-     * fills object field data values from CSV Import String
-     *
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|\Pimcore\Model\DataObject\AbstractObject $object
-     * @param array $params
-     *
-     * @return ObjectData\IndexFieldSelection|null
-     */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
-    {
-        $values = explode('%%%%', $importValue);
-
-        $value = null;
-        if ($values[0] && $values[1] && $values[2]) {
-            $preSelect = explode('%%', $value[2]);
-            $value = new ObjectData\IndexFieldSelection($value[0], $values[1], $preSelect);
-        }
-
-        return $value;
-    }
-
-    /**
-     * converts data to be exposed via webservices
-     *
-     * @param \Pimcore\Model\DataObject\AbstractObject $object
-     * @param mixed $params
-     *
-     * @return mixed
-     */
-    public function getForWebserviceExport($object, $params = [])
-    {
-        $key = $this->getName();
-        $getter = 'get'.ucfirst($key);
-
-        if ($object->$getter() instanceof ObjectData\IndexFieldSelection) {
-            $preSelect = $object->$getter()->getPreSelect();
-            if ($preSelect) {
-                if (!is_array($preSelect)) {
-                    $preSelect = explode(',', $preSelect);
-                }
-                $preSelect = implode('%%', $preSelect);
-            }
-
-            return [
-                'tenant' => $object->$getter()->getTenant(),
-                'field' => $object->$getter()->getField(),
-                'preSelect' => $preSelect,
-            ];
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * converts data to be imported via webservices
-     *
-     * @deprecated
-     *
-     * @param mixed $value
-     * @param \Pimcore\Model\DataObject\AbstractObject|null $relatedObject
-     * @param mixed $params
-     * @param \Pimcore\Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     *
-     * @return mixed
-     */
-    public function getFromWebserviceImport($value, $relatedObject = null, $params = [], $idMapper = null)
-    {
-        if (empty($value)) {
-            return null;
-        } elseif ($value['field'] !== null) {
-            return new ObjectData\IndexFieldSelection($value['tenant'], $value['field'], explode('%%', $value['preSelect']));
-        } else {
-            throw new \Exception(get_class($this).': cannot get values from web service import - invalid data');
-        }
     }
 
     /**
@@ -398,6 +306,55 @@ class IndexFieldSelection extends Data implements ResourcePersistenceAwareInterf
      */
     public function setWidth($width)
     {
-        $this->width = intval($width);
+        $this->width = (int)$width;
+    }
+
+    public function getParameterTypeDeclaration(): ?string
+    {
+        return '?\\' . ObjectData\IndexFieldSelection::class;
+    }
+
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?\\' . ObjectData\IndexFieldSelection::class;
+    }
+
+    public function getPhpdocInputType(): ?string
+    {
+        return '\\' . ObjectData\IndexFieldSelection::class . '|null';
+    }
+
+    public function getPhpdocReturnType(): ?string
+    {
+        return '\\' . ObjectData\IndexFieldSelection::class . '|null';
+    }
+
+    public function normalize($value, $params = [])
+    {
+        if ($value instanceof ObjectData\IndexFieldSelection) {
+            return [
+                'tenant' => $value->getTenant(),
+                'field' => $value->getField(),
+                'preSelect' => $value->getPreSelect(),
+            ];
+        }
+
+        return null;
+    }
+
+    public function denormalize($value, $params = [])
+    {
+        if (is_array($value)) {
+            $tenant = $value['tenant'];
+            $field = $value['field'];
+            $preSelect = $value['preSelect'];
+
+            return new ObjectData\IndexFieldSelection($tenant, $field, $preSelect);
+        }
+        if ($value instanceof ObjectData\IndexFieldSelection) {
+            return $value;
+        }
+
+        return null;
     }
 }

@@ -20,6 +20,8 @@ use Symfony\Component\Security\Core\Encoder\PasswordEncoderInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
+ * @internal
+ *
  * Password encoding and verification for Pimcore objects and admin users is implemented on the user object itself.
  * Therefore the encoder needs the user object when encoding or verifying a password. This factory decorates the core
  * factory and allows to delegate building the encoder to a type specific factory which then is able to create a
@@ -27,6 +29,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
  *
  * If the given user is not configured to be handled by one of the encoder factories, the normal framework encoder
  * logic applies.
+ *
+ * @deprecated
  */
 class EncoderFactory implements EncoderFactoryInterface
 {
@@ -51,7 +55,7 @@ class EncoderFactory implements EncoderFactoryInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getEncoder($user)
     {
@@ -92,13 +96,8 @@ class EncoderFactory implements EncoderFactoryInterface
 
         if (null !== $factoryKey) {
             $factory = $this->encoderFactories[$factoryKey];
-            $encoder = $factory->getEncoder($user);
 
-            if (!$encoder) {
-                throw new \RuntimeException(sprintf('Failed to fetch encoder from factory "%s".', $factoryKey));
-            }
-
-            return $encoder;
+            return $factory->getEncoder($user);
         }
 
         return null;

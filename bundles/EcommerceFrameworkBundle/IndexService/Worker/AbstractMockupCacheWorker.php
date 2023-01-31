@@ -81,7 +81,7 @@ abstract class AbstractMockupCacheWorker extends ProductCentricBatchProcessingWo
 
         $key = $this->createMockupCacheKey($objectId);
 
-        //use cache instance directly to aviod cache locking -> in this case force writing to cache is needed
+        //use cache instance directly to avoid cache locking -> in this case force writing to cache is needed
         $hasLock = Cache::getHandler()->getWriteLock()->hasLock();
         if ($hasLock) {
             Cache::getHandler()->getWriteLock()->disable();
@@ -91,7 +91,9 @@ abstract class AbstractMockupCacheWorker extends ProductCentricBatchProcessingWo
         $result = Cache::load($key);
 
         if ($success && $result) {
-            $this->db->query('UPDATE ' . $this->getStoreTableName() . ' SET crc_index = crc_current WHERE o_id = ? and tenant = ?', [$objectId, $this->name]);
+            $this->executeTransactionalQuery(function () use ($objectId) {
+                $this->db->executeQuery('UPDATE ' . $this->getStoreTableName() . ' SET crc_index = crc_current WHERE o_id = ? and tenant = ?', [$objectId, $this->name]);
+            });
         } else {
             Logger::err("Element with ID $objectId could not be added to mockup-cache");
         }

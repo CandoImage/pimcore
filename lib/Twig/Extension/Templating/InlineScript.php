@@ -57,5 +57,3 @@ class InlineScript extends HeadScript implements RuntimeExtensionInterface
      */
     protected $_regKey = 'InlineScript';
 }
-
-class_alias(InlineScript::class, 'Pimcore\Templating\Helper\InlineScript');

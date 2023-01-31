@@ -53,7 +53,8 @@ pimcore.object.classes.klass = Class.create({
                 text: t("general_settings"),
                 leaf: true,
                 iconCls: "pimcore_icon_class",
-                isTarget: true
+                isTarget: true,
+                className: this.data.name
             },
             listeners: this.getTreeNodeListeners(),
             viewConfig: {
@@ -63,6 +64,7 @@ pimcore.object.classes.klass = Class.create({
                 }
             }
         });
+        this.tree.getStore().setDefaultRootText("");
     },
 
     addLayout: function () {
@@ -80,7 +82,7 @@ pimcore.object.classes.klass = Class.create({
         panelButtons.push({
             text: t("configure_custom_layouts"),
             iconCls: "pimcore_icon_class pimcore_icon_overlay_add",
-            hidden: (this instanceof pimcore.object.fieldcollections.field) || (this instanceof pimcore.object.objectbricks.field),
+            hidden: this instanceof pimcore.object.fieldcollections.field,
             handler: this.configureCustomLayouts.bind(this)
         });
 
@@ -93,7 +95,8 @@ pimcore.object.classes.klass = Class.create({
         panelButtons.push({
             text: t("import"),
             iconCls: "pimcore_icon_upload",
-            handler: this.upload.bind(this)
+            handler: this.upload.bind(this),
+            disabled: !this.data.isWriteable
         });
 
         panelButtons.push({
@@ -108,7 +111,8 @@ pimcore.object.classes.klass = Class.create({
         panelButtons.push({
             text: t("save"),
             iconCls: "pimcore_icon_apply",
-            handler: this.save.bind(this)
+            handler: this.save.bind(this),
+            disabled: !this.data.isWriteable
         });
 
 
@@ -123,6 +127,7 @@ pimcore.object.classes.klass = Class.create({
             border: false,
             layout: "border",
             closable: true,
+            autoScroll: true,
             title: name,
             //id: "pimcore_class_editor_panel_" + this.getId(),
             id: this.editorPrefix + this.getId(),
@@ -145,7 +150,7 @@ pimcore.object.classes.klass = Class.create({
 
     configureCustomLayouts: function() {
         try {
-            var dialog = new pimcore.object.helpers.customLayoutEditor(this.data);
+            new pimcore.object.helpers.customLayoutEditor(this.data);
         } catch (e) {
             console.log(e);
         }
@@ -184,9 +189,9 @@ pimcore.object.classes.klass = Class.create({
     initLayoutFields: function () {
 
         if (this.data.layoutDefinitions) {
-            if (this.data.layoutDefinitions.childs) {
-                for (var i = 0; i < this.data.layoutDefinitions.childs.length; i++) {
-                    this.tree.getRootNode().appendChild(this.recursiveAddNode(this.data.layoutDefinitions.childs[i],
+            if (this.data.layoutDefinitions.children) {
+                for (var i = 0; i < this.data.layoutDefinitions.children.length; i++) {
+                    this.tree.getRootNode().appendChild(this.recursiveAddNode(this.data.layoutDefinitions.children[i],
                         this.tree.getRootNode()));
                 }
                 this.tree.getRootNode().expand();
@@ -208,9 +213,9 @@ pimcore.object.classes.klass = Class.create({
 
         newNode = fn();
 
-        if (con.childs) {
-            for (var i = 0; i < con.childs.length; i++) {
-                this.recursiveAddNode(con.childs[i], newNode);
+        if (con.children) {
+            for (var i = 0; i < con.children.length; i++) {
+                this.recursiveAddNode(con.children[i], newNode);
             }
         }
 
@@ -267,13 +272,6 @@ pimcore.object.classes.klass = Class.create({
         // get available data types
         var dataMenu = [];
         var dataComps = Object.keys(pimcore.object.classes.data);
-
-        // @TODO: ignoredAliases are there for BC reasons, to be removed in Pimcore 10
-        var ignoredAliases = ['multihrefMetadata','objectsMetadata','objects','multihref','href','nonownerobjects', 'reverseManyToManyObjectRelation'];
-        ignoredAliases.forEach(function (item) {
-            dataComps = array_remove_value(dataComps, item);
-        });
-
         var parentRestrictions;
         var groups = [];
         var groupNames = ["text","numeric","date","select","media","relation","geo","crm","structured","other"];
@@ -385,12 +383,12 @@ pimcore.object.classes.klass = Class.create({
             changeTypeAllowed = true;
         }
 
-        var childsAllowed = false;
+        var childrenAllowed = false;
         if (allowedTypes[parentType] && allowedTypes[parentType].length > 0) {
-            childsAllowed = true;
+            childrenAllowed = true;
         }
 
-        if (childsAllowed || changeTypeAllowed) {
+        if (childrenAllowed || changeTypeAllowed) {
             // get available layouts
             var layoutMenu = [];
             var layouts = Object.keys(pimcore.object.classes.layout);
@@ -459,7 +457,7 @@ pimcore.object.classes.klass = Class.create({
                 handler: this.copyNode.bind(this, tree, record)
             }));
 
-            if (childsAllowed) {
+            if (childrenAllowed) {
                 if (pimcore && pimcore.classEditor && pimcore.classEditor.clipboard) {
                     menu.add(new Ext.menu.Item({
                         text: t('paste'),
@@ -491,8 +489,8 @@ pimcore.object.classes.klass = Class.create({
     },
 
     getRestrictionsFromParent: function (node) {
-        if(node.data.editor.type == "localizedfields") {
-            return "localizedfields";
+        if(in_array(node.data.editor.type, ['localizedfields', 'block'])) {
+            return node.data.editor.type;
         } else {
             if(node.parentNode && node.parentNode.getDepth() > 0) {
                 var parentType = this.getRestrictionsFromParent(node.parentNode);
@@ -609,7 +607,12 @@ pimcore.object.classes.klass = Class.create({
                 for (var i = 0; i < items.length; i++) {
                     var item = items[i];
                     if (typeof item.getValue == "function") {
-                        this.data[item.name] = item.getValue();
+                        let value = item.getValue();
+                        if (typeof item.config.xtype !== 'undefined' && item.config.xtype === 'textfield') {
+                            value = Ext.util.Format.htmlEncode(value);
+                        }
+
+                        this.data[item.name] = value;
                     }
                 }
 
@@ -707,6 +710,7 @@ pimcore.object.classes.klass = Class.create({
             id: "iconfield-" + this.getId(),
             name: "icon",
             width: 396,
+            renderer: Ext.util.Format.htmlEncode,
             value: this.data.icon,
             listeners: {
                 "afterrender": function (el) {
@@ -742,6 +746,7 @@ pimcore.object.classes.klass = Class.create({
         this.rootPanel = new Ext.form.FormPanel({
             title: '<b>' + t("general_settings") + '</b>',
             bodyStyle: 'padding: 10px;',
+            autoScroll: true,
             defaults: {
                 labelWidth: 200
             },
@@ -753,6 +758,7 @@ pimcore.object.classes.klass = Class.create({
                     width: 500,
                     enableKeyEvents: true,
                     value: this.data.name,
+                    renderer: Ext.util.Format.htmlEncode,
                     listeners: {
                         keyup: function (el) {
                             this.rootPanel.getComponent("phpClassName").setValue(getPhpClassName(el.getValue()))
@@ -764,12 +770,14 @@ pimcore.object.classes.klass = Class.create({
                     fieldLabel: t("description"),
                     name: "description",
                     width: 500,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.description
                 },
                 {
                     xtype: "textfield",
                     fieldLabel: t("unique_identifier"),
                     disabled: true,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.id,
                     width: 500
                 },
@@ -780,6 +788,7 @@ pimcore.object.classes.klass = Class.create({
                     itemId: "phpClassName",
                     width: 500,
                     disabled: true,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: getPhpClassName(this.data.name)
                 },
                 {
@@ -787,6 +796,7 @@ pimcore.object.classes.klass = Class.create({
                     fieldLabel: t("parent_php_class"),
                     name: "parentClass",
                     width: 600,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.parentClass
                 },
                 {
@@ -794,6 +804,7 @@ pimcore.object.classes.klass = Class.create({
                     width: 600,
                     name: "implementsInterfaces",
                     fieldLabel: t("implements_interfaces"),
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.implementsInterfaces
                 },
                 {
@@ -801,6 +812,7 @@ pimcore.object.classes.klass = Class.create({
                     fieldLabel: t("use_traits"),
                     name: "useTraits",
                     width: 600,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.useTraits
                 },
                 {
@@ -808,6 +820,7 @@ pimcore.object.classes.klass = Class.create({
                     fieldLabel: t("listing_parent_php_class"),
                     name: "listingParentClass",
                     width: 600,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.listingParentClass
                 },
                 {
@@ -815,6 +828,7 @@ pimcore.object.classes.klass = Class.create({
                     fieldLabel: t("listing_use_traits"),
                     name: "listingUseTraits",
                     width: 600,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.listingUseTraits
                 },
                 {
@@ -822,13 +836,23 @@ pimcore.object.classes.klass = Class.create({
                     fieldLabel: t("link_generator_reference"),
                     name: "linkGeneratorReference",
                     width: 600,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.linkGeneratorReference
+                },
+                {
+                    xtype: "textfield",
+                    fieldLabel: t("preview_generator_reference"),
+                    name: "previewGeneratorReference",
+                    width: 600,
+                    renderer: Ext.util.Format.htmlEncode,
+                    value: this.data.previewGeneratorReference
                 },
                 {
                     xtype: "textfield",
                     fieldLabel: t("preview_url"),
                     name: "previewUrl",
                     width: 600,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.previewUrl
                 },
                 {
@@ -879,16 +903,23 @@ pimcore.object.classes.klass = Class.create({
                     fieldLabel: t("group"),
                     name: "group",
                     width: 600,
+                    renderer: Ext.util.Format.htmlEncode,
                     value: this.data.group
                 },
                 this.allowInheritance,
                 this.allowVariants,
                 this.showVariants,
                 {
+                    xtype: "label",
+                    text: t("generate_type_declarations"),
+                    cls: 'pimcore_deprecated'
+                },
+                {
                     xtype: "checkbox",
-                    fieldLabel: t("generate_type_declarations"),
+                    fieldLabel: `(${t("deprecated")})`,
                     name: "generateTypeDeclarations",
-                    checked: this.data.generateTypeDeclarations
+                    checked: this.data.generateTypeDeclarations,
+                    cls: 'pimcore_cb_middle_two_lines'
                 },
                 {
                     xtype: "checkbox",
@@ -1052,6 +1083,14 @@ pimcore.object.classes.klass = Class.create({
             value: data.index_key
         };
 
+        //fixes data to match store model
+        const indexesArray = [];
+        if(data.index_columns){
+            Object.values(data.index_columns).forEach(column => {
+                indexesArray.push({id: column, value: column});
+            });
+        }  
+
         var tagsField = new Ext.form.field.Tag({
             name: "index_columns",
             width:550,
@@ -1059,7 +1098,7 @@ pimcore.object.classes.klass = Class.create({
             minChars: 2,
             store: this.tagstore,
             fieldLabel: t("columns"),
-            value: data.columns,
+            value: indexesArray,
             draggable: true,
             displayField: 'value',
             valueField: 'value',
@@ -1067,7 +1106,7 @@ pimcore.object.classes.klass = Class.create({
             delimiter: '\x01',
             createNewOnEnter: true,
             componentCls: 'superselect-no-drop-down',
-            value: data.index_columns
+            valueParam: indexesArray
         });
 
         var removeButton = new Ext.button.Button({
@@ -1161,16 +1200,16 @@ pimcore.object.classes.klass = Class.create({
         }
 
         var newNode = {
-            text: nodeLabel,
+            text: htmlspecialchars(nodeLabel),
             type: "layout",
             iconCls: pimcore.object.classes.layout[type].prototype.getIconClass(),
             leaf: false,
             expandable: false,
-            expanded: true
+            expanded: true,
         };
         newNode = this.appendChild(newNode);
 
-        //to hide or show the expanding icon depending if childs are available or not
+        //to hide or show the expanding icon depending if children are available or not
         newNode.addListener('remove', function(node, removedNode, isMove) {
             if(!node.hasChildNodes()) {
                 node.set('expandable', false);
@@ -1211,7 +1250,7 @@ pimcore.object.classes.klass = Class.create({
         }
 
         var newNode = {
-            text: nodeLabel,
+            text: htmlspecialchars(nodeLabel),
             type: "data",
             leaf: true,
             iconCls: pimcore.object.classes.data[type].prototype.getIconClass()
@@ -1401,12 +1440,12 @@ pimcore.object.classes.klass = Class.create({
             }
         }
 
-        data.childs = null;
+        data.children = null;
         if (node.childNodes.length > 0) {
-            data.childs = [];
+            data.children = [];
 
             for (var i = 0; i < node.childNodes.length; i++) {
-                data.childs.push(this.getNodeData(node.childNodes[i]));
+                data.children.push(this.getNodeData(node.childNodes[i]));
             }
         }
 
@@ -1476,7 +1515,7 @@ pimcore.object.classes.klass = Class.create({
                 if (res.message) {
                     pimcore.helpers.showNotification(t("error"), res.message, "error");
                 } else {
-                    throw "save was not successful, see log files in /var/logs";
+                    throw "save was not successful, see log files in /var/log";
                 }
             }
         } catch (e) {

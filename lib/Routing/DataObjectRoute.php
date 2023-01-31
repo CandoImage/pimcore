@@ -17,25 +17,34 @@ namespace Pimcore\Routing;
 
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\Data\UrlSlug;
+use Pimcore\Model\Site;
 use Symfony\Cmf\Component\Routing\RouteObjectInterface;
 use Symfony\Component\Routing\Route;
 
-class DataObjectRoute extends Route implements RouteObjectInterface
+/**
+ * @internal
+ */
+final class DataObjectRoute extends Route implements RouteObjectInterface
 {
     /**
-     * @var Concrete
+     * @var Concrete|null
      */
-    protected $object;
+    protected ?Concrete $object;
 
     /**
-     * @var UrlSlug
+     * @var UrlSlug|null
      */
-    protected $slug;
+    protected ?UrlSlug $slug;
 
     /**
-     * @return Concrete
+     * @var Site|null
      */
-    public function getObject(): Concrete
+    protected ?Site $site;
+
+    /**
+     * @return Concrete|null
+     */
+    public function getObject(): ?Concrete
     {
         return $this->object;
     }
@@ -53,9 +62,9 @@ class DataObjectRoute extends Route implements RouteObjectInterface
     }
 
     /**
-     * @return UrlSlug
+     * @return UrlSlug|null
      */
-    public function getSlug(): UrlSlug
+    public function getSlug(): ?UrlSlug
     {
         return $this->slug;
     }
@@ -73,37 +82,42 @@ class DataObjectRoute extends Route implements RouteObjectInterface
     }
 
     /**
-     * Get the content document this route entry stands for. If non-null,
-     * the ControllerClassMapper uses it to identify a controller and
-     * the content is passed to the controller.
-     *
-     * If there is no specific content for this url (i.e. its an "application"
-     * page), may return null.
-     *
-     * @return object the document or entity this route entry points to
+     * @return Site|null
      */
-    public function getContent()
+    public function getSite(): ?Site
+    {
+        return $this->site;
+    }
+
+    /**
+     * @param Site|null $site
+     *
+     * @return $this
+     */
+    public function setSite(?Site $site): self
+    {
+        $this->site = $site;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getContent(): ?object
     {
         return null;
     }
 
     /**
-     * Get the route name.
-     *
-     * Normal symfony routes do not know their name, the name is only known
-     * from the route collection. In the CMF, it is possible to use route
-     * documents outside of collections, and thus useful to have routes provide
-     * their name.
-     *
-     * There are no limitations to allowed characters in the name.
-     *
-     * @return string|null the route name or null to use the default name
-     *                     (e.g. from route collection if known)
+     * {@inheritdoc}
      */
-    public function getRouteKey()
+    public function getRouteKey(): ?string
     {
         if ($this->object) {
-            return sprintf('data_object_%d_%s', $this->object->getId(), $this->getPath());
+            return sprintf('data_object_%d_%d_%s', $this->object->getId(), $this->site?->getId(), $this->getPath());
         }
+
+        return null;
     }
 }

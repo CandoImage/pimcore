@@ -18,6 +18,8 @@ namespace Pimcore\Model\Schedule;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Schedule\Task\Dao getDao()
  * @method void save()
  */
@@ -26,40 +28,40 @@ class Task extends Model\AbstractModel
     /**
      * @var int
      */
-    public $id;
+    protected $id;
 
     /**
      * @var int
      */
-    public $cid;
+    protected $cid;
 
     /**
      * @var string
      */
-    public $ctype;
+    protected $ctype;
 
     /**
      * @var int
      */
-    public $date;
+    protected $date;
 
     /**
      * @var string
      */
-    public $action;
+    protected $action;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $version;
+    protected $version;
 
     /**
      * @var bool
      */
-    public $active;
+    protected $active;
 
     /**
-     * @var null|int
+     * @var int|null
      */
     protected $userId;
 
@@ -73,16 +75,16 @@ class Task extends Model\AbstractModel
         $cacheKey = 'scheduled_task_' . $id;
 
         try {
-            $task = \Pimcore\Cache\Runtime::get($cacheKey);
+            $task = \Pimcore\Cache\RuntimeCache::get($cacheKey);
             if (!$task) {
                 throw new \Exception('Scheduled Task in Registry is not valid');
             }
         } catch (\Exception $e) {
             try {
                 $task = new self();
-                $task->getDao()->getById(intval($id));
-                \Pimcore\Cache\Runtime::set($cacheKey, $task);
-            } catch (\Exception $e) {
+                $task->getDao()->getById((int)$id);
+                \Pimcore\Cache\RuntimeCache::set($cacheKey, $task);
+            } catch (Model\Exception\NotFoundException $e) {
                 return null;
             }
         }
@@ -93,7 +95,7 @@ class Task extends Model\AbstractModel
     /**
      * @param array $data
      *
-     * @return Task
+     * @return self
      */
     public static function create($data)
     {
@@ -153,7 +155,7 @@ class Task extends Model\AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getVersion()
     {
@@ -221,7 +223,7 @@ class Task extends Model\AbstractModel
     }
 
     /**
-     * @param int $version
+     * @param int|null $version
      *
      * @return $this
      */

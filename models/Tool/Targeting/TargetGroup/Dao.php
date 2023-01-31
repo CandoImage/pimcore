@@ -20,6 +20,8 @@ use Pimcore\Model\Tool\Targeting\TargetGroup;
 use Pimcore\Tool\Serialize;
 
 /**
+ * @internal
+ *
  * @property TargetGroup $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -27,7 +29,7 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int|null $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById(int $id = null)
     {
@@ -35,29 +37,37 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow('SELECT * FROM targeting_target_groups WHERE id = ?', $this->model->getId());
+        $data = $this->db->fetchAssociative('SELECT * FROM targeting_target_groups WHERE id = ?', [$this->model->getId()]);
 
         if (!empty($data['id'])) {
             $data['actions'] = (isset($data['actions']) ? Serialize::unserialize($data['actions']) : []);
 
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('Target Group with id ' . $this->model->getId() . " doesn't exist");
+            throw new Model\Exception\NotFoundException('Target Group with id ' . $this->model->getId() . " doesn't exist");
         }
     }
 
+    /**
+     * @param string|null $name
+     *
+     * @throws Model\Exception\NotFoundException
+     */
     public function getByName(string $name = null)
     {
         if (null !== $name) {
             $this->model->setName($name);
         }
 
-        $data = $this->db->fetchAll('SELECT id FROM targeting_target_groups WHERE name = ?', [$this->model->getName()]);
+        $data = $this->db->fetchAllAssociative('SELECT id FROM targeting_target_groups WHERE name = ?', [$this->model->getName()]);
 
         if (count($data) === 1) {
             $this->getById($data[0]['id']);
         } else {
-            throw new \Exception(sprintf('Target Group with name %s doesn\'t exist or isn\'t unique', $this->model->getName()));
+            throw new Model\Exception\NotFoundException(sprintf(
+                'Targeting group with name "%s" does not exist or is not unique.',
+                $this->model->getName()
+            ));
         }
     }
 
@@ -100,6 +110,6 @@ class Dao extends Model\Dao\AbstractDao
     public function create()
     {
         $this->db->insert('targeting_target_groups', []);
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 }

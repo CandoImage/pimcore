@@ -25,14 +25,14 @@ use Pimcore\Model;
 class Definition extends Model\AbstractModel
 {
     /**
-     * @var string
+     * @var string|null
      */
-    public $key;
+    protected $key;
 
     /**
-     * @var string
+     * @var string|null
      */
-    public $category;
+    protected $category;
 
     /**
      * @param array $data
@@ -45,7 +45,7 @@ class Definition extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getKey()
     {
@@ -65,7 +65,7 @@ class Definition extends Model\AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getCategory(): ?string
     {
@@ -87,7 +87,7 @@ class Definition extends Model\AbstractModel
     /**
      * @param string $permission
      *
-     * @return mixed
+     * @return Definition|null
      *
      * @throws \Exception
      */
@@ -104,12 +104,14 @@ class Definition extends Model\AbstractModel
         if (1 === count($permissionDefinition)) {
             return $permissionDefinition[0];
         }
+
+        return null;
     }
 
     /**
      * @param string $permission
      *
-     * @return mixed|static
+     * @return self|static
      *
      * @throws \Exception
      */

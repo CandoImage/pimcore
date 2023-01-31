@@ -31,7 +31,6 @@ class BooleanSelect extends Data implements
     use Model\DataObject\Traits\SimpleComparisonTrait;
     use Extension\ColumnType;
     use Extension\QueryColumnType;
-    use DataObject\ClassDefinition\NullablePhpdocReturnTypeTrait;
     use DataObject\Traits\SimpleNormalizerTrait;
 
     /** storage value for yes */
@@ -69,28 +68,51 @@ class BooleanSelect extends Data implements
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'booleanSelect';
 
-    /** @var string */
+    /**
+     * @internal
+     *
+     * @var string
+     */
     public $yesLabel;
 
-    /** @var string */
+    /**
+     * @internal
+     *
+     * @var string
+     */
     public $noLabel;
 
-    /** @var string */
+    /**
+     * @internal
+     *
+     * @var string
+     */
     public $emptyLabel;
 
+    /**
+     * @internal
+     *
+     * @var array|array[]
+     */
     public $options = self::DEFAULT_OPTIONS;
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
-    public $width;
+    public $width = 0;
 
     /**
      * Type for the column to query
+     *
+     * @internal
      *
      * @var string
      */
@@ -99,16 +121,11 @@ class BooleanSelect extends Data implements
     /**
      * Type for the column
      *
-     * @var string
-     */
-    public $columnType = 'tinyint(1) null';
-
-    /**
-     * Type for the generated phpdoc
+     * @internal
      *
      * @var string
      */
-    public $phpdocType = 'bool';
+    public $columnType = 'tinyint(1) null';
 
     /**
      * @return array
@@ -130,7 +147,7 @@ class BooleanSelect extends Data implements
     }
 
     /**
-     * @return int
+     * @return string|int
      */
     public function getWidth()
     {
@@ -138,13 +155,16 @@ class BooleanSelect extends Data implements
     }
 
     /**
-     * @param int|null $width
+     * @param string|int $width
      *
      * @return $this
      */
     public function setWidth($width)
     {
-        $this->width = $this->getAsIntegerCast($width);
+        if (is_numeric($width)) {
+            $width = (int)$width;
+        }
+        $this->width = $width;
 
         return $this;
     }
@@ -213,7 +233,7 @@ class BooleanSelect extends Data implements
     /**
      * @see Data::getVersionPreview
      *
-     * @param string $data
+     * @param bool|null $data
      * @param DataObject\Concrete|null $object
      * @param array $params
      *
@@ -223,18 +243,16 @@ class BooleanSelect extends Data implements
     {
         if ($data === true) {
             return $this->getYesLabel();
-        } elseif ($data === false) {
+        }
+        if ($data === false) {
             return $this->getNoLabel();
         }
 
         return '';
     }
 
-    /** True if change is allowed in edit mode.
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return bool
+    /**
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
@@ -261,8 +279,8 @@ class BooleanSelect extends Data implements
 
         $value = '';
         foreach ($this->options as $option) {
-            if ($option->value == $data) {
-                $value = $option->key;
+            if ($option['value'] == $data) {
+                $value = $option['key'];
 
                 break;
             }
@@ -277,14 +295,9 @@ class BooleanSelect extends Data implements
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         //TODO mandatory probably doesn't make much sense
         if (!$omitMandatoryCheck && $this->getMandatory() && $this->isEmpty($data)) {
@@ -386,7 +399,7 @@ class BooleanSelect extends Data implements
     }
 
     /**
-     * @param string $data
+     * @param bool|null $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
@@ -400,7 +413,7 @@ class BooleanSelect extends Data implements
     /**
      * @see Data::getDataForEditmode
      *
-     * @param string $data
+     * @param bool|null $data
      * @param null|DataObject\Concrete $object
      * @param mixed $params
      *
@@ -410,7 +423,8 @@ class BooleanSelect extends Data implements
     {
         if ($data === true) {
             return self::YES_VALUE;
-        } elseif ($data === false) {
+        }
+        if ($data === false) {
             return self::NO_VALUE;
         }
 
@@ -440,9 +454,9 @@ class BooleanSelect extends Data implements
      */
     public function getDataFromEditmode($data, $object = null, $params = [])
     {
-        if (intval($data) === 1) {
+        if ((int)$data === 1) {
             return true;
-        } elseif (intval($data) === -1) {
+        } elseif ((int)$data === -1) {
             return false;
         }
 
@@ -450,25 +464,7 @@ class BooleanSelect extends Data implements
     }
 
     /**
-     * @param mixed $oldValue
-     * @param mixed $newValue
-     *
-     * @return bool
-     */
-    public function isEqual($oldValue, $newValue): bool
-    {
-        return $oldValue === $newValue;
-    }
-
-    /**
-     * converts object data to a simple string value or CSV Export
-     *
-     * @abstract
-     *
-     * @param DataObject\Concrete|DataObject\Localizedfield|DataObject\Objectbrick\Data\AbstractData|DataObject\Fieldcollection\Data\AbstractData $object
-     * @param array $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getForCsvExport($object, $params = [])
     {
@@ -485,24 +481,34 @@ class BooleanSelect extends Data implements
     }
 
     /**
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
+    public function getParameterTypeDeclaration(): ?string
     {
-        if ($importValue === '1') {
-            $value = true;
-        } elseif ($importValue === '0') {
-            $value = false;
-        } else {
-            $value = null;
-        }
+        return '?bool';
+    }
 
-        return $value;
+    /**
+     * {@inheritdoc}
+     */
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?bool';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
+    {
+        return 'bool|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return 'bool|null';
     }
 }

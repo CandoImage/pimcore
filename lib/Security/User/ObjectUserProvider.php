@@ -18,20 +18,22 @@ namespace Pimcore\Security\User;
 use Pimcore\Model\DataObject\AbstractObject;
 use Symfony\Component\Security\Core\Exception\InvalidArgumentException;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
-use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
+use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
 /**
+ * @internal
+ *
  * User provider loading users from pimcore objects. To load users, the provider needs
  * to know which kind of users to load (className) and which field to query for the
  * username (usernameField).
  *
- * Example DI configuration loading from the AppBundle\Model\DataObject\User class and searching by username:
+ * Example DI configuration loading from the App\Model\DataObject\User class and searching by username:
  *
  *      website_demo.security.user_provider:
  *          class: Pimcore\Security\User\ObjectUserProvider
- *          arguments: ['AppBundle\Model\DataObject\User', 'username']
+ *          arguments: ['App\Model\DataObject\User', 'username']
  */
 class ObjectUserProvider implements UserProviderInterface
 {
@@ -82,9 +84,9 @@ class ObjectUserProvider implements UserProviderInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function loadUserByUsername($username)
+    public function loadUserByIdentifier(string $username)
     {
         $getter = sprintf('getBy%s', ucfirst($this->usernameField));
 
@@ -94,11 +96,21 @@ class ObjectUserProvider implements UserProviderInterface
             return $user;
         }
 
-        throw new UsernameNotFoundException(sprintf('User %s was not found', $username));
+        throw new UserNotFoundException(sprintf('User %s was not found', $username));
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
+     *
+     * @deprecated use loadUserByIdentifier() instead.
+     */
+    public function loadUserByUsername($username)
+    {
+        return $this->loadUserByIdentifier($username);
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function refreshUser(UserInterface $user)
     {
@@ -112,7 +124,7 @@ class ObjectUserProvider implements UserProviderInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function supportsClass($class)
     {

@@ -26,8 +26,8 @@ use Pimcore\Model\Staticroute;
 use Pimcore\Targeting\ActionHandler\ActionHandlerInterface;
 use Pimcore\Targeting\ActionHandler\DelegatingActionHandler;
 use Pimcore\Targeting\Model\VisitorInfo;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Handles target groups configured on the document settings panel. If a document
@@ -61,7 +61,10 @@ class DocumentTargetGroupListener implements EventSubscriberInterface
         $this->eventDispatcher = $eventDispatcher;
     }
 
-    public static function getSubscribedEvents()
+    /**
+     * @return string[]
+     */
+    public static function getSubscribedEvents()// : array
     {
         return [
             TargetingEvents::PRE_RESOLVE => 'onVisitorInfoResolve',
@@ -80,7 +83,7 @@ class DocumentTargetGroupListener implements EventSubscriberInterface
 
     private function assignDocumentTargetGroups(Document $document, VisitorInfo $visitorInfo)
     {
-        if (!$document || !$document instanceof Document\Page || null !== Staticroute::getCurrentRoute()) {
+        if (!$document instanceof Document\Page || null !== Staticroute::getCurrentRoute()) {
             return;
         }
 
@@ -98,8 +101,8 @@ class DocumentTargetGroupListener implements EventSubscriberInterface
             ]);
 
             $this->eventDispatcher->dispatch(
-                TargetingEvents::ASSIGN_DOCUMENT_TARGET_GROUP,
-                new AssignDocumentTargetGroupEvent($visitorInfo, $document, $targetGroup)
+                new AssignDocumentTargetGroupEvent($visitorInfo, $document, $targetGroup),
+                TargetingEvents::ASSIGN_DOCUMENT_TARGET_GROUP
             );
         }
     }
