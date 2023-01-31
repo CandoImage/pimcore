@@ -14,10 +14,9 @@
 pimcore.registerNS("pimcore.document.editables.embed");
 pimcore.document.editables.embed = Class.create(pimcore.document.editable, {
 
-    initialize: function(id, name, config, data, inherited) {
-        this.id = id;
-        this.name = name;
-        this.config = this.parseConfig(config);
+    initialize: function($super, id, name, config, data, inherited) {
+        $super(id, name, config, data, inherited);
+
         this.data = data;
     },
 
@@ -34,7 +33,7 @@ pimcore.document.editables.embed = Class.create(pimcore.document.editable, {
         button.render(this.element.insertHtml("afterBegin", '<div class="pimcore_video_edit_button"></div>'));
 
         if(empty(this.data["url"])) {
-            this.element.addCls("pimcore_tag_embed_empty pimcore_editable_embed_empty");
+            this.element.addCls("pimcore_editable_embed_empty");
             this.element.on("click", this.openEditor.bind(this));
         }
     },

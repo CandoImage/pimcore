@@ -24,26 +24,30 @@ use Pimcore\Model\Redirect;
  */
 class Hardlink extends Document
 {
-    use Document\Traits\ScheduledTasksTrait;
+    use Model\Element\Traits\ScheduledTasksTrait;
 
     /**
-     * static type of this object
-     *
-     * @var string
+     * {@inheritdoc}
      */
-    protected $type = 'hardlink';
+    protected string $type = 'hardlink';
 
     /**
+     * @internal
+     *
      * @var int
      */
     protected $sourceId;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     protected $propertiesFromSource;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     protected $childrenFromSource;
@@ -51,7 +55,7 @@ class Hardlink extends Document
     /**
      * @return Document|null
      */
-    public function getSourceDocument()
+    public function getSourceDocument(): ?Document
     {
         if ($this->getSourceId()) {
             return Document::getById($this->getSourceId());
@@ -61,19 +65,18 @@ class Hardlink extends Document
     }
 
     /**
-     * @see Document::resolveDependencies
-     *
-     * @return array
+     * {@inheritdoc}
      */
-    public function resolveDependencies()
+    protected function resolveDependencies(): array
     {
         $dependencies = parent::resolveDependencies();
+        $sourceDocument = $this->getSourceDocument();
 
-        if ($this->getSourceDocument() instanceof Document) {
-            $key = 'document_' . $this->getSourceDocument()->getId();
+        if ($sourceDocument instanceof Document) {
+            $key = 'document_' . $sourceDocument->getId();
 
             $dependencies[$key] = [
-                'id' => $this->getSourceDocument()->getId(),
+                'id' => $sourceDocument->getId(),
                 'type' => 'document',
             ];
         }
@@ -82,20 +85,14 @@ class Hardlink extends Document
     }
 
     /**
-     * Resolves dependencies and create tags for caching out of them
-     *
-     * @param array $tags
-     *
-     * @return array
+     * {@inheritdoc}
      */
-    public function getCacheTags($tags = [])
+    public function getCacheTags(array $tags = []): array
     {
-        $tags = is_array($tags) ? $tags : [];
-
         $tags = parent::getCacheTags($tags);
 
         if ($this->getSourceDocument()) {
-            if ($this->getSourceDocument()->getId() != $this->getId() and !array_key_exists($this->getSourceDocument()->getCacheTag(), $tags)) {
+            if ($this->getSourceDocument()->getId() != $this->getId() && !array_key_exists($this->getSourceDocument()->getCacheTag(), $tags)) {
                 $tags = $this->getSourceDocument()->getCacheTags($tags);
             }
         }
@@ -164,7 +161,7 @@ class Hardlink extends Document
     }
 
     /**
-     * @return array|null|Model\Property[]
+     * {@inheritdoc}
      */
     public function getProperties()
     {
@@ -197,9 +194,7 @@ class Hardlink extends Document
     }
 
     /**
-     * @param bool $includingUnpublished
-     *
-     * @return Document[]
+     * {@inheritdoc}
      */
     public function getChildren($includingUnpublished = false)
     {
@@ -225,7 +220,7 @@ class Hardlink extends Document
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function hasChildren($unpublished = false)
     {
@@ -233,7 +228,7 @@ class Hardlink extends Document
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     protected function doDelete()
     {
@@ -250,9 +245,7 @@ class Hardlink extends Document
     }
 
     /**
-     * @param array $params additional parameters (e.g. "versionNote" for the version note)
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
     protected function update($params = [])
     {

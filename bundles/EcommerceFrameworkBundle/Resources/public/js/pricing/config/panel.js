@@ -241,7 +241,7 @@ pimcore.bundle.EcommerceFramework.pricing.config.panel = Class.create({
      * add item popup
      */
     addRule: function () {
-        Ext.MessageBox.prompt(' ', t('enter_the_name_of_the_new_item'),
+        Ext.MessageBox.prompt(t('bundle_ecommerce_pricing_rule_add'), t('enter_the_name_of_the_new_item'),
             this.addRuleComplete.bind(this), null, null, "");
     },
 
@@ -270,7 +270,7 @@ pimcore.bundle.EcommerceFramework.pricing.config.panel = Class.create({
                     this.refresh(this.tree.getRootNode());
 
                     if(!data || !data.success) {
-                        Ext.Msg.alert(t('add_target'), t('problem_creating_new_target'));
+                        Ext.Msg.alert(t('bundle_ecommerce_pricing_rule_add'), t('bundle_ecommerce_pricing_rule_error'));
                     } else {
                         this.openRule(null, intval(data.id));
                     }
@@ -280,7 +280,7 @@ pimcore.bundle.EcommerceFramework.pricing.config.panel = Class.create({
             return;
         }
         else {
-            Ext.Msg.alert(t('add_target'), t('problem_creating_new_target'));
+            Ext.Msg.alert(t('bundle_ecommerce_pricing_rule_add'), t('invalid_name'));
         }
     },
 
@@ -295,16 +295,19 @@ pimcore.bundle.EcommerceFramework.pricing.config.panel = Class.create({
      * delete existing rule
      */
     deleteRule: function (tree, record) {
-        Ext.Ajax.request({
-            url: Routing.generate('pimcore_ecommerceframework_pricing_delete'),
-            method: 'DELETE',
-            params: {
-                id: record.id
-            },
-            success: function () {
-                this.refresh(this.tree.getRootNode());
-            }.bind(this)
-        });
+        pimcore.helpers.deleteConfirm(t('bundle_ecommerce_pricing_rule'), record.data.text, function () {
+            Ext.Ajax.request({
+                url: Routing.generate('pimcore_ecommerceframework_pricing_delete'),
+                method: 'DELETE',
+                params: {
+                    id: record.id
+                },
+                success: function () {
+                    this.refresh(this.tree.getRootNode());
+                }.bind(this)
+            });
+        }.bind(this));
+
     },
 
     /**
@@ -351,26 +354,30 @@ pimcore.bundle.EcommerceFramework.pricing.config.panel = Class.create({
 
         if (button == 'ok') {
 
-            let tree = options.tree;
+            if(value.match(/^[a-zA-Z0-9_\-]+$/)) {
+                let tree = options.tree;
 
-            Ext.Ajax.request({
-                url: Routing.generate('pimcore_ecommerceframework_pricing_rename'),
-                method: 'PUT',
-                params: {
-                    id: options.id,
-                    name: value
-                },
-                success: function (response, opts) {
+                Ext.Ajax.request({
+                    url: Routing.generate('pimcore_ecommerceframework_pricing_rename'),
+                    method: 'PUT',
+                    params: {
+                        id: options.id,
+                        name: value
+                    },
+                    success: function (response, opts) {
 
-                    let responseData = Ext.decode(response.responseText);
+                        let responseData = Ext.decode(response.responseText);
 
-                    if (responseData.success) {
-                        this.refresh(this.tree.getRootNode());
-                    } else {
-                        Ext.MessageBox.alert(t('rename'), t('name_already_in_use'));
-                    }
-                }.bind(this)
-            });
+                        if (responseData.success) {
+                            this.refresh(this.tree.getRootNode());
+                        } else {
+                            Ext.MessageBox.alert(t('rename'), t('name_already_in_use'));
+                        }
+                    }.bind(this)
+                });
+            } else {
+                Ext.Msg.alert(t('rename'), t('invalid_name'));
+            }
         }
     },
 

@@ -18,9 +18,11 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService;
 use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Token\Dao;
 use Pimcore\Db;
 use Pimcore\Model\AbstractModel;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
  * @method Dao getDao()
+ * @method bool isReserved()
  */
 class Token extends AbstractModel
 {
@@ -62,7 +64,7 @@ class Token extends AbstractModel
     /**
      * @param string $code
      *
-     * @return bool|Token
+     * @return Token|null
      */
     public static function getByCode($code)
     {
@@ -71,8 +73,8 @@ class Token extends AbstractModel
             $config->getDao()->getByCode($code);
 
             return $config;
-        } catch (\Exception $ex) {
-            return false;
+        } catch (NotFoundException $ex) {
+            return null;
         }
     }
 
@@ -126,14 +128,6 @@ class Token extends AbstractModel
     }
 
     /**
-     * @return mixed
-     */
-    public function isReserved()
-    {
-        return $this->getDao()->isReserved();
-    }
-
-    /**
      * @param string $code
      *
      * @return bool
@@ -142,7 +136,7 @@ class Token extends AbstractModel
     {
         $db = Db::get();
         $query = 'SELECT EXISTS(SELECT id FROM ' . Dao::TABLE_NAME . ' WHERE token = ?)';
-        $result = $db->fetchOne($query, $code);
+        $result = $db->fetchOne($query, [$code]);
 
         if ($result == 0) {
             return false;
@@ -153,7 +147,7 @@ class Token extends AbstractModel
 
     public function release($cart)
     {
-        return Reservation::releaseToken($this, $cart);
+        return Reservation::releaseToken($this->getToken(), $cart);
     }
 
     public function apply()

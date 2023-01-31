@@ -32,6 +32,10 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
+/**
+ *
+ * @internal
+ */
 class ElementController extends AdminController
 {
     /**
@@ -63,6 +67,23 @@ class ElementController extends AdminController
     }
 
     /**
+     * @Route("/element/unlock-elements", name="pimcore_admin_element_unlockelements", methods={"POST"})
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function unlockElementsAction(Request $request)
+    {
+        $request = json_decode($request->getContent(), true) ?? [];
+        foreach ($request['elements'] as $elementIdentifierData) {
+            Element\Editlock::unlock($elementIdentifierData['id'], $elementIdentifierData['type']);
+        }
+
+        return $this->adminJson(['success' => true]);
+    }
+
+    /**
      * Returns the element data denoted by the given type and ID or path.
      *
      * @Route("/element/get-subtype", name="pimcore_admin_element_getsubtype", methods={"GET"})
@@ -77,7 +98,7 @@ class ElementController extends AdminController
         $type = $request->get('type');
 
         $event = new ResolveElementEvent($type, $idOrPath);
-        \Pimcore::getEventDispatcher()->dispatch(AdminEvents::RESOLVE_ELEMENT, $event);
+        \Pimcore::getEventDispatcher()->dispatch($event, AdminEvents::RESOLVE_ELEMENT);
         $idOrPath = $event->getId();
         $type = $event->getType();
 
@@ -150,7 +171,6 @@ class ElementController extends AdminController
                 return $this->processNoteTypesFromParameters(PimcoreAdminExtension::PARAM_DATAOBJECTS_NOTES_EVENTS_TYPES);
             default:
                 return $this->adminJson(['noteTypes' => []]);
-
         }
     }
 
@@ -228,21 +248,20 @@ class ElementController extends AdminController
                     $filter['value'] = (int) $filter['value'];
                 }
                 // system field
-                $value = $filter['value'];
+                $value = ($filter['value']??'');
                 if ($operator == 'LIKE') {
                     $value = '%' . $value . '%';
                 }
 
                 if ($filter[$propertyKey] == 'user') {
-                    $conditions[] = '`user` IN (SELECT `id` FROM `users` WHERE `name` LIKE ' . $list->quote('%'.$filter['value'].'%') . ')';
+                    $conditions[] = '`user` IN (SELECT `id` FROM `users` WHERE `name` LIKE ' . $list->quote($value) . ')';
                 } else {
                     if ($filter['type'] == 'date' && $filter[$comparisonKey] == 'eq') {
-                        $maxTime = $filter['value'] + (86400 - 1); //specifies the top point of the range used in the condition
-                        $dateCondition = '`' . $filter[$propertyKey] . '` ' . ' BETWEEN ' . $db->quote($filter['value']) . ' AND ' . $db->quote($maxTime);
+                        $maxTime = $value + (86400 - 1); //specifies the top point of the range used in the condition
+                        $dateCondition = '`' . $filter[$propertyKey] . '` ' . ' BETWEEN ' . $db->quote($value) . ' AND ' . $db->quote($maxTime);
                         $conditions[] = $dateCondition;
                     } else {
-                        $field = '`'.$filter[$propertyKey].'` ';
-                        $conditions[] = $field.$operator.' '.$db->quote($value);
+                        $conditions[] = $db->quoteIdentifier($filter[$propertyKey]).' '.$operator.' '.$db->quote($value);
                     }
                 }
             }
@@ -318,10 +337,10 @@ class ElementController extends AdminController
         $success = false;
         $hasHidden = false;
         $total = 0;
-        $limit = intval($request->get('limit', 50));
-        $offset = intval($request->get('start', 0));
+        $limit = (int)$request->get('limit', 50);
+        $offset = (int)$request->get('start', 0);
 
-        if ($element instanceof Element\AbstractElement) {
+        if ($element instanceof Element\ElementInterface) {
             $total = $element->getDependencies()->getRequiredByTotalCount();
 
             if ($request->get('sort')) {
@@ -384,7 +403,7 @@ class ElementController extends AdminController
             $element = Element\Service::getElementByPath($request->get('type'), $request->get('path'));
         }
 
-        if ($element instanceof Element\AbstractElement) {
+        if ($element instanceof Element\ElementInterface) {
             return $this->adminJson([
                 'success' => true,
                 'jobs' => $element->getDependencies()->getRequiredBy(),
@@ -477,18 +496,24 @@ class ElementController extends AdminController
         $type = $request->get('type');
         $data = [];
 
-        if ($type == 'asset') {
+        if ($type === 'asset') {
             $element = Asset::getById($id);
-        } elseif ($type == 'document') {
+        } elseif ($type === 'document') {
             $element = Document::getById($id);
-            $data['index'] = $element->getIndex();
         } else {
             $element = DataObject::getById($id);
-            $data['index'] = $element->getIndex();
         }
+
+        if (!$element) {
+            $data['success'] = false;
+
+            return $this->adminJson($data);
+        }
+
         $typePath = Element\Service::getTypePath($element);
 
         $data['success'] = true;
+        $data['index'] = method_exists($element, 'getIndex') ? (int) $element->getIndex() : 0;
         $data['idPath'] = Element\Service::getIdPath($element);
         $data['typePath'] = $typePath;
         $data['fullpath'] = $element->getRealFullPath();
@@ -593,7 +618,7 @@ class ElementController extends AdminController
      */
     public function getVersionsAction(Request $request)
     {
-        $id = intval($request->get('id'));
+        $id = (int)$request->get('id');
         $type = $request->get('elementType');
         $allowedTypes = ['asset', 'document', 'object'];
 
@@ -609,7 +634,19 @@ class ElementController extends AdminController
                         }
                     }
 
-                    $versions = $element->getVersions();
+                    //only load auto-save versions from current user
+                    $list = new Version\Listing();
+                    $list->setLoadAutoSave(true);
+                    $list->setCondition('cid = ? AND ctype = ? AND (autoSave=0 OR (autoSave=1 AND userId = ?)) ', [
+                        $element->getId(),
+                        Element\Service::getElementType($element),
+                        $this->getAdminUser()->getId(),
+                    ])
+                        ->setOrderKey('date')
+                        ->setOrder('ASC');
+
+                    $versions = $list->load();
+
                     $versions = Model\Element\Service::getSafeVersionInfo($versions);
                     $versions = array_reverse($versions); //reverse array to sort by ID DESC
                     foreach ($versions as &$version) {
@@ -632,6 +669,23 @@ class ElementController extends AdminController
     }
 
     /**
+     * @Route("/element/delete-draft", name="pimcore_admin_element_deletedraft", methods={"DELETE"})
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function deleteDraftAction(Request $request)
+    {
+        $version = Version::getById((int) $request->get('id'));
+        if ($version) {
+            $version->delete();
+        }
+
+        return $this->adminJson(['success' => true]);
+    }
+
+    /**
      * @Route("/element/delete-version", name="pimcore_admin_element_deleteversion", methods={"DELETE"})
      *
      * @param Request $request
@@ -640,7 +694,7 @@ class ElementController extends AdminController
      */
     public function deleteVersionAction(Request $request)
     {
-        $version = Model\Version::getById($request->get('id'));
+        $version = Model\Version::getById((int) $request->get('id'));
         $version->delete();
 
         return $this->adminJson(['success' => true]);
@@ -745,25 +799,24 @@ class ElementController extends AdminController
     {
         $properties = [];
         $type = $request->get('elementType');
+        $query = $request->get('query');
         $allowedTypes = ['asset', 'document', 'object'];
 
-        if (in_array($type, $allowedTypes)) {
+        if (in_array($type, $allowedTypes, true)) {
             $list = new Model\Property\Predefined\Listing();
-            $list->setFilter(function ($row) use ($type) {
-                if (is_array($row['ctype'])) {
-                    $row['ctype'] = implode(',', $row['ctype']);
+            $list->setFilter(function (Model\Property\Predefined $predefined) use ($type, $query) {
+                if (!str_contains($predefined->getCtype(), $type)) {
+                    return false;
                 }
-                if (strpos($row['ctype'], $type) !== false) {
-                    return true;
+                if ($query && stripos($this->trans($predefined->getName()), $query) === false) {
+                    return false;
                 }
 
-                return false;
+                return true;
             });
 
-            $list->load();
-
             foreach ($list->getProperties() as $type) {
-                $properties[] = $type;
+                $properties[] = $type->getObjectVars();
             }
         }
 
@@ -840,7 +893,7 @@ class ElementController extends AdminController
         } elseif ($ownerType == 'fieldcollection') {
             $containerKey = $context['containerKey'];
             $fdCollection = DataObject\Fieldcollection\Definition::getByKey($containerKey);
-            if ($context['subContainerType'] == 'localizedfield') {
+            if (($context['subContainerType'] ?? null) === 'localizedfield') {
                 /** @var DataObject\ClassDefinition\Data\Localizedfields $fdLocalizedFields */
                 $fdLocalizedFields = $fdCollection->getFieldDefinition('localizedfields');
                 $fd = $fdLocalizedFields->getFieldDefinition($fieldname);
@@ -879,25 +932,6 @@ class ElementController extends AdminController
                         'fd' => $fd,
                         'context' => $context,
                     ]);
-                } elseif (method_exists($formatter, 'formatPath')) {
-                    @trigger_error(
-                        sprintf(
-                            'Static PathFormatters are deprecated since Pimcore 5.5 and will be removed in 6.0. Please use %s instead',
-                            DataObject\ClassDefinition\PathFormatterInterface::class
-                        ),
-                        E_USER_DEPRECATED
-                    );
-
-                    $result = call_user_func(
-                        $formatter . '::formatPath',
-                        $result,
-                        $source,
-                        $targets,
-                        [
-                            'fd' => $fd,
-                            'context' => $context,
-                        ]
-                    );
                 }
             }
         }

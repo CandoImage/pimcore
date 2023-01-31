@@ -15,10 +15,13 @@
 
 namespace Pimcore\Model\DataObject\Data\ObjectMetadata;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Data\ObjectMetadata $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -58,7 +61,7 @@ class Dao extends Model\Dao\AbstractDao
             $data = $dataTemplate;
             $data['column'] = $column;
             $data['data'] = $this->model->$getter();
-            $this->db->insertOrUpdate($table, $data);
+            Helper::insertOrUpdate($this->db, $table, $data);
         }
     }
 
@@ -88,7 +91,7 @@ class Dao extends Model\Dao\AbstractDao
         $typeQuery = " AND (type = 'object' or type = '')";
 
         $query = 'SELECT * FROM ' . $this->getTablename($source) . ' WHERE o_id = ? AND dest_id = ? AND fieldname = ? AND ownertype = ? AND ownername = ? and position = ? and `index` = ? ' . $typeQuery;
-        $dataRaw = $this->db->fetchAll($query, [$source->getId(), $destinationId, $fieldname, $ownertype, $ownername, $position, $index]);
+        $dataRaw = $this->db->fetchAllAssociative($query, [$source->getId(), $destinationId, $fieldname, $ownertype, $ownername, $position, $index]);
         if (!empty($dataRaw)) {
             $this->model->setObjectId($destinationId);
             $this->model->setFieldname($fieldname);
@@ -114,8 +117,8 @@ class Dao extends Model\Dao\AbstractDao
         $classId = $class->getId();
         $table = 'object_metadata_' . $classId;
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $table . "` (
-              `o_id` int(11) NOT NULL default '0',
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $table . "` (
+              `o_id` int(11) UNSIGNED NOT NULL default '0',
               `dest_id` int(11) NOT NULL default '0',
 	          `type` VARCHAR(50) NOT NULL DEFAULT '',
               `fieldname` varchar(71) NOT NULL,
@@ -132,8 +135,9 @@ class Dao extends Model\Dao\AbstractDao
               INDEX `ownertype` (`ownertype`),
               INDEX `ownername` (`ownername`),
               INDEX `position` (`position`),
-              INDEX `index` (`index`)
-		) DEFAULT CHARSET=utf8mb4;");
+              INDEX `index` (`index`),
+              CONSTRAINT `".self::getForeignKeyName($table, 'o_id').'` FOREIGN KEY (`o_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
+		) DEFAULT CHARSET=utf8mb4;');
 
         $this->handleEncryption($class, [$table]);
     }

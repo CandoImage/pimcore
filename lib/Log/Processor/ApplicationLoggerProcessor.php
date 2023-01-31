@@ -68,7 +68,7 @@ class ApplicationLoggerProcessor
             return $record;
         }
 
-        $relatedObject = $record['context']['relatedObject'] ?? null;
+        $relatedObject = $record['context']['relatedObject'];
         $relatedObjectType = $record['context']['relatedObjectType'] ?? null;
 
         if (null !== $relatedObject && is_object($relatedObject)) {
@@ -138,6 +138,11 @@ class ApplicationLoggerProcessor
         return $record;
     }
 
+    /**
+     * @param string $filename
+     *
+     * @return string
+     */
     private function normalizeFilename($filename)
     {
         return str_replace(PIMCORE_PROJECT_ROOT . '/', '', $filename);

@@ -21,14 +21,11 @@ use Pimcore\Model\DataObject\Concrete;
 
 /**
  * @method Dao getDao()
- * @method void save(Model\DataObject\Concrete $object, $params = [], $saveRelationalData = true)
  */
 abstract class AbstractData extends Model\AbstractModel implements Model\DataObject\LazyLoadedFieldsInterface, Model\Element\ElementDumpStateInterface, Model\Element\DirtyIndicatorInterface
 {
     use Model\Element\ElementDumpStateTrait;
-
     use Model\DataObject\Traits\LazyLoadedRelationTrait;
-
     use Model\Element\Traits\DirtyIndicatorTrait;
 
     /**
@@ -37,19 +34,19 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     protected $index;
 
     /**
-     * @var string
+     * @var string|null
      */
     protected $fieldname;
 
     /**
-     * @var Model\DataObject\Concrete
+     * @var Concrete|Model\Element\ElementDescriptor|null
      */
     protected $object;
 
     /**
-     * @var int
+     * @var int|null
      */
-    protected $objectId;
+    protected ?int $objectId = null;
 
     /**
      * @var string
@@ -77,7 +74,7 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getFieldname()
     {
@@ -85,7 +82,7 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @param string $fieldname
+     * @param string|null $fieldname
      *
      * @return $this
      */
@@ -109,17 +106,15 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
      */
     public function getDefinition()
     {
-        $definition = Model\DataObject\Fieldcollection\Definition::getByKey($this->getType());
-
-        return $definition;
+        return Model\DataObject\Fieldcollection\Definition::getByKey($this->getType());
     }
 
     /**
-     * @param Concrete $object
+     * @param Concrete|null $object
      *
      * @return $this
      */
-    public function setObject($object)
+    public function setObject(?Concrete $object)
     {
         $this->objectId = $object ? $object->getId() : null;
         $this->object = $object;
@@ -128,9 +123,9 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @return Concrete
+     * @return Concrete|null
      */
-    public function getObject()
+    public function getObject(): ?Concrete
     {
         if ($this->objectId && !$this->object) {
             $this->setObject(Concrete::getById($this->objectId));
@@ -163,15 +158,16 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @inheritdoc
+     * @internal
+     *
+     * @return array
      */
     protected function getLazyLoadedFieldNames(): array
     {
         $lazyLoadedFieldNames = [];
         $fields = $this->getDefinition()->getFieldDefinitions(['suppressEnrichment' => true]);
         foreach ($fields as $field) {
-            if (($field instanceof LazyLoadingSupportInterface || method_exists($field, 'getLazyLoading'))
-                            && $field->getLazyLoading()) {
+            if ($field instanceof LazyLoadingSupportInterface && $field->getLazyLoading()) {
                 $lazyLoadedFieldNames[] = $field->getName();
             }
         }
@@ -180,7 +176,7 @@ abstract class AbstractData extends Model\AbstractModel implements Model\DataObj
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function isAllLazyKeysMarkedAsLoaded(): bool
     {

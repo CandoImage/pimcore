@@ -26,22 +26,22 @@ class Hotspotimage implements OwnerAwareFieldInterface
     use OwnerAwareFieldTrait;
 
     /**
-     * @var Asset\Image|null
+     * @var Asset\Image|ElementDescriptor|null
      */
     protected $image;
 
     /**
-     * @var array[]
+     * @var array[]|null
      */
     protected $hotspots;
 
     /**
-     * @var array[]
+     * @var array[]|null
      */
     protected $marker;
 
     /**
-     * @var array[]
+     * @var array[]|null
      */
     protected $crop;
 
@@ -80,7 +80,7 @@ class Hotspotimage implements OwnerAwareFieldInterface
     }
 
     /**
-     * @param array[] $hotspots
+     * @param array[]|null $hotspots
      *
      * @return $this
      */
@@ -93,7 +93,7 @@ class Hotspotimage implements OwnerAwareFieldInterface
     }
 
     /**
-     * @return array|array[]
+     * @return array[]|null
      */
     public function getHotspots()
     {
@@ -101,7 +101,7 @@ class Hotspotimage implements OwnerAwareFieldInterface
     }
 
     /**
-     * @param array[] $marker
+     * @param array[]|null $marker
      *
      * @return $this
      */
@@ -114,7 +114,7 @@ class Hotspotimage implements OwnerAwareFieldInterface
     }
 
     /**
-     * @return array|array[]
+     * @return array[]|null
      */
     public function getMarker()
     {
@@ -122,7 +122,7 @@ class Hotspotimage implements OwnerAwareFieldInterface
     }
 
     /**
-     * @param array[] $crop
+     * @param array[]|null $crop
      */
     public function setCrop($crop)
     {
@@ -131,7 +131,7 @@ class Hotspotimage implements OwnerAwareFieldInterface
     }
 
     /**
-     * @return array[]
+     * @return array[]|null
      */
     public function getCrop()
     {
@@ -139,7 +139,7 @@ class Hotspotimage implements OwnerAwareFieldInterface
     }
 
     /**
-     * @param Asset\Image $image
+     * @param Asset\Image|null $image
      *
      * @return $this
      */
@@ -152,9 +152,9 @@ class Hotspotimage implements OwnerAwareFieldInterface
     }
 
     /**
-     * @return Asset\Image
+     * @return Asset\Image|null
      */
-    public function getImage()
+    public function getImage(): ?Asset\Image
     {
         return $this->image;
     }

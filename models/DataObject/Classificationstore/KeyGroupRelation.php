@@ -16,73 +16,71 @@
 namespace Pimcore\Model\DataObject\Classificationstore;
 
 use Pimcore\Model;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
  * @method \Pimcore\Model\DataObject\Classificationstore\KeyGroupRelation\Dao getDao()
  * @method void save()
  * @method void delete()
  */
-class KeyGroupRelation extends Model\AbstractModel
+final class KeyGroupRelation extends Model\AbstractModel
 {
     /**
      * @var int
      */
-    public $keyId;
+    protected $keyId;
 
     /**
      * @var int
      */
-    public $groupId;
+    protected $groupId;
 
     /** The key
      * @var string
      */
-    public $name;
+    protected $name;
 
     /**
      * The key description.
      *
      * @var string
      */
-    public $description;
+    protected $description;
 
     /**
      * Field definition
      *
      * @var string
      */
-    public $definition;
+    protected $definition;
 
     /**
      * Field type
      *
      * @var string
      */
-    public $type;
+    protected $type;
 
     /** @var int */
-    public $sorter;
+    protected $sorter;
 
     /** The group name
      * @var string
      */
-    public $groupName;
+    protected $groupName;
 
     /** @var bool */
-    public $mandatory;
+    protected $mandatory;
 
     /** @var bool */
-    public $enabled;
+    protected $enabled;
 
     /**
      * @return Model\DataObject\Classificationstore\KeyGroupRelation
      */
     public static function create()
     {
-        $config = new self();
-        $config->save();
-
-        return $config;
+        return new self();
     }
 
     /**
@@ -237,14 +235,13 @@ class KeyGroupRelation extends Model\AbstractModel
      */
     public static function getByGroupAndKeyId($groupId, $keyId)
     {
-        $relation = new KeyGroupRelation\Listing();
-        $relation->setCondition('groupId = ' . $relation->quote($groupId) . ' and keyId = ' . $relation->quote($keyId));
-        $relation->setLimit(1);
-        $relation = $relation->load();
-        if ($relation) {
-            return $relation[0];
-        }
+        try {
+            $relation = new self();
+            $relation->getDao()->getById((int)$keyId, (int)$groupId);
 
-        return null;
+            return $relation;
+        } catch (NotFoundException) {
+            return null;
+        }
     }
 }

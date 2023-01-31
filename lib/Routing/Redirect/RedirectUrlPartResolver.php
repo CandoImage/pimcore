@@ -20,6 +20,9 @@ namespace Pimcore\Routing\Redirect;
 use Pimcore\Model\Redirect;
 use Symfony\Component\HttpFoundation\Request;
 
+/**
+ * @internal
+ */
 class RedirectUrlPartResolver
 {
     /**
@@ -32,11 +35,21 @@ class RedirectUrlPartResolver
      */
     private $parts = [];
 
+    /**
+     * RedirectUrlPartResolver constructor.
+     *
+     * @param Request $request
+     */
     public function __construct(Request $request)
     {
         $this->request = $request;
     }
 
+    /**
+     * @param string $type
+     *
+     * @return string
+     */
     public function getRequestUriPart(string $type): string
     {
         if (isset($this->parts[$type])) {
@@ -55,6 +68,7 @@ class RedirectUrlPartResolver
 
                 break;
 
+            case Redirect::TYPE_AUTO_CREATE:
             case Redirect::TYPE_PATH:
                 $part = $this->request->getPathInfo();
 

@@ -18,21 +18,21 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager;
 interface RuleInterface
 {
     /**
-     * @return int
+     * @return int|null
      */
     public function getId();
 
     /**
-     * @param int $id
+     * @param int|null $id
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setId($id);
 
     /**
      * @param string $name
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setName($name);
 
@@ -45,7 +45,7 @@ interface RuleInterface
      * @param string $label
      * @param string $locale
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setLabel($label, $locale = null);
 
@@ -60,45 +60,45 @@ interface RuleInterface
      * @param string $description
      * @param string|null $locale
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setDescription($description, $locale = null);
 
     /**
      * @param string|null $locale
      *
-     * @return string mixed
+     * @return string|null
      */
     public function getDescription($locale = null);
 
     /**
      * @param ConditionInterface $condition
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setCondition(ConditionInterface $condition);
 
     /**
-     * @return ConditionInterface
+     * @return ConditionInterface|null
      */
     public function getCondition();
 
     /**
      * @param array $action
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setActions(array $action);
 
     /**
-     * @return array|ActionInterface
+     * @return ActionInterface[]
      */
     public function getActions();
 
     /**
      * @param bool $active
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setActive($active);
 
@@ -110,7 +110,7 @@ interface RuleInterface
     /**
      * @param string $behavior
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setBehavior($behavior);
 
@@ -136,11 +136,18 @@ interface RuleInterface
     public function hasProductActions();
 
     /**
+     * checks if rule has at least one action that changes cart price
+     *
+     * @return bool
+     */
+    public function hasCartActions();
+
+    /**
      * execute rule actions based on current product
      *
      * @param EnvironmentInterface $environment
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function executeOnProduct(EnvironmentInterface $environment);
 
@@ -163,7 +170,7 @@ interface RuleInterface
     /**
      * @param int $prio
      *
-     * @return RuleInterface
+     * @return $this
      */
     public function setPrio($prio);
 
@@ -173,7 +180,7 @@ interface RuleInterface
     public function getPrio();
 
     /**
-     * @return RuleInterface
+     * @return $this
      */
     public function save();
 
@@ -182,5 +189,3 @@ interface RuleInterface
      */
     public function delete();
 }
-
-class_alias(RuleInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\IRule');

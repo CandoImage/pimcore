@@ -4,11 +4,20 @@ name: "Documentation"
 on:
     pull_request:
         branches:
-            - "6.9"
+            - "[0-9]+.[0-9]+"
+            - "[0-9]+.x"
+        paths:
+            - 'doc/**'
     push:
         branches:
-            - "6.9"
-            - "*_actions_6x"
+            - "[0-9]+.[0-9]+"
+            - "[0-9]+.x"
+            - "*_actions"
+        paths:
+            - 'doc/**'
+
+permissions:
+  contents: read
 
 jobs:
     docs:
@@ -22,7 +31,7 @@ jobs:
               uses: "shivammathur/setup-php@v2"
               with:
                   coverage: "none"
-                  php-version: "7.2"
+                  php-version: "7.4"
 
             - name: "Run generation of docs"
               run: ".github/ci/scripts/docs.sh"

@@ -20,10 +20,16 @@ namespace Pimcore\Model\DataObject\ClassDefinition\Loader;
 use Pimcore\Loader\ImplementationLoader\ImplementationLoader;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 
-class DataLoader extends ImplementationLoader implements DataLoaderInterface
+/**
+ * @internal
+ */
+final class DataLoader extends ImplementationLoader implements DataLoaderInterface
 {
     /**
-     * @inheritDoc
+     * @param string $name
+     * @param array $params
+     *
+     * @return Data
      */
     public function build(string $name, array $params = []): Data
     {

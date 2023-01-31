@@ -28,10 +28,13 @@ use Pimcore\Event\Analytics\Google\TagManager\CodeEvent;
 use Pimcore\Event\Analytics\GoogleTagManagerEvents;
 use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Pimcore\Tool;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\Templating\EngineInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
+/**
+ * @internal
+ */
 class GoogleTagManagerListener
 {
     const BLOCK_HEAD_BEFORE_SCRIPT_TAG = 'beforeScriptTag';
@@ -46,21 +49,6 @@ class GoogleTagManagerListener
     use ResponseInjectionTrait;
     use PimcoreContextAwareTrait;
     use PreviewRequestTrait;
-
-    /**
-     * @var SiteIdProvider
-     */
-    private $siteIdProvider;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $eventDispatcher;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templatingEngine;
 
     /**
      * @var array
@@ -79,23 +67,20 @@ class GoogleTagManagerListener
     ];
 
     public function __construct(
-        SiteIdProvider $siteIdProvider,
-        EventDispatcherInterface $eventDispatcher,
-        EngineInterface $templatingEngine
+        private SiteIdProvider $siteIdProvider,
+        private EventDispatcherInterface $eventDispatcher,
+        private EngineInterface $templatingEngine
     ) {
-        $this->siteIdProvider = $siteIdProvider;
-        $this->eventDispatcher = $eventDispatcher;
-        $this->templatingEngine = $templatingEngine;
     }
 
-    public function onKernelResponse(FilterResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event)
     {
         if (!$this->isEnabled()) {
             return;
         }
 
         $request = $event->getRequest();
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
@@ -176,7 +161,7 @@ class GoogleTagManagerListener
 
         $event = new CodeEvent($data, $blocks, $template);
 
-        $this->eventDispatcher->dispatch($eventName, $event);
+        $this->eventDispatcher->dispatch($event, $eventName);
 
         return $this->renderTemplate($event);
     }

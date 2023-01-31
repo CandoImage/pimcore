@@ -19,6 +19,9 @@ use Pimcore\Model\AbstractModel;
 use Pimcore\Model\DataObject\ClassDefinition\Service;
 use Pimcore\Model\DataObject\Fieldcollection\Definition;
 
+/**
+ * @internal
+ */
 class FieldCollectionCommand extends AbstractStructureImportCommand
 {
     /**
@@ -85,6 +88,10 @@ class FieldCollectionCommand extends AbstractStructureImportCommand
      */
     protected function import(AbstractModel $definition, $json)
     {
+        if (!$definition instanceof Definition) {
+            return false;
+        }
+
         return Service::importFieldCollectionFromJson($definition, $json);
     }
 }

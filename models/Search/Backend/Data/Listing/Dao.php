@@ -20,6 +20,8 @@ use Pimcore\Model\Element\Service;
 use Pimcore\Model\Search;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Search\Backend\Data\Listing $model
  */
 class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
@@ -32,7 +34,7 @@ class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
     public function load()
     {
         $entries = [];
-        $data = $this->db->fetchAll('SELECT * FROM search_backend_data' .  $this->getCondition() . $this->getGroupBy() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $data = $this->db->fetchAllAssociative('SELECT * FROM search_backend_data' .  $this->getCondition() . $this->getGroupBy() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
 
         foreach ($data as $entryData) {
             if (!in_array($entryData['maintype'], ['document', 'asset', 'object'], true)) {
@@ -44,6 +46,8 @@ class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
             if ($element) {
                 $entry = new Search\Backend\Data();
                 $entry->setId(new Search\Backend\Data\Id($element));
+                $entry->setKey($entryData['key']);
+                $entry->setIndex((int)$entryData['index']);
                 $entry->setFullPath($entryData['fullpath']);
                 $entry->setType($entryData['type']);
                 $entry->setSubtype($entryData['subtype']);

@@ -18,6 +18,8 @@ namespace Pimcore\Model\DataObject\Data\ElementMetadata;
 use Pimcore\Model\DataObject;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Data\ElementMetadata $model
  */
 class Dao extends DataObject\Data\ObjectMetadata\Dao
@@ -42,7 +44,7 @@ class Dao extends DataObject\Data\ObjectMetadata\Dao
             $typeQuery = ' AND type = ' . $this->db->quote($destinationType);
         }
 
-        $dataRaw = $this->db->fetchAll('SELECT * FROM ' .
+        $dataRaw = $this->db->fetchAllAssociative('SELECT * FROM ' .
             $this->getTablename($source) . ' WHERE ' . $this->getTablename($source) .'.o_id = ? AND dest_id = ? AND fieldname = ? AND ownertype = ? AND ownername = ? and position = ? and `index` = ? ' . $typeQuery, [$source->getId(), $destinationId, $fieldname, $ownertype, $ownername, $position, $index]);
         if (!empty($dataRaw)) {
             $this->model->setElementTypeAndId($destinationType, $destinationId);

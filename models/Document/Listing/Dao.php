@@ -16,24 +16,18 @@
 namespace Pimcore\Model\Document\Listing;
 
 use Doctrine\DBAL\Query\QueryBuilder as DoctrineQueryBuilder;
-use Pimcore\Db\ZendCompatibility\Expression;
 use Pimcore\Model;
 use Pimcore\Model\Document;
 use Pimcore\Model\Listing\Dao\QueryBuilderHelperTrait;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Document\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
 {
     use QueryBuilderHelperTrait;
-
-    /**
-     * @deprecated
-     *
-     * @var \Closure
-     */
-    protected $onCreateQueryCallback;
 
     /**
      * Loads a list of objects (all are an instance of Document) for the given parameters an return them
@@ -43,9 +37,9 @@ class Dao extends Model\Listing\Dao\AbstractDao
     public function load()
     {
         $documents = [];
-        $select = $this->getQueryBuilderCompatibility(['id', 'type']);
+        $select = $this->getQueryBuilder(['documents.id', 'documents.type']);
 
-        $documentsData = $this->db->fetchAll((string)$select, $this->model->getConditionVariables(), $this->model->getConditionVariableTypes());
+        $documentsData = $this->db->fetchAllAssociative((string) $select, $this->model->getConditionVariables(), $this->model->getConditionVariableTypes());
 
         foreach ($documentsData as $documentData) {
             if ($documentData['type']) {
@@ -58,30 +52,6 @@ class Dao extends Model\Listing\Dao\AbstractDao
         $this->model->setDocuments($documents);
 
         return $documents;
-    }
-
-    /**
-     * @param array|string|Expression $columns
-     *
-     * @return \Pimcore\Db\ZendCompatibility\QueryBuilder
-     */
-    public function getQuery($columns = '*')
-    {
-        @trigger_error(sprintf('Using %s is deprecated and will be removed in Pimcore 10, please use getQueryBuilder() instead', __METHOD__), E_USER_DEPRECATED);
-
-        $select = $this->db->select();
-        $select->from([ 'documents' ], $columns);
-        $this->addConditions($select);
-        $this->addOrder($select);
-        $this->addLimit($select);
-        $this->addGroupBy($select);
-
-        if ($this->onCreateQueryCallback) {
-            $closure = $this->onCreateQueryCallback;
-            $closure($select);
-        }
-
-        return $select;
     }
 
     /**
@@ -106,8 +76,8 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function loadIdList()
     {
-        $queryBuilder = $this->getQueryBuilderCompatibility(['id']);
-        $documentIds = $this->db->fetchCol((string) $queryBuilder, $this->model->getConditionVariables(), $this->model->getConditionVariableTypes());
+        $queryBuilder = $this->getQueryBuilder(['documents.id']);
+        $documentIds = $this->db->fetchFirstColumn((string) $queryBuilder, $this->model->getConditionVariables(), $this->model->getConditionVariableTypes());
 
         return array_map('intval', $documentIds);
     }
@@ -117,8 +87,8 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function loadIdPathList()
     {
-        $queryBuilder = $this->getQueryBuilderCompatibility(['id', 'CONCAT(path,`key`) as path']);
-        $documentIds = $this->db->fetchAll((string) $queryBuilder, $this->model->getConditionVariables(), $this->model->getConditionVariableTypes());
+        $queryBuilder = $this->getQueryBuilder(['documents.id', 'CONCAT(documents.path, documents.key) as path']);
+        $documentIds = $this->db->fetchAllAssociative((string) $queryBuilder, $this->model->getConditionVariables(), $this->model->getConditionVariableTypes());
 
         return $documentIds;
     }
@@ -142,22 +112,11 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function getTotalCount()
     {
-        $queryBuilder = $this->getQueryBuilderCompatibility();
-        $this->prepareQueryBuilderForTotalCount($queryBuilder);
+        $queryBuilder = $this->getQueryBuilder();
+        $this->prepareQueryBuilderForTotalCount($queryBuilder, 'documents.id');
 
         $amount = (int) $this->db->fetchOne((string) $queryBuilder, $this->model->getConditionVariables(), $this->model->getConditionVariableTypes());
 
         return $amount;
-    }
-
-    /**
-     * @deprecated
-     *
-     * @param callable $callback
-     */
-    public function onCreateQuery(callable $callback)
-    {
-        @trigger_error(sprintf('Using %s is deprecated and will be removed in Pimcore 10, please use onCreateQueryBuilder() instead', __METHOD__), E_USER_DEPRECATED);
-        $this->onCreateQueryCallback = $callback;
     }
 }

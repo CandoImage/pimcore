@@ -17,12 +17,16 @@ declare(strict_types=1);
 
 namespace Pimcore\Model\Notification\Service;
 
+use Doctrine\DBAL\Exception;
 use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Notification;
 use Pimcore\Model\Notification\Listing;
 use Pimcore\Model\User;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
+/**
+ * @internal
+ */
 class NotificationService
 {
     /** @var UserService */
@@ -61,6 +65,14 @@ class NotificationService
 
         if (!$recipient instanceof User) {
             throw new \UnexpectedValueException(sprintf('No user found with the ID %d', $userId));
+        }
+
+        if (empty($title)) {
+            throw new \UnexpectedValueException('Title of the Notification cannot be empty');
+        }
+
+        if (empty($message)) {
+            throw new \UnexpectedValueException('Message text of the Notification cannot be empty');
         }
 
         $notification = new Notification();
@@ -103,7 +115,7 @@ class NotificationService
             AND (
                 roles = ?
                 OR roles LIKE ?
-                OR roles LIKE ? 
+                OR roles LIKE ?
                 OR roles LIKE ?
             )',
             [
@@ -119,7 +131,7 @@ class NotificationService
         $listing->setOrder('ASC');
         $listing->load();
 
-        $users = $listing->getUsers() ?? [];
+        $users = $listing->getUsers();
         $users = $this->userService->filterUsersWithPermission($users);
 
         foreach ($users as $user) {
@@ -182,9 +194,13 @@ class NotificationService
         $listing = new Listing();
 
         if (!empty($filter)) {
-            $condition = implode(' AND ', array_keys($filter));
-            $conditionVariables = array_values($filter);
-            $listing->setCondition($condition, $conditionVariables);
+            $conditions = [];
+            foreach ($filter as $key => $value) {
+                $conditions[] = $key . ' = :' . $key;
+            }
+
+            $condition = implode(' AND ', $conditions);
+            $listing->setCondition($condition, $filter);
         }
 
         $listing->setOrderKey('creationDate');
@@ -211,7 +227,7 @@ class NotificationService
      *
      * @return array
      *
-     * @throws \Doctrine\DBAL\DBALException
+     * @throws Exception
      */
     public function findLastUnread(int $user, int $lastUpdate): array
     {

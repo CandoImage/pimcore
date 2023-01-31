@@ -15,7 +15,7 @@
 
 namespace Pimcore\Event\Model\Ecommerce\IndexService;
 
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 class PreprocessErrorEvent extends Event
 {

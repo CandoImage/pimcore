@@ -55,17 +55,6 @@ class ProductDiscount implements ProductDiscountInterface
     }
 
     /**
-     * @param EnvironmentInterface $environment
-     *
-     * @return ActionInterface
-     */
-    public function executeOnCart(EnvironmentInterface $environment)
-    {
-        //nothing to to here
-        return $this;
-    }
-
-    /**
      * @return string
      */
     public function toJSON()
@@ -86,9 +75,17 @@ class ProductDiscount implements ProductDiscountInterface
     {
         $json = json_decode($string);
         if ($json->amount) {
+            if ($json->amount < 0) {
+                throw new \Exception('Only positive numbers and 0 are valid values for absolute discounts');
+            }
+
             $this->setAmount($json->amount);
         }
         if ($json->percent) {
+            if ($json->percent < 0) {
+                throw new \Exception('Only positive numbers and 0 are valid values for % discounts');
+            }
+
             $this->setPercent($json->percent);
         }
 

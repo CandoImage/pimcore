@@ -15,6 +15,8 @@
 
 namespace Pimcore\Bundle\AdminBundle\Controller\Reports;
 
+use Pimcore\Model\Element\Service;
+use Pimcore\Model\Exception\ConfigWriteException;
 use Pimcore\Model\Tool\CustomReport;
 use Symfony\Component\Filesystem\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -25,6 +27,8 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * @Route("/custom-report")
+ *
+ * @internal
  */
 class CustomReportController extends ReportsControllerBase
 {
@@ -75,6 +79,10 @@ class CustomReportController extends ReportsControllerBase
 
         if (!$report) {
             $report = new CustomReport\Config();
+            if (!$report->isWriteable()) {
+                throw new ConfigWriteException();
+            }
+
             $report->setName($request->get('name'));
             $report->save();
 
@@ -96,6 +104,13 @@ class CustomReportController extends ReportsControllerBase
         $this->checkPermission('reports_config');
 
         $report = CustomReport\Config::getByName($request->get('name'));
+        if (!$report) {
+            throw $this->createNotFoundException();
+        }
+        if (!$report->isWriteable()) {
+            throw new ConfigWriteException();
+        }
+
         $report->delete();
 
         return $this->adminJson(['success' => true]);
@@ -119,6 +134,9 @@ class CustomReportController extends ReportsControllerBase
         }
 
         $report = CustomReport\Config::getByName($request->get('name'));
+        if (!$report) {
+            throw $this->createNotFoundException();
+        }
         $reportData = $this->encodeJson($report);
         $reportData = $this->decodeJson($reportData);
 
@@ -149,8 +167,13 @@ class CustomReportController extends ReportsControllerBase
         $this->checkPermissionsHasOneOf(['reports_config', 'reports']);
 
         $report = CustomReport\Config::getByName($request->get('name'));
+        if (!$report) {
+            throw $this->createNotFoundException();
+        }
+        $data = $report->getObjectVars();
+        $data['writeable'] = $report->isWriteable();
 
-        return $this->adminJson($report);
+        return $this->adminJson($data);
     }
 
     /**
@@ -165,6 +188,13 @@ class CustomReportController extends ReportsControllerBase
         $this->checkPermission('reports_config');
 
         $report = CustomReport\Config::getByName($request->get('name'));
+        if (!$report) {
+            throw $this->createNotFoundException();
+        }
+        if (!$report->isWriteable()) {
+            throw new ConfigWriteException();
+        }
+
         $data = $this->decodeJson($request->get('configuration'));
 
         if (!is_array($data['yAxis'])) {
@@ -195,6 +225,9 @@ class CustomReportController extends ReportsControllerBase
         $this->checkPermission('reports_config');
 
         $report = CustomReport\Config::getByName($request->get('name'));
+        if (!$report) {
+            throw $this->createNotFoundException();
+        }
         $columnConfiguration = $report->getColumnConfiguration();
         if (!is_array($columnConfiguration)) {
             $columnConfiguration = [];
@@ -204,7 +237,6 @@ class CustomReportController extends ReportsControllerBase
         $configuration = $configuration[0] ?? null;
 
         $success = false;
-        $columns = null;
         $errorMessage = null;
 
         $result = [];
@@ -255,16 +287,15 @@ class CustomReportController extends ReportsControllerBase
         $list = new CustomReport\Config\Listing();
         $items = $list->getDao()->loadForGivenUser($this->getAdminUser());
 
-        /** @var CustomReport\Config $report */
         foreach ($items as $report) {
             $reports[] = [
-                'name' => $report->getName(),
-                'niceName' => $report->getNiceName(),
-                'iconClass' => $report->getIconClass(),
-                'group' => $report->getGroup(),
-                'groupIconClass' => $report->getGroupIconClass(),
+                'name' => htmlspecialchars($report->getName()),
+                'niceName' => htmlspecialchars($report->getNiceName()),
+                'iconClass' => htmlspecialchars($report->getIconClass()),
+                'group' => htmlspecialchars($report->getGroup()),
+                'groupIconClass' => htmlspecialchars($report->getGroupIconClass()),
                 'menuShortcut' => $report->getMenuShortcut(),
-                'reportClass' => $report->getReportClass(),
+                'reportClass' => htmlspecialchars($report->getReportClass()),
             ];
         }
 
@@ -300,6 +331,9 @@ class CustomReportController extends ReportsControllerBase
         $drillDownFilters = $request->get('drillDownFilters', null);
 
         $config = CustomReport\Config::getByName($request->get('name'));
+        if (!$config) {
+            throw $this->createNotFoundException();
+        }
         $configuration = $config->getDataSourceConfig();
 
         $adapter = CustomReport\Config::getAdapter($configuration, $config);
@@ -329,6 +363,9 @@ class CustomReportController extends ReportsControllerBase
         $drillDownFilters = $request->get('drillDownFilters', null);
 
         $config = CustomReport\Config::getByName($request->get('name'));
+        if (!$config) {
+            throw $this->createNotFoundException();
+        }
         $configuration = $config->getDataSourceConfig();
 
         $adapter = CustomReport\Config::getAdapter($configuration, $config);
@@ -357,6 +394,9 @@ class CustomReportController extends ReportsControllerBase
         $drillDownFilters = $request->get('drillDownFilters', null);
 
         $config = CustomReport\Config::getByName($request->get('name'));
+        if (!$config) {
+            throw $this->createNotFoundException();
+        }
 
         $configuration = $config->getDataSourceConfig();
 
@@ -387,9 +427,15 @@ class CustomReportController extends ReportsControllerBase
         $dir = $request->get('dir');
         $filters = $request->get('filter') ? json_decode(urldecode($request->get('filter')), true) : null;
         $drillDownFilters = $request->get('drillDownFilters', null);
+        if ($drillDownFilters) {
+            $drillDownFilters = json_decode($drillDownFilters, true);
+        }
         $includeHeaders = $request->get('headers', false);
 
         $config = CustomReport\Config::getByName($request->get('name'));
+        if (!$config) {
+            throw $this->createNotFoundException();
+        }
 
         $columns = $config->getColumnConfiguration();
         $fields = [];
@@ -400,10 +446,6 @@ class CustomReportController extends ReportsControllerBase
         }
 
         $configuration = $config->getDataSourceConfig();
-        //if many rows returned as an array than use the first row. Fixes: #782
-        $configuration = is_array($configuration)
-            ? $configuration[0]
-            : $configuration;
 
         $adapter = CustomReport\Config::getAdapter($configuration, $config);
 
@@ -427,6 +469,7 @@ class CustomReportController extends ReportsControllerBase
         }
 
         foreach ($result['data'] as $row) {
+            $row = Service::escapeCsvRecord($row);
             fputcsv($fp, array_values($row), ';');
         }
 

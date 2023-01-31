@@ -16,8 +16,11 @@
 namespace Pimcore\Model\Site;
 
 use Pimcore\Model;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Site $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -25,13 +28,13 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int $id
      *
-     * @throws \Exception
+     * @throws NotFoundException
      */
     public function getById($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM sites WHERE id = ?', $id);
+        $data = $this->db->fetchAssociative('SELECT * FROM sites WHERE id = ?', [$id]);
         if (empty($data['id'])) {
-            throw new \Exception(sprintf('Unable to load site with ID `%s`', $id));
+            throw new NotFoundException(sprintf('Unable to load site with ID `%s`', $id));
         }
         $this->assignVariablesToModel($data);
     }
@@ -39,13 +42,13 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int $id
      *
-     * @throws \Exception
+     * @throws NotFoundException
      */
     public function getByRootId($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM sites WHERE rootId = ?', $id);
+        $data = $this->db->fetchAssociative('SELECT * FROM sites WHERE rootId = ?', [$id]);
         if (empty($data['id'])) {
-            throw new \Exception(sprintf('Unable to load site with ID `%s`', $id));
+            throw new NotFoundException(sprintf('Unable to load site with ID `%s`', $id));
         }
         $this->assignVariablesToModel($data);
     }
@@ -53,16 +56,15 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param string $domain
      *
-     * @throws \Exception
+     * @throws NotFoundException
      */
     public function getByDomain($domain)
     {
-        $data = $this->db->fetchRow('SELECT * FROM sites WHERE mainDomain = ? OR domains LIKE ?', [$domain, '%"' . $domain . '"%']);
+        $data = $this->db->fetchAssociative('SELECT * FROM sites WHERE mainDomain = ? OR domains LIKE ?', [$domain, '%"' . $domain . '"%']);
         if (empty($data['id'])) {
-
             // check for wildcards
             // @TODO: refactor this to be more clear
-            $sitesRaw = $this->db->fetchAll('SELECT id,domains FROM sites');
+            $sitesRaw = $this->db->fetchAllAssociative('SELECT id,domains FROM sites');
             $wildcardDomains = [];
             foreach ($sitesRaw as $site) {
                 if (!empty($site['domains']) && strpos($site['domains'], '*')) {
@@ -82,12 +84,12 @@ class Dao extends Model\Dao\AbstractDao
                 $wildcardDomain = preg_quote($wildcardDomain, '#');
                 $wildcardDomain = str_replace('\\*', '.*', $wildcardDomain);
                 if (preg_match('#^' . $wildcardDomain . '$#', $domain)) {
-                    $data = $this->db->fetchRow('SELECT * FROM sites WHERE id = ?', [$siteId]);
+                    $data = $this->db->fetchAssociative('SELECT * FROM sites WHERE id = ?', [$siteId]);
                 }
             }
 
             if (empty($data['id'])) {
-                throw new \Exception('there is no site for the requested domain: `' . $domain . '´');
+                throw new NotFoundException('there is no site for the requested domain: `' . $domain . '´');
             }
         }
         $this->assignVariablesToModel($data);
@@ -114,7 +116,7 @@ class Dao extends Model\Dao\AbstractDao
         $this->model->setCreationDate($ts);
         $this->model->setModificationDate($ts);
         $this->db->insert('sites', ['rootId' => $this->model->getRootId()]);
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 
     /**

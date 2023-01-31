@@ -47,7 +47,7 @@ pimcore.object.classificationstore.collectionsPanel = Class.create({
         var readerFields = [];
         for (var i = 0; i < this.relationsFields.length; i++) {
             var columnConfig = {name: this.relationsFields[i]};
-            if (this.relationsFields[i] == "sorter") {
+            if (this.relationsFields[i] == "sorter" || this.relationsFields[i] == "groupId") {
                 columnConfig["type"] = "int";
             }
             readerFields.push(columnConfig);
@@ -116,8 +116,10 @@ pimcore.object.classificationstore.collectionsPanel = Class.create({
         });
 
         gridColumns.push({text: t("group_id"), flex: 60, sortable: true, dataIndex: 'groupId', filter: 'string'});
-        gridColumns.push({text: t("name"), flex: 200, sortable: true, dataIndex: 'groupName', filter: 'string'});
-        gridColumns.push({text: t("description"), flex: 200, sortable: true, dataIndex: 'groupDescription', filter: 'string'});
+        gridColumns.push({text: t("name"), flex: 200, sortable: true, dataIndex: 'groupName', filter: 'string',
+            renderer: Ext.util.Format.htmlEncode});
+        gridColumns.push({text: t("description"), flex: 200, sortable: true, dataIndex: 'groupDescription', filter: 'string',
+            renderer: Ext.util.Format.htmlEncode});
 
         gridColumns.push({text: t('sorter'), width: 150, sortable: true, dataIndex: 'sorter',
             tooltip: t("classificationstore_tooltip_sorter"),
@@ -139,16 +141,20 @@ pimcore.object.classificationstore.collectionsPanel = Class.create({
                         var colId = data.data.colId;
                         var groupId = data.data.groupId;
 
-                        Ext.Ajax.request({
-                            url: Routing.generate('pimcore_admin_dataobject_classificationstore_deletecollectionrelation'),
-                            method: 'DELETE',
-                            params: {
-                                colId: colId,
-                                groupId: groupId
-                            },
-                            success: function (response) {
-                                this.relationsStore.reload();
-                            }.bind(this)});
+                        Ext.Msg.confirm(t('delete'), sprintf(t('delete_message_advanced'), t('classificationstore_collection_relation'), data.data.groupName), function(btn) {
+                            if (btn == 'yes') {
+                                Ext.Ajax.request({
+                                    url: Routing.generate('pimcore_admin_dataobject_classificationstore_deletecollectionrelation'),
+                                    method: 'DELETE',
+                                    params: {
+                                        colId: colId,
+                                        groupId: groupId
+                                    },
+                                    success: function (response) {
+                                        this.relationsStore.reload();
+                                    }.bind(this)});
+                            }
+                        }.bind(this));
                     }.bind(this)
                 }
             ]
@@ -264,8 +270,10 @@ pimcore.object.classificationstore.collectionsPanel = Class.create({
 
         //gridColumns.push({text: t("store"), flex: 60, sortable: true, dataIndex: 'storeId', filter: 'string'});
         gridColumns.push({text: "ID", flex: 60, sortable: true, dataIndex: 'id', filter: 'string'});
-        gridColumns.push({text: t("name"), flex: 200, sortable: true, dataIndex: 'name', editor: new Ext.form.TextField({}), filter: 'string'});
-        gridColumns.push({text: t("description"), flex: 300, sortable: true, dataIndex: 'description', editor: new Ext.form.TextField({}), filter: 'string'});
+        gridColumns.push({text: t("name"), flex: 200, sortable: true, dataIndex: 'name', editor: new Ext.form.TextField({}), filter: 'string',
+            renderer: Ext.util.Format.htmlEncode});
+        gridColumns.push({text: t("description"), flex: 300, sortable: true, dataIndex: 'description', editor: new Ext.form.TextField({}), filter: 'string',
+            renderer: Ext.util.Format.htmlEncode});
 
         var dateRenderer =  function(d) {
             if (d !== undefined) {
@@ -307,15 +315,19 @@ pimcore.object.classificationstore.collectionsPanel = Class.create({
                         this.relationsGrid.hide();
                         this.relationsPanel.disable();
 
-                        Ext.Ajax.request({
-                            url: Routing.generate('pimcore_admin_dataobject_classificationstore_deletecollection'),
-                            method: 'DELETE',
-                            params: {
-                                id: id
-                            },
-                            success: function (response) {
-                                this.collectionsStore.reload();
-                            }.bind(this)});
+                        Ext.Msg.confirm(t('delete'), sprintf(t('delete_message_advanced'), t('classificationstore_collection'), data.data.name), function(btn) {
+                            if (btn == 'yes') {
+                                Ext.Ajax.request({
+                                    url: Routing.generate('pimcore_admin_dataobject_classificationstore_deletecollection'),
+                                    method: 'DELETE',
+                                    params: {
+                                        id: id
+                                    },
+                                    success: function (response) {
+                                        this.collectionsStore.reload();
+                                    }.bind(this)});
+                            }
+                        }.bind(this));
                     }.bind(this)
                 }
             ]
@@ -359,7 +371,7 @@ pimcore.object.classificationstore.collectionsPanel = Class.create({
                     if (selected.length > 0) {
                         var record = selected[0];
                         var collectionId = record.data.id;
-                        var collectionName = record.data.name;
+                        var collectionName = Ext.util.Format.htmlEncode(record.data.name);
 
                         this.collectionId = collectionId;
 

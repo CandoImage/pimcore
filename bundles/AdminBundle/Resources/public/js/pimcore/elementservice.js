@@ -82,7 +82,7 @@ pimcore.elementservice.deleteElementCheckDependencyComplete = function (window, 
             message += "<br />" + t('delete_message_dependencies');
         }
 
-        if(res["childs"] > 100) {
+        if (res['children'] > 100) {
             message += "<br /><br /><b>" + t("too_many_children_for_recyclebin") + "</b>";
         }
 
@@ -119,8 +119,24 @@ pimcore.elementservice.deleteElementFromServer = function (r, options, button) {
         var successHandler = options["success"];
         var elementType = options.elementType;
         var id = options.id;
+        const preDeleteEventName = 'preDelete' + elementType.charAt(0).toUpperCase() + elementType.slice(1);
 
         let ids = Ext.isString(id) ? id.split(',') : [id];
+        try {
+            ids.forEach(function (elementId) {
+                const preDeleteEvent = new CustomEvent(pimcore.events[preDeleteEventName], {
+                    detail: {
+                        elementId: elementId
+                    }
+                });
+
+                document.dispatchEvent(preDeleteEvent);
+            });
+        } catch (e) {
+            pimcore.helpers.showPrettyError('asset', t("error"), t("delete_failed"), e.message);
+            return;
+        }
+
         ids.forEach(function (elementId) {
             pimcore.helpers.addTreeNodeLoadingIndicator(elementType, elementId);
         });
@@ -130,7 +146,9 @@ pimcore.elementservice.deleteElementFromServer = function (r, options, button) {
             var node = affectedNodes[index];
             if (node) {
                 var nodeEl = Ext.fly(node.getOwnerTree().getView().getNodeByRecord(node));
-                nodeEl.addCls("pimcore_delete");
+                if(nodeEl) {
+                    nodeEl.addCls("pimcore_delete");
+                }
             }
         }
 
@@ -161,6 +179,7 @@ pimcore.elementservice.deleteElementFromServer = function (r, options, button) {
         var pj = new pimcore.tool.paralleljobs({
             success: function (id, successHandler) {
                 var refreshParentNodes = [];
+                const postDeleteEventName = 'postDelete' + elementType.charAt(0).toUpperCase() + elementType.slice(1);
                 for (var index = 0; index < affectedNodes.length; index++) {
                     var node = affectedNodes[index];
                     try {
@@ -188,6 +207,16 @@ pimcore.elementservice.deleteElementFromServer = function (r, options, button) {
 
                 this.deleteProgressBar = null;
                 this.deleteWindow = null;
+
+                ids.forEach(function (elementId) {
+                    const postDeleteEvent = new CustomEvent(pimcore.events[postDeleteEventName], {
+                        detail: {
+                            elementId: elementId
+                        }
+                    });
+
+                    document.dispatchEvent(postDeleteEvent);
+                });
 
                 if(typeof successHandler == "function") {
                     successHandler();
@@ -275,7 +304,7 @@ pimcore.elementservice.updateObject = function (id, values, callback) {
         url: Routing.generate('pimcore_admin_dataobject_dataobject_update'),
         method: "PUT",
         params: {
-            id: id,
+            id: Ext.encode(id),
             values: Ext.encode(values)
         },
         success: callback
@@ -638,7 +667,7 @@ pimcore.elementservice.refreshNode = function (node) {
 pimcore.elementservice.isDisallowedDocumentKey = function (parentNodeId, key) {
 
     if(parentNodeId == 1) {
-        var disallowedKeys = ["admin","install","webservice","plugin"];
+        var disallowedKeys = ["admin","install","plugin"];
         if(in_arrayi(key, disallowedKeys)) {
             Ext.MessageBox.alert(t('name_is_not_allowed'),
                 t('name_is_not_allowed'));
@@ -768,9 +797,18 @@ pimcore.elementservice.addDocumentComplete = function (options, response) {
         if (response && response.success) {
             pimcore.elementservice.refreshNodeAllTrees(options.elementType, options.parentId);
 
-            if(in_array(response["type"], ["page","snippet","email","newsletter","link","hardlink","printpage","printcontainer"])) {
+            let docTypes = pimcore.globalmanager.get('document_valid_types');
+            if (in_array(response["type"], docTypes)) {
                 pimcore.helpers.openDocument(response.id, response.type);
-                pimcore.plugin.broker.fireEvent("postAddDocumentTree", response.id);
+
+                const postAddDocumentTree = new CustomEvent(pimcore.events.postAddDocumentTree, {
+                    detail: {
+                        id: response.id,
+                    }
+                });
+
+                document.dispatchEvent(postAddDocumentTree);
+
             }
         }  else {
             pimcore.helpers.showNotification(t("error"), t("failed_to_create_new_item"), "error",
@@ -790,7 +828,14 @@ pimcore.elementservice.addObjectComplete = function(options, response) {
             if (rdata.id && rdata.type) {
                 if (rdata.type == "object") {
                     pimcore.helpers.openObject(rdata.id, rdata.type);
-                    pimcore.plugin.broker.fireEvent("postAddObjectTree", rdata.id);
+
+                    const postAddObjectTree = new CustomEvent(pimcore.events.postAddObjectTree, {
+                        detail: {
+                            id: rdata.id,
+                        }
+                    });
+
+                    document.dispatchEvent(postAddObjectTree);
                 }
             }
         }  else {

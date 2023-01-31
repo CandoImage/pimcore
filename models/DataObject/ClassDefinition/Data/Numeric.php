@@ -19,12 +19,10 @@ use Pimcore\Model;
 use Pimcore\Model\DataObject\ClassDefinition\Data;
 use Pimcore\Normalizer\NormalizerInterface;
 
-class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryResourcePersistenceAwareInterface, TypeDeclarationSupportInterface, EqualComparisonInterface, VarExporterInterface, NormalizerInterface
+class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryResourcePersistenceAwareInterface, TypeDeclarationSupportInterface, EqualComparisonInterface, VarExporterInterface, NormalizerInterface, PreSetDataInterface
 {
     use Model\DataObject\Traits\DefaultValueTrait;
-    use Model\DataObject\ClassDefinition\NullablePhpdocReturnTypeTrait;
     use Model\DataObject\Traits\SimpleNormalizerTrait;
-
     use Model\DataObject\Traits\SimpleComparisonTrait;
     use Extension\ColumnType {
         getColumnType as public genericGetColumnType;
@@ -38,24 +36,46 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     const DECIMAL_PRECISION_DEFAULT = 0;
 
     /**
+     * @var array
+     */
+    public static $validFilterOperators = [
+        '=',
+        'IS',
+        'IS NOT',
+        '!=',
+        '<',
+        '>',
+        '>=',
+        '<=',
+    ];
+
+    /**
      * Static type of this element
+     *
+     * @internal
      *
      * @var string
      */
     public $fieldtype = 'numeric';
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
     public $width = 0;
 
     /**
-     * @var float
+     * @internal
+     *
+     * @var float|int|string|null
      */
     public $defaultValue;
 
     /**
      * Type for the column to query
+     *
+     * @internal
      *
      * @var string
      */
@@ -64,38 +84,43 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     /**
      * Type for the column
      *
+     * @internal
+     *
      * @var string
      */
     public $columnType = 'double';
 
     /**
-     * Type for the generated phpdoc
+     * @internal
      *
-     * @var string
-     */
-    public $phpdocType = 'float';
-
-    /**
      * @var bool
      */
     public $integer = false;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $unsigned = false;
 
     /**
-     * @var float
+     * @internal
+     *
+     * @var float|null
      */
     public $minValue;
 
     /**
-     * @var float
+     * @internal
+     *
+     * @var float|null
      */
     public $maxValue;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $unique;
@@ -105,22 +130,26 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
      * but as decimalPrecision already existed to denote the amount of digits after the point (as it is called on the ExtJS
      * number field), decimalSize was chosen instead.
      *
+     * @internal
+     *
      * @var int|null
      */
     public $decimalSize;
 
     /**
      * This is the y part in DECIMAL(x, y) and denotes amount of digits after a comma. In MySQL this is called scale. See
-     * commend on decimalSize.
+     * comment on decimalSize.
+     *
+     * @internal
      *
      * @var int|null
      */
     public $decimalPrecision;
 
     /**
-     * @inheritDoc
+     * @return string
      */
-    public function getPhpdocType(): string
+    private function getPhpdocType(): string
     {
         if ($this->getInteger()) {
             return 'int';
@@ -134,7 +163,7 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @return int
+     * @return string|int
      */
     public function getWidth()
     {
@@ -142,19 +171,22 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @param int $width
+     * @param string|int $width
      *
      * @return $this
      */
     public function setWidth($width)
     {
-        $this->width = $this->getAsIntegerCast($width);
+        if (is_numeric($width)) {
+            $width = (int)$width;
+        }
+        $this->width = $width;
 
         return $this;
     }
 
     /**
-     * @return int|null
+     * @return float|int|string|null
      */
     public function getDefaultValue()
     {
@@ -166,7 +198,7 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @param int $defaultValue
+     * @param float|int|string|null $defaultValue
      *
      * @return $this
      */
@@ -196,7 +228,7 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @param float $maxValue
+     * @param float|null $maxValue
      */
     public function setMaxValue($maxValue)
     {
@@ -204,7 +236,7 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @return float
+     * @return float|null
      */
     public function getMaxValue()
     {
@@ -212,7 +244,7 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @param float $minValue
+     * @param float|null $minValue
      */
     public function setMinValue($minValue)
     {
@@ -220,7 +252,7 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @return float
+     * @return float|null
      */
     public function getMinValue()
     {
@@ -296,11 +328,11 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
      */
     public function setUnique($unique)
     {
-        $this->unique = $unique;
+        $this->unique = (bool) $unique;
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getColumnType()
     {
@@ -316,7 +348,7 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getQueryColumnType()
     {
@@ -331,11 +363,17 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
         return $this->genericGetQueryColumnType();
     }
 
-    public function isDecimalType(): bool
+    /**
+     * @return bool
+     */
+    private function isDecimalType(): bool
     {
         return null !== $this->getDecimalSize() || null !== $this->getDecimalPrecision();
     }
 
+    /**
+     * @return string
+     */
     private function buildDecimalColumnType(): string
     {
         // decimalPrecision already existed in earlier versions to denote the amount of digits after the
@@ -351,11 +389,11 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
         $scale = self::DECIMAL_PRECISION_DEFAULT;
 
         if (null !== $this->decimalSize) {
-            $precision = intval($this->decimalSize);
+            $precision = (int)$this->decimalSize;
         }
 
         if (null !== $this->decimalPrecision) {
-            $scale = intval($this->decimalPrecision);
+            $scale = (int)$this->decimalPrecision;
         }
 
         if ($precision < 1 || $precision > 65) {
@@ -397,13 +435,14 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @see ResourcePersistenceAwareInterface::getDataFromResource
-     *
      * @param float|int|string $data
      * @param null|Model\DataObject\Concrete $object
      * @param mixed $params
      *
-     * @return float|int|string
+     * @return float|int|string|null
+     *
+     * @see ResourcePersistenceAwareInterface::getDataFromResource
+     *
      */
     public function getDataFromResource($data, $object = null, $params = [])
     {
@@ -411,7 +450,7 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
             return $this->toNumeric($data);
         }
 
-        return $data;
+        return null;
     }
 
     /**
@@ -473,14 +512,9 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         if (!$omitMandatoryCheck && $this->getMandatory() && $this->isEmpty($data)) {
             throw new Model\Element\ValidationException('Empty mandatory field [ '.$this->getName().' ]');
@@ -501,11 +535,11 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
                 throw new Model\Element\ValidationException('Value in field [ '.$this->getName().' ] is not an integer');
             }
 
-            if (strlen($this->getMinValue()) && $this->getMinValue() > $data) {
+            if ($this->getMinValue() !== null && $this->getMinValue() > $data) {
                 throw new Model\Element\ValidationException('Value in field [ '.$this->getName().' ] is not at least ' . $this->getMinValue());
             }
 
-            if (strlen($this->getMaxValue()) && $data > $this->getMaxValue()) {
+            if ($this->getMaxValue() !== null && $data > $this->getMaxValue()) {
                 throw new Model\Element\ValidationException('Value in field [ '.$this->getName().' ] is bigger than ' . $this->getMaxValue());
             }
 
@@ -516,45 +550,50 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * converts object data to a simple string value or CSV Export
-     *
-     * @abstract
-     *
-     * @param Model\DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getForCsvExport($object, $params = [])
     {
         $data = $this->getDataFromObjectParam($object, $params);
 
-        return strval($data);
+        return (string)$data;
     }
 
     /**
-     * fills object field data values from CSV Import String
+     * returns sql query statement to filter according to this data types value(s)
      *
-     * @deprecated
+     * @param string $value
+     * @param string $operator
+     * @param array $params optional params used to change the behavior
      *
-     * @param string $importValue
-     * @param null|Model\DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return float|int|string
+     * @return string
      */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
+    public function getFilterConditionExt($value, $operator, $params = [])
     {
-        $value = $this->toNumeric($importValue);
+        $db = \Pimcore\Db::get();
+        $name = $params['name'] ?: $this->name;
+        $key = $db->quoteIdentifier($name);
+        if (!empty($params['brickPrefix'])) {
+            $key = $params['brickPrefix'].$key;
+        }
 
-        return $value;
+        if ($value === 'NULL') {
+            if ($operator === '=') {
+                $operator = 'IS';
+            } elseif ($operator === '!=') {
+                $operator = 'IS NOT';
+            }
+        }
+
+        if ((is_numeric($value) || $value === 'NULL') && in_array($operator, self::$validFilterOperators)) {
+            return $key . ' ' . $operator . ' ' . $value . ' ';
+        }
+
+        return '';
     }
 
-    /** True if change is allowed in edit mode.
-     * @param Model\DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return bool
+    /**
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
@@ -568,15 +607,15 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
      */
     public function isEmpty($data)
     {
-        return strlen($data) < 1;
+        return !is_numeric($data);
     }
 
     /**
-     * @param string $value
+     * @param mixed $value
      *
      * @return float|int|string
      */
-    protected function toNumeric($value)
+    private function toNumeric($value)
     {
         $value = str_replace(',', '.', (string) $value);
 
@@ -592,13 +631,9 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     }
 
     /**
-     * @param Model\DataObject\Concrete|Model\DataObject\Localizedfield|Model\DataObject\Objectbrick\Data\AbstractData|Model\DataObject\Fieldcollection\Data\AbstractData $object
-     * @param float|int|string $data
-     * @param array $params
-     *
-     * @return float|int|string|null
+     * { @inheritdoc }
      */
-    public function preSetData($object, $data, $params = [])
+    public function preSetData(/** mixed */ $container, /**  mixed */ $data, /** array */ $params = []) // : mixed
     {
         if (!is_null($data) && $this->getDecimalPrecision()) {
             $data = round($data, $this->getDecimalPrecision());
@@ -607,16 +642,16 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
         return $data;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function isFilterable(): bool
     {
         return true;
     }
 
     /**
-     * @param Model\DataObject\Concrete $object
-     * @param array $context
-     *
-     * @return null|int
+     * {@inheritdoc}
      */
     protected function doGetDefaultValue($object, $context = [])
     {
@@ -632,5 +667,37 @@ class Numeric extends Data implements ResourcePersistenceAwareInterface, QueryRe
     public function isEqual($oldValue, $newValue): bool
     {
         return $this->toNumeric($oldValue) == $this->toNumeric($newValue);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getParameterTypeDeclaration(): ?string
+    {
+        return '?' . $this->getPhpdocType();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getReturnTypeDeclaration(): ?string
+    {
+        return '?' . $this->getPhpdocType();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocInputType(): ?string
+    {
+        return $this->getPhpdocType() . '|null';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        return $this->getPhpdocType() . '|null';
     }
 }

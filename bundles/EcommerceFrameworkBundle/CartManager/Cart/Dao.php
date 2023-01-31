@@ -16,8 +16,11 @@
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\Cart;
 
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\Cart;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
+ * @internal
+ *
  * @property Cart $model
  */
 class Dao extends \Pimcore\Model\Dao\AbstractDao
@@ -46,13 +49,13 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
     /**
      * @param int $id
      *
-     * @return void
+     * @throws NotFoundException
      */
     public function getById($id)
     {
-        $classRaw = $this->db->fetchRow('SELECT * FROM ' . self::TABLE_NAME . ' WHERE id=' . $this->db->quote($id));
+        $classRaw = $this->db->fetchAssociative('SELECT * FROM ' . self::TABLE_NAME . ' WHERE id=' . $this->db->quote($id));
         if (empty($classRaw['id'])) {
-            throw new \Exception('Cart ' . $id . ' not found.');
+            throw new NotFoundException('Cart ' . $id . ' not found.');
         }
         $this->assignVariablesToModel($classRaw);
     }
@@ -98,7 +101,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
             }
         }
 
-        $this->db->updateWhere(self::TABLE_NAME, $data, 'id=' . $this->db->quote($this->model->getId()));
+        $this->db->update(self::TABLE_NAME, $data, ['id' => $this->model->getId()]);
     }
 
     /**
@@ -108,7 +111,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
      */
     public function delete()
     {
-        $this->db->deleteWhere(self::TABLE_NAME, 'id=' . $this->db->quote($this->model->getId()));
+        $this->db->delete(self::TABLE_NAME, ['id' => $this->model->getId()]);
     }
 
     /**

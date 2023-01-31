@@ -18,19 +18,15 @@ namespace Pimcore\Tool;
 use Pimcore\Config;
 use Pimcore\Logger;
 use Symfony\Component\Process\ExecutableFinder;
+use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
 
-class Console
+final class Console
 {
     /**
      * @var string system environment
      */
     private static $systemEnvironment;
-
-    /**
-     * @var null|bool
-     */
-    protected static $timeoutKillAfterSupport = null;
 
     /**
      * @var array
@@ -39,6 +35,7 @@ class Console
 
     /**
      * @deprecated since v.6.9.
+     *
      * @static
      *
      * @return string "windows" or "unix"
@@ -62,13 +59,17 @@ class Console
      * @param string $name
      * @param bool $throwException
      *
-     * @return bool|mixed|string
+     * @return bool|string
      *
      * @throws \Exception
      */
     public static function getExecutable($name, $throwException = false)
     {
         if (isset(self::$executableCache[$name])) {
+            if (!self::$executableCache[$name] && $throwException) {
+                throw new \Exception("No '$name' executable found, please install the application or add it to the PATH (in system settings or to your PATH environment variable");
+            }
+
             return self::$executableCache[$name];
         }
 
@@ -81,18 +82,29 @@ class Console
         // use DI to provide the ability to customize / overwrite paths
         if (\Pimcore::hasContainer() && \Pimcore::getContainer()->hasParameter('pimcore_executable_' . $name)) {
             $value = \Pimcore::getContainer()->getParameter('pimcore_executable_' . $name);
-            if (!$value && $throwException) {
-                throw new \Exception("'$name' executable was disabled manually in parameters.yml");
+
+            if ($value === false) {
+                if ($throwException) {
+                    throw new \Exception("'$name' executable was disabled manually in parameters.yml");
+                }
+
+                return false;
             }
 
-            return $value;
+            if ($value) {
+                return $value;
+            }
         }
 
-        $systemConfig = Config::getSystemConfiguration('general');
-
         $paths = [];
-        if (!empty($systemConfig['path_variable'])) {
-            $paths = explode(PATH_SEPARATOR, $systemConfig['path_variable']);
+
+        try {
+            $systemConfig = Config::getSystemConfiguration('general');
+            if (!empty($systemConfig['path_variable'])) {
+                $paths = explode(PATH_SEPARATOR, $systemConfig['path_variable']);
+            }
+        } catch (\Exception $e) {
+            Logger::warning((string) $e);
         }
 
         array_push($paths, '');
@@ -135,65 +147,6 @@ class Console
         return false;
     }
 
-    protected static function setupComposer()
-    {
-        // composer needs either COMPOSER_HOME or HOME to be set
-        // we also populate the $_ENV variable, it is used by symfony/process component
-        if (!getenv('COMPOSER_HOME') && !getenv('HOME')) {
-            $composerHome = PIMCORE_PRIVATE_VAR . '/composer';
-            if (!is_dir($composerHome)) {
-                mkdir($composerHome, 0777, true);
-            }
-            putenv('COMPOSER_HOME=' . $composerHome);
-            $_ENV['COMPOSER_HOME'] = $composerHome;
-        }
-
-        putenv('COMPOSER_DISABLE_XDEBUG_WARN=true');
-        $_ENV['COMPOSER_DISABLE_XDEBUG_WARN'] = 'true';
-    }
-
-    /**
-     * @param string $executablePath
-     *
-     * @return bool
-     */
-    protected static function checkPngout($executablePath)
-    {
-        try {
-            $process = new Process([$executablePath, '--help']);
-            $process->run();
-            if (strpos($process->getOutput() . $process->getErrorOutput(), 'bitdepth') !== false) {
-                return true;
-            }
-        } catch (\Exception $e) {
-            // noting to do
-        }
-
-        return false;
-    }
-
-    /**
-     * @param string $executablePath
-     *
-     * @return bool
-     */
-    protected static function checkCjpeg($executablePath)
-    {
-        try {
-            $process = new Process([$executablePath, '--help']);
-            $process->run();
-            if (strpos($process->getOutput() . $process->getErrorOutput(), '-optimize') !== false) {
-                if (strpos($process->getOutput() . $process->getErrorOutput(), 'mozjpeg') !== false) {
-                    return true;
-                }
-            }
-        } catch (\Exception $e) {
-            // noting to do
-        }
-
-        return false;
-    }
-
     /**
      * @param string $process
      *
@@ -231,7 +184,17 @@ class Console
      */
     public static function getPhpCli()
     {
-        return self::getExecutable('php', true);
+        try {
+            return self::getExecutable('php', true);
+        } catch (\Exception $e) {
+            $phpFinder = new PhpExecutableFinder();
+            $phpPath = $phpFinder->find(true);
+            if (!$phpPath) {
+                throw $e;
+            }
+
+            return $phpPath;
+        }
     }
 
     /**
@@ -244,11 +207,11 @@ class Console
 
     /**
      * @param string $script
-     * @param string|array $arguments
+     * @param array $arguments
      *
      * @return array
      */
-    protected static function buildPhpScriptCmd($script, $arguments)
+    protected static function buildPhpScriptCmd(string $script, array $arguments = [])
     {
         $phpCli = self::getPhpCli();
 
@@ -259,10 +222,6 @@ class Console
         }
 
         if (!empty($arguments)) {
-            if (is_string($arguments)) {
-                @trigger_error(sprintf('Passing string arguments to %s is deprecated since v6.9 and will throw exception in Pimcore 10. Pass array arguments instead.', __METHOD__), E_USER_DEPRECATED);
-                $arguments = explode(' ', $arguments);
-            }
             $cmd = array_merge($cmd, $arguments);
         }
 
@@ -271,20 +230,20 @@ class Console
 
     /**
      * @param string $script
-     * @param string|array $arguments
+     * @param array $arguments
      * @param string|null $outputFile
-     * @param int|null $timeout
+     * @param float|null $timeout
      *
      * @return string
      */
-    public static function runPhpScript($script, $arguments = '', $outputFile = null, $timeout = null)
+    public static function runPhpScript($script, $arguments = [], $outputFile = null, $timeout = 60)
     {
         $cmd = self::buildPhpScriptCmd($script, $arguments);
         self::addLowProcessPriority($cmd);
         $process = new Process($cmd);
-        if ($timeout) {
-            $process->setTimeout($timeout);
-        }
+
+        $process->setTimeout($timeout);
+
         $process->start();
 
         if (!empty($outputFile)) {
@@ -304,12 +263,12 @@ class Console
      * @deprecated since v6.9. For long running background tasks switch to a queue implementation.
      *
      * @param string $script
-     * @param string|array $arguments
+     * @param array $arguments
      * @param string|null $outputFile
      *
      * @return int
      */
-    public static function runPhpScriptInBackground($script, $arguments = '', $outputFile = null)
+    public static function runPhpScriptInBackground($script, $arguments = [], $outputFile = null)
     {
         $cmd = self::buildPhpScriptCmd($script, $arguments);
         $process = new Process($cmd);
@@ -319,55 +278,8 @@ class Console
     }
 
     /**
-     * @deprecated Use Symfony\Component\Process\Process instead.
-     *
-     * @param string $cmd
-     * @param string|null $outputFile
-     * @param int|null $timeout
-     *
-     * @return string
-     */
-    public static function exec($cmd, $outputFile = null, $timeout = null)
-    {
-        if ($timeout && self::getTimeoutBinary()) {
-
-            // check if --kill-after flag is supported in timeout
-            if (self::$timeoutKillAfterSupport === null) {
-                $out = self::exec(self::getTimeoutBinary() . ' --help');
-                if (strpos($out, '--kill-after')) {
-                    self::$timeoutKillAfterSupport = true;
-                } else {
-                    self::$timeoutKillAfterSupport = false;
-                }
-            }
-
-            $killAfter = '';
-            if (self::$timeoutKillAfterSupport) {
-                $killAfter = ' -k 1m';
-            }
-
-            $cmd = self::getTimeoutBinary() . $killAfter . ' ' . $timeout . 's ' . $cmd;
-        } elseif ($timeout) {
-            Logger::warn('timeout binary not found, executing command without timeout');
-        }
-
-        if ($outputFile) {
-            $cmd = $cmd . ' > '. $outputFile .' 2>&1';
-        } else {
-            // send stderr to /dev/null otherwise this goes to the apache error log and can fill it up pretty quickly
-            if (self::getSystemEnvironment() != 'windows') {
-                $cmd .= ' 2> /dev/null';
-            }
-        }
-
-        Logger::debug('Executing command `' . $cmd . '` on the current shell');
-        $return = shell_exec($cmd);
-
-        return $return;
-    }
-
-    /**
      * @deprecated since v.6.9. Use Symfony\Component\Process\Process instead. For long running background tasks use queues.
+     *
      * @static
      *
      * @param string $cmd
@@ -389,6 +301,7 @@ class Console
 
     /**
      * @deprecated since v.6.9. For long running background tasks use queues.
+     *
      * @static
      *
      * @param string $cmd
@@ -421,7 +334,7 @@ class Console
          * mod_php seems to lose the environment variables if we do not set them manually before the child process is started
          */
         if (strpos(php_sapi_name(), 'apache') !== false) {
-            foreach (['PIMCORE_ENVIRONMENT', 'SYMFONY_ENV', 'APP_ENV'] as $envVarName) {
+            foreach (['APP_ENV'] as $envVarName) {
                 if ($envValue = $_SERVER[$envVarName] ?? $_SERVER['REDIRECT_' . $envVarName] ?? null) {
                     putenv($envVarName . '='.$envValue);
                 }
@@ -439,6 +352,7 @@ class Console
 
     /**
      * @deprecated since v.6.9. For long running background tasks use queues.
+     *
      * @static
      *
      * @param string $cmd
@@ -463,83 +377,21 @@ class Console
     }
 
     /**
-     * Returns a hash with all options passed to a cli script
-     *
-     * @param bool $onlyFullNotationArgs
-     *
-     * @return array
-     */
-    public static function getOptions($onlyFullNotationArgs = false)
-    {
-        global $argv;
-        $options = [];
-        $tmpOptions = $argv;
-        array_shift($tmpOptions);
-
-        foreach ($tmpOptions as $optionString) {
-            if ($onlyFullNotationArgs && substr($optionString, 0, 2) != '--') {
-                continue;
-            }
-            $exploded = explode('=', $optionString, 2);
-            $options[str_replace('-', '', $exploded[0])] = $exploded[1];
-        }
-
-        return $options;
-    }
-
-    /**
-     * @param array $options
-     * @param string $concatenator
-     * @param string $arrayConcatenator
-     *
-     * @return string
-     */
-    public static function getOptionString($options, $concatenator = '=', $arrayConcatenator = ',')
-    {
-        $string = '';
-
-        foreach ($options as $key => $value) {
-            $string .= '--' . $key;
-            if ($value) {
-                if (is_array($value)) {
-                    $value = implode($arrayConcatenator, $value);
-                }
-                $string .= $concatenator . "'" . $value . "'";
-            }
-            $string .= ' ';
-        }
-
-        return $string;
-    }
-
-    /**
-     * @throws \Exception
-     */
-    public static function checkCliExecution()
-    {
-        if (php_sapi_name() != 'cli') {
-            throw new \Exception('Script execution is restricted to CLI');
-        }
-    }
-
-    /**
      * @internal
      *
      * @param array|string $cmd
      *
-     * @return array|string
+     * @return void
      */
-    public static function addLowProcessPriority($cmd)
+    public static function addLowProcessPriority(&$cmd): void
     {
         $nice = (string) self::getExecutable('nice');
         if ($nice) {
             if (is_string($cmd)) {
                 $cmd = $nice . ' -n 19 ' . $cmd;
             } elseif (is_array($cmd)) {
-                array_unshift($cmd, $nice, '-n 19');
+                array_unshift($cmd, $nice, '-n', '19');
             }
         }
-
-        return $cmd;
     }
 }

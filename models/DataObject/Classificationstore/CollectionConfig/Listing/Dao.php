@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Model\DataObject;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Classificationstore\CollectionConfig\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -31,7 +33,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
     public function load()
     {
         $sql = 'SELECT id FROM ' . DataObject\Classificationstore\CollectionConfig\Dao::TABLE_NAME_COLLECTIONS . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit();
-        $configsData = $this->db->fetchCol($sql, $this->model->getConditionVariables());
+        $configsData = $this->db->fetchFirstColumn($sql, $this->model->getConditionVariables());
 
         $configData = [];
         foreach ($configsData as $config) {
@@ -48,7 +50,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function getDataArray()
     {
-        $configsData = $this->db->fetchAll('SELECT * FROM ' . DataObject\Classificationstore\CollectionConfig\Dao::TABLE_NAME_COLLECTIONS . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $configsData = $this->db->fetchAllAssociative('SELECT * FROM ' . DataObject\Classificationstore\CollectionConfig\Dao::TABLE_NAME_COLLECTIONS . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
 
         return $configsData;
     }

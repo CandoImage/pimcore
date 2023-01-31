@@ -26,26 +26,18 @@ class Folder extends Model\User\AbstractUser
     use Model\Element\ChildsCompatibilityTrait;
 
     /**
-     * @var array
-     */
-    public $children = [];
-
-    /**
-     * @var bool
-     */
-    public $hasChilds;
-
-    /**
-     * @param bool $state
+     * @internal
      *
-     * @return $this
+     * @var array|null
      */
-    public function setHasChilds($state)
-    {
-        $this->hasChilds = $state;
+    protected $children;
 
-        return $this;
-    }
+    /**
+     * @internal
+     *
+     * @var bool|null
+     */
+    protected $hasChildren;
 
     /**
      * Returns true if the document has at least one child
@@ -54,11 +46,11 @@ class Folder extends Model\User\AbstractUser
      */
     public function hasChildren()
     {
-        if ($this->hasChilds !== null) {
-            return $this->hasChilds;
+        if ($this->hasChildren === null) {
+            $this->hasChildren = $this->getDao()->hasChildren();
         }
 
-        return $this->getDao()->hasChildren();
+        return $this->hasChildren;
     }
 
     /**
@@ -66,11 +58,15 @@ class Folder extends Model\User\AbstractUser
      */
     public function getChildren()
     {
-        if (empty($this->children)) {
-            $list = new Role\Listing();
-            $list->setCondition('parentId = ?', $this->getId());
+        if ($this->children === null) {
+            if ($this->getId()) {
+                $list = new Role\Listing();
+                $list->setCondition('parentId = ?', $this->getId());
 
-            $this->children = $list->getRoles();
+                $this->children = $list->getRoles();
+            } else {
+                $this->children = [];
+            }
         }
 
         return $this->children;
@@ -83,11 +79,9 @@ class Folder extends Model\User\AbstractUser
      */
     public function setChildren($children)
     {
-        $this->children = $children;
-        if (is_array($children) and count($children) > 0) {
-            $this->hasChilds = true;
-        } else {
-            $this->hasChilds = false;
+        if (is_array($children)) {
+            $this->children = $children;
+            $this->hasChildren = count($children) > 0;
         }
 
         return $this;

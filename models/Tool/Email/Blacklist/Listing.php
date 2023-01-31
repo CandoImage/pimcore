@@ -18,30 +18,20 @@ namespace Pimcore\Model\Tool\Email\Blacklist;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Tool\Email\Blacklist\Listing\Dao getDao()
  * @method void delete()*
  * @method Model\Tool\Email\Blacklist[] load()
- * @method Model\Tool\Email\Blacklist current()
+ * @method Model\Tool\Email\Blacklist|false current()
  * @method int getTotalCount()
  */
 class Listing extends Model\Listing\AbstractListing
 {
     /**
-     * @var Model\Tool\Email\Blacklist[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $items = null;
-
-    public function __construct()
-    {
-        $this->items = & $this->data;
-    }
-
-    /**
      * @param Model\Tool\Email\Blacklist[]|null $items
      *
-     * @return static
+     * @return $this
      */
     public function setItems($items)
     {

@@ -17,33 +17,42 @@ To use the thumbnailing service of Pimcore, you have to create a transformation 
 The fields name, description, format and quality should be self-explanatory, the interesting part are now the transformations. 
 Click on *+* to add a new transformation, so that it look like that for example:
 
-![Thumbnails](../../img/thumbnails1.png)
+![Thumbnails](../../img/thumbnail_transformations.png)
 
 **Important**: The transformations are performed in the order from the top to the bottom. This is for example important 
-in the configuration above. If the you first round the corners this would be performed on the original image, 
+in the configuration above. If you first round the corners this would be performed on the original image, 
 and then the image will get resized, so the rounded corners are also resized which is not intended. 
 
 To retrieve a thumbnail from an asses simply call `$asset->getThumbnail("thumbnail-name")` on the asset object, which will return 
-an `\Pimcore\Model\Asset\Image\Thumbnail` object. The thumbnail object's `__toString()` method returns the path to the thumbnail file 
-beginning from the document root, for example: 
-`/var/tmp/image-thumbnails/0/53/thumb__exampleCover/img_0322.jpeg`
+an `\Pimcore\Model\Asset\Image\Thumbnail` object. The thumbnail object's `__toString()` method returns the path to the thumbnail file, for example:
+`/Car%20Images/ac%20cars/68/image-thumb__68__content/automotive-car-classic-149813.jpg`
+
+**Important**: The function `getThumbnail()` does not generate the Thumbnail itself. It just returns the path were the thumbnail file will be stored.
+If you want to generate the Thumbnail directly have a look at [Deferred Rendering of Thumbnails](#deferred-rendering-of-thumbnails)
 
 This path can then be directly used to display the image in a `<img />` or `<picture`> tag. For example:
 ```php
-<?php
-    use Pimcore\Model\Asset;
-    // get an asset
-    $asset = Asset::getById(1234);
-?>
- 
-<?php if ($asset) { ?>
-   <img src="<?= $asset->getThumbnail("myThumbnailName") ?>" />
+$image = Asset::getById(1234);
 
-    <!-- preferred alternative - let Pimcore create the whole image tag -->
-    <!-- including high-res alternatives (srcset) or media queries, if configured -->
-    <?= $asset->getThumbnail("myThumbnail")->getHtml(); ?>
+// get path to thumbnail, e.g. `/foo/bar/362/image-thumb__362__content/foo.webp 
+$pathToThumbnail = $image->getThumbnail("myThumbnailName");
 
-<?php } ?>
+// preferred alternative - let Pimcore create the whole image tag
+// including high-res alternatives (srcset) or media queries, if configured
+$htmlCode = $image->getThumbnail("myThumbnail")->getHtml();
+```
+
+Same in Twig: 
+
+```twig 
+{% set image = pimcore_asset(1234) %}
+
+{# get path to thumbnail, e.g. `/foo/bar/362/image-thumb__362__content/foo.webp #}
+<img src="{{ image.thumbnail('myThumbnailName') }}">
+
+{# preferred alternative - let Pimcore create the whole image tag #}
+{# including high-res alternatives (srcset) or media queries, if configured #}
+{{ image.thumbnail('myThumbnailName').html|raw }}
 ```
 
 ## Explanation of the Transformations
@@ -65,55 +74,72 @@ This path can then be directly used to display the image in a `<img />` or `<pic
 
 For thumbnails in action also have a look at our [Live Demo](https://demo.pimcore.fun/en/More-Stuff/Developers-Corner/Thumbnails). 
 
+## Generating HTML for Thumbnails
+
+Pimcore offers the method `getHTML(array $options)` to get a ready to use `<picture>` tag for your thumbnail. When a `<picture>` element is not needed or desired an `<img />` element can used by calling `getImageTag(array $options)` instead.
+
+You can configure the generated markup with the following options: 
+
+| Name                           | Type     | Description                                                                                                                                                                                                                             |
+|--------------------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `disableWidthHeightAttributes` | bool     | Width & height attributes are set automatically by Pimcore, to avoid this set this option (eg. to true => isset check)                                                                                                                  |
+| `disableAutoTitle`             | bool     | Set to true, to disable the automatically generated title attribute (containing title and copyright from the origin image)                                                                                                              |
+| `disableAutoAlt`               | bool     | Set to true, to disable the automatically generated alt attribute                                                                                                                                                                       |
+| `disableAutoCopyright`         | bool     | Set to true, to disable the automatically appended copyright info (alt & title attribute)                                                                                                                                               |
+| `disableAutoCopyright`         | bool     | Set to true, to disable the automatically appended copyright info (alt & title attribute)                                                                                                                                               |
+| `pictureAttributes`            | array    | An key-value array of custom attributes which should be applied to the generated `<picture>` tag |
+| `imgAttributes`                | array    | An key-value array of custom attributes which should be applied to the generated `<img>` tag |
+| `lowQualityPlaceholder`        | bool     | Put's a small SVG/JPEG placeholder image into the `src` (data-uri), the real image path is placed in `data-src` and `data-srcset`.|
+| `pictureCallback`              | callable | A callable to modify the attributes for the generated `<picture>` tag. There 1 argument passed, the array of attributes. |
+| `sourceCallback`               | callable | A callable to modify the attributes for any of the generated `<source>` tag. There 1 argument passed, the array of attributes. |
+| `imgCallback`                  | callable | A callable to modify the attributes for the generated `<img>` tag. There 1 argument passed, the array of attributes. |
+| `disableImgTag`                | bool     | Set to `true` to not include the `<img>` fallback tag in the generated `<picture>` tag.   |
+| `useDataSrc`                   | bool     | Set to `true` to use `data-src(set)` attributes instead of `src(set)`.   |
+
 ## Usage Examples
-```php
-<?php // Use with the image tag in documents ?>
+```twig
+/* Use directly on the asset object */
+{{ pimcore_asset_by_path('/path/to/image.jpg').thumbnail('myThumbnail').html|raw }}
+
+/* ... with some additional options */
+{{ pimcore_asset_by_path('/path/to/image.jpg').thumbnail('myThumbnail').html({ 
+    pictureAttributes: {
+        data-test: "my value"
+    },
+    disableImgTag: true
+})|raw }}
+
+/* Use with the image tag in documents */
 <div>
     <p>
-        <?= $this->image("image", ["thumbnail" => "myThumbnail"]) ?>
+        {{ pimcore_image('myImage', {'thumbnail': 'myThumbnail'}) }}
     </p>
 </div>
+
+/* Use without pre-configured thumbnail */
+{{ pimcore_image('myImage', {
+    'thumbnail': {
+        'width': 500,
+        'aspectratio': true,
+        'interlace': true,
+        'quality': 85,
+        'format': 'png'
+    }
+}) }}
  
+/* Use from an object-field */
+/* where "myThumbnail" is the name of the thumbnail configuration in settings -> thumbnails */
+{% if myObject.myImage %}
+   {{ myObject.myImage.thumbnail('myThumbnail').html|raw }}
+{% endif %}
+
  
-<?php // Use directly on the asset object ?>
-<?php
-    $asset = Asset::getByPath("/path/to/image.jpg");
-    echo $asset->getThumbnail("myThumbnail")->getHtml();
-?>
+/* Use from an object-field with dynamic configuration */
+<img src="{{ myObject.myImage.thumbnail({'width': 220, 'format': 'jpeg'}) }}" />
  
-<?php // Use without pre-configured thumbnail ?>
-<?= $this->image("image", [
-    "thumbnail" => [
-        "width" => 500,
-        "height" => 0,
-        "aspectratio" => true,
-        "interlace" => true,
-        "quality" => 95,
-        "format" => "PNG"
-    ]
-]) ?>
- 
-<?php // Use from an object-field ?>
-<?php if ($this->myObject->getMyImage() instanceof Asset\Image) { ?>
-    <img src="<?= $this->myObject->getMyImage()->getThumbnail("myThumbnail"); ?>" />
-<?php } ?>
- 
-// where "myThumbnail" is the name of the thumbnail configuration in settings -> thumbnails
- 
- 
-<?php // Use from an object-field with dynamic configuration ?><?php if ($this->myObject->getMyImage() instanceof Asset\Image) { ?>
-    <img src="<?= $this->myObject->getMyImage()->getThumbnail(["width" => 220, "format" => "jpeg"]); ?>" />
-<?php } ?>
- 
- 
- 
-<?php // Use directly on the asset object using dynamic configuration ?>
-<?php
- 
-$asset = Asset::getByPath("/path/to/image.jpg");
-echo $asset->getThumbnail(["width" => 500, "format" => "png"])->getHtml();
- 
-?>
+
+/* Use directly on the asset object using dynamic configuration */
+{{ pimcore_asset_by_path('/path/to/image.jpg').thumbnail({'width': 500, 'format': 'png'}).html|raw}}
 ```
 
 ## Advanced Examples
@@ -127,64 +153,132 @@ $thumbnail = $asset->getThumbnail("myThumbnail");
 $width = $thumbnail->getWidth();
 $height = $thumbnail->getHeight();
  
-// get the html "img" tag for the thumbnail incl. custom class:
-echo $thumbnail->getHtml(["class" => "custom-class"]);
+// get the html "<picture>" tag for the thumbnail incl. custom class on the containing `<img>` tag:
+echo $thumbnail->getHtml(['imgAttributes' => ["class" => "custom-class"]]);
  
 // get the path to the thumbnail
 $path = $thumbnail->getPath();
  
 // Asset\Image\Thumbnail implements __toString(), so you can still print the path by
-echo $thumbnail; // prints something like /var/tmp/....png
+echo $thumbnail; // prints something like /Car%20Images/....png
+
+// examples for callbacks, etc. for the generated <picture> tag
+$thumbnail->getHtml([
+    'useDataSrc' => true,
+    'pictureAttributes' => [
+        'data-bar' => uniqid(),
+    ],
+    'imgAttributes' => [
+        'data-foo' => uniqid(),
+    ],
+    'imgCallback' => function ($attributes) {
+        // modify <img> tag attributes
+        $attributes['data-foo'] = 'new value';
+        return $attributes;
+    },
+    'sourceCallback' => function ($attributes) {
+        // modify <source> tag attributes
+        $attributes['data-custom-source-attr'] = uniqid();
+        return $attributes;
+    },
+    'pictureCallback' => function ($attributes) {
+        // modify <source> tag attributes
+        $attributes['data-custom-picture-attr'] = uniqid();
+        return $attributes;
+    },
+    'disableImgTag' => true,
+    'lowQualityPlaceholder' => true,
+]);
+// get thumbnail instance in a specific file format
+$webpThumbnail = $thumbnail->getAsFormat('webp');
+$webpThumbnail->getHtml();
 ```
 
 ## More Examples
-```php
-// adding custom html attributes to the generated <img> or <picture> tag, using a dynamic thumbnail
-<?= $asset->getThumbnail([
- "width" => 180,
- "height" => 180,
- "cover" => true
-])->getHtml(["class" => "thumbnail", "data-my-name" => "my value"]) ?>
- 
+```twig
+
+/* adding custom html attributes to the generated <img> or <picture> tag, using a dynamic thumbnail */
+{{ image.thumbnail({
+    'width': 180,
+    'height': 180,
+    'cover': true,
+}).html({
+    'imgAttributes': {
+        'class': 'thumbnail-class',
+    },
+    'data-my-name': 'my value',
+    'attributes': {
+        'non-standard': 'HTML attributes',
+        'another': 'one'
+    }
+})|raw }}
   
-// same with a thumbnail definition
-<?= $asset->getThumbnail("exampleScaleWidth")->getHtml([
-    "class" => "thumbnail", 
-    "data-my-name" => "my value"
-]) ?>
+/* same with a thumbnail definition */
+{{ image.thumbnail('exampleScaleWidth').html({
+    'pictureAttributes': {
+        'class': 'thumbnail-class',
+    },
+    'data-my-name': 'my value',
+})|raw }}
   
-// disable the automatically added width & height attributes
-<?= $asset->getThumbnail("exampleScaleWidth")->getHtml([], ["width","height"]) ?>
+/* disable the automatically added width & height attributes */
+{{ image.thumbnail('exampleScaleWidth').html({}, ['width', 'height'])|raw }}
 
-// add alt text
-<?= $asset->getThumbnail("content")->getHtml(['alt' => 'top priority alt']) ?>
-// or
-<?= $asset->getThumbnail("content")->getHtml(['defaultalt' => 'default alt, if not set in image']) ?>
+/* add alt text */
+{{ image.thumbnail('exampleScaleWidth').html({'alt': 'top priority alt text'})|raw }}
+/* OR */
+{{ image.thumbnail('exampleScaleWidth').html({'defaultalt': 'default alt, if not set in image'})|raw }}
+    
 
-
+/* Output only <img> element wihout <picture> and <source> around it */
+{{ image.thumbnail('exampleScaleWidth').imageTag({'alt': 'top priority alt text'}) }}    
 ```
 
+Additionally there are some special parameters to [customize generated image HTML code](../../03_Documents/01_Editables/14_Image.md#page_Configuration).
 
-## Using ICC Color Profiles for CMYK -> RGB 
-Pimcore supports ICC color profiles to get better results when converting CMYK images (without embedded color profile) 
-to RGB. 
+## Lazy Loading 
 
-Due licensing issues Pimcore doesn't include the color profiles (*.icc files) in the download package, but 
-you can download them for free here: [Adobe ICC Profiles](http://www.adobe.com/support/downloads/detail.jsp?ftpID=4075) 
-or here: [ICC (color.org)](http://www.color.org/profiles.xalter). 
+By default, the images are lazy loading. This can be changed by setting the value to "eager" in the imgAttribute:
+    
+```twig
 
-After downloading the profiles put them into your `/website` folder or anywhere else on your sever 
-(eg. `/usr/share/color/icc`). Then go to the Pimcore system settings, open the assets section and configure the 
-path to your favorite color profile.
+{{ image.thumbnail('example').html({
+    'imgAttributes': {
+        'loading': 'eager',
+    }
+})|raw }}
+    
 
-![Color Profiles](../../img/thumbnails2.png)
+````  
+ 
+## Using ICC Color Profiles for CMYK -> RGB
+Pimcore supports ICC color profiles to get better results when converting CMYK images (without embedded color profile)
+to RGB.
 
+Due licensing issues Pimcore doesn't include the color profiles (*.icc files) in the download package, but
+you can download them for free here: [Adobe ICC Profiles](http://www.adobe.com/support/downloads/detail.jsp?ftpID=4075)
+or here: [ICC (color.org)](http://www.color.org/profiles.xalter).
+
+After downloading the profiles put them into your project folder or anywhere else on your sever
+(eg. `/usr/share/color/icc`). Then configure the path in the pimcore config file:
+
+```yaml
+pimcore:
+
+    assets:
+
+        # Absolute path to default ICC RGB profile (if no embedded profile is given)
+        icc_rgb_profile:      null
+
+        # Absolute path to default ICC CMYK profile (if no embedded profile is given)
+        icc_cmyk_profile:     null
+```
 
 ## Dynamic Generation on Request
 Pimcore auto-generates a thumbnail if requested but doesn't exist on the file system and is directly called via it's file path (not using any of 
-the `getThumbnail()` methods). 
-For example: Call `https://example.com/examples/panama/image-thumb__6644__contentimages/img_0037.jpeg` 
- (`/examples/panama/` is the path to the source asset, `6644` is the ID of the source asset, `contentimages` is the name of the thumbnail configuration, `img_0037.jpeg` the filename of the source asset) directly in your browser. Now pimcore checks 
+the `getThumbnail()` methods).
+For example: Call `https://example.com/examples/panama/6644/image-thumb__6644__contentimages/img_0037.jpeg`
+(`/examples/panama/` is the path to the source asset, `6644` is the ID of the source asset, `contentimages` is the name of the thumbnail configuration, `img_0037.jpeg` the filename of the source asset) directly in your browser. Now pimcore checks 
  if the asset with the ID 6644 and the thumbnail with the key "contentimages" exists, if yes the thumbnail is 
  generated on-the-fly and delivered to the client. When requesting the images again the image is directly served by 
  the webserver (Apache, Nginx), because the file already exists (just the same way it works with the getThumbnail() methods). 
@@ -208,11 +302,11 @@ $asset = Asset\Image::getById(123);
 $asset->getThumbnail("myConfig", false); // set the 2nd parameter to false
 ```
 
-The processing is also forced when calling the method `getFileSystemPath()` or `getPath(false)` on 
+The processing is also forced when calling the method `getPathReference()` or `getPath(false)` on 
 the returning thumbnail object: 
 
 ```php
-$asset->getThumbnail("myConfig")->getFileSystemPath(); 
+$asset->getThumbnail("myConfig")->getPathReference(); 
 // or 
 $asset->getThumbnail("myConfig")->getPath(false); 
 ```
@@ -224,21 +318,25 @@ The following is only necessary in special use-cases like Web-to-Print, in typic
 automatically adds the `srcset` attribute to `<img>` and `<picture>` tags automatically, so no manual work is necessary. 
 
 #### Use in the Thumbnail Configuration: 
-![High Resolution](../../img/thumbnails3.png)
+![High Resolution](../../img/thumbnail_high_resolution.png)
 The above configuration will generate a thumbnail with 500px width. 
 
 When using this configuration in combination with the [image editable](../../03_Documents/01_Editables/14_Image.md) 
 using the following code
-```php
-<?= $this->image("myImage", ["thumbnail" => "contentimages"]); ?>
+```twig
+{{ pimcore_image('myImage', {'thumbnail': 'contentimages'}) }}
 ```
 this will create the following output: 
 ```php
-<img src="/var/tmp/thumb_6644__contentimages@2x.png" width="250" height="190" />
+<img src="/Car%20Images/ac%20cars/68/image-thumb__68__contentimages/automotive-car-classic-149813@2x.png" width="250" height="190" />
 ```
 It's also possible to add the high-res dynamically: 
-```php
-<?= $this->image("myImage", ["thumbnail" => ["width" => 250, "contain" => true, "highResolution" => 2]])
+```twig
+{{ pimcore_image('myImage', {thumbnail: {
+    width: 250,
+    contain: true,
+    highResolution: 2
+}}) }}
 ```
 This will create an image `width = 500px`
 
@@ -250,31 +348,29 @@ So again, this feature is only useful in some edge-cases.
 
 ###### Example 
 
-```php
-<?= $image->getThumbnail("testimage")->getPath(); ?>
+```twig
+{{ image.thumbnail('testThumbnailDefinitionName').path }}
 ```
 this generates the followinig ouput: 
 ```php
-/var/tmp/thumb_6644__testimage.png
+/Car%20Images/ac%20cars/68/image-thumb__68__testThumbnailDefinitionName/automotive-car-classic-149813.jpg
 ```
 
 To get an high-res version of the thumbnail, you can just add `@2x` before the file extension: 
 ```
-/var/tmp/thumb_7865__teaserportal@2x.png
-/var/tmp/thumb_6644__testimage@5x.png
+/Car%20Images/ac%20cars/68/image-thumb__68__content/automotive-car-classic-149813@2x.png
+/Car%20Images/ac%20cars/68/image-thumb__68__content/automotive-car-classic-149813@5x.png
 ``` 
 Using float is possible too:
 ```
-/var/tmp/thumb_123456__teaserportal@3.2x.png
+/Car%20Images/ac%20cars/68/image-thumb__68__content/automotive-car-classic-149813@3.2x.png
 ```
 
 Pimcore will then dynamically generate the thumbnails accordingly. 
 
 ## Media Queries in Thumbnail Configuration
-If your're using media queries in your thumbnail configuration pimcore automatically generates a `<picture>`  tag 
-instead of an `<img>` tag when calling `$asset->getThumbnail("example")->getHtml()`.
-But in some cases it is necessary to get single thumbnails for certain media queries out of the thumbnail object, 
-which is described in the examples below. 
+If your're using media queries in your thumbnail configuration pimcore automatically generates a `<picture>` tag when calling `$asset->getThumbnail("example")->getHtml()`.
+But in some cases it is necessary to get single thumbnails for certain media queries out of the thumbnail object, which is described in the examples below. 
 ```php
 $a = Asset::getById(71);
  
@@ -284,23 +380,15 @@ p_r(array_keys(Asset\Image\Thumbnail\Config::getByName("galleryCarousel")->getMe
 // get the <picture> element for "galleryCarousel" => default behavior
 $a->getThumbnail("galleryCarousel")->getHtml();
  
-// get path of thumbnail for media query 940w
-$a->getThumbnail("galleryCarousel")->getMedia("940w");
+// get path of thumbnail for media query min-width: 940px
+$a->getThumbnail("galleryCarousel")->getMedia("(min-width: 940px)");
  
-// get <img> tag for media query 320w including @srcset 2x
-$a->getThumbnail("galleryCarousel")->getMedia("320w")->getHtml();
+// get <img> tag for media query min-width: 320px including @srcset 2x
+$a->getThumbnail("galleryCarousel")->getMedia("(min-width: 320px)")->getHtml();
  
-// get 2x thumbnail path for media query 320w
-$a->getThumbnail("galleryCarousel")->getMedia("320w", 2);
+// get 2x thumbnail path for media query min-width: 320px
+$a->getThumbnail("galleryCarousel")->getMedia("(min-width: 320px)", 2);
 ```
-
-## Picture Polyfill
-Pimcore uses the `<picture>` HTML-tag which isn't supported natively by IE (but all other modern browsers). 
-To use `<picture>` in IE you have to include a polyfill which adds the support to the browser. 
-
-See: 
-- https://github.com/verlok/picturePolyfill
-- https://github.com/scottjehl/picturefill 
 
 ## Focal Point
 Pimcore supports focal points on images, which are considered when images are automatically cropped. 
@@ -313,18 +401,6 @@ of the image is on the focal point.
 ![Focal point context menu entry on document image editable](../../img/document_image_editable_focal_point.png)  
   
 ![Image thumbnails cover transformation considering focal point](../../img/image_thumbnails_cover_focal_point.png)
-
-## WebP Support 
-Pimcore  delivers automatically thumbnails in WebP format when using the `Auto` configuration for the 
-target format and when the client does support WebP (checking by evaluating the `Accept` request header).  
-    
-If you prefer not using WebP, you can disable the support by adding the following config option: 
-```yml
-    assets:
-        image:
-            thumbnails:
-                webp_auto_support: false
-```
 
 ## Clipping Support 
 Images with an embedded clipping path (8BIM / Adobe profile meta data) are automatically clipped when generating thumbnails of them. 
@@ -368,10 +444,46 @@ $thumbnailConfig->addItemAt(0, function (Imagick $imagick) {
 $asset = Asset::getById(39);
 $asset->clearThumbnails(true);
 $thumb = $asset->getThumbnail($thumbnailConfig);
-$file = $thumb->getFileSystemPath();
+$file = $thumb->getPath();
 ```
 
 ## Downloading Asset Thumbnails
 
 Besides embedding thumbnails into CMS pages and distributing them via other channels, backend users can download a thumbnail of an asset. 
 In order to make a thumbnail downloadable, mark "List as option in download section on image detail view" option in Image Thumbnail Advanced settings. All thumbnails with this option enabled are listed in the "Download Thumbnail" dropdown on the detail view of an Asset. To download the thumbnail of the asset choose the thumbnail from the list and hit the "Download" button.
+
+
+## Customize Auto (Web-Optimized) Format
+For most web-based applications it's recommended to use the auto configuration, which does multiple things: 
+- automatically select the target image format (`jpeg`, `png`) based on image characteristics (such as alpha channel)
+- multiple additional optimized image formats (`webp`, `avif`) using progressive enhancement (in `<picture` tag)
+- runs image optimizers (such as `jpegoptim` and `pngout`) on generated images using an async queue 
+
+Even if this setting does quite a lot of stuff automatically, it's still required to set a quality in the thumbnail
+configuration. This quality will be used by `jpeg` and `png` and if not configured otherwise also for `webp`. 
+If `avif` is supported by Imagick this won't use the quality from the thumbnail configuration, but uses a fixed value.   
+It is possible to customize the used alternative image formats and their qualities by using the following configuration: 
+```yaml
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                auto_formats:
+                    # the quality is used by Imagick, set to null if quality value from config should be used 
+                    # the following config is used as the default by Pimcore
+                    # the order of the formats is used for the priority of the <source> in the <picture> tag
+                    avif:
+                        quality: 15
+                    webp:
+                        quality: null
+                        enabled: true
+```
+
+#### Config for disabling all auto-formats
+```yaml
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                auto_formats: null
+```

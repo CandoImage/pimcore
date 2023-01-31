@@ -17,10 +17,13 @@ namespace Pimcore\DataObject\BlockDataMarshaller;
 
 use Pimcore\Marshaller\MarshallerInterface;
 
+/**
+ * @internal
+ */
 class Consent implements MarshallerInterface
 {
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function marshal($value, $params = [])
     {
@@ -32,7 +35,7 @@ class Consent implements MarshallerInterface
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function unmarshal($value, $params = [])
     {

@@ -16,37 +16,51 @@
 namespace Pimcore\Model\Document\DocType;
 
 use Pimcore\Model;
+use Symfony\Component\Uid\Uuid as Uid;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Document\DocType $model
  */
-class Dao extends Model\Dao\PhpArrayTable
+class Dao extends Model\Dao\PimcoreLocationAwareConfigDao
 {
     public function configure()
     {
-        parent::configure();
-        $this->setFile('document-types');
+        $config = \Pimcore::getContainer()->getParameter('pimcore.config');
+
+        parent::configure([
+            'containerConfig' => $config['documents']['doc_types']['definitions'],
+            'settingsStoreScope' => 'pimcore_document_types',
+            'storageDirectory' => $_SERVER['PIMCORE_CONFIG_STORAGE_DIR_DOCUMENT_TYPES'] ?? PIMCORE_CONFIGURATION_DIRECTORY . '/document-types',
+            'legacyConfigFile' => 'document-types.php',
+            'writeTargetEnvVariableName' => 'PIMCORE_WRITE_TARGET_DOCUMENT_TYPES',
+        ]);
     }
 
     /**
      * Get the data for the object from database for the given id
      *
-     * @param int|null $id
+     * @param string|null $id
      *
      * @throws \Exception
      */
-    public function getById($id = null)
+    public function getById(?string $id = null): void
     {
-        if ($id != null) {
-            $this->model->setId($id);
+        $data = null;
+        if ($id !== null) {
+            $data = $this->getDataByName($id);
         }
 
-        $data = $this->db->getById($this->model->getId());
-        if (isset($data['id'])) {
-            $this->assignVariablesToModel($data);
-        } else {
-            throw new \Exception('Doc-type with id ' . $this->model->getId() . " doesn't exist");
+        if (empty($data)) {
+            throw new Model\Exception\NotFoundException(sprintf(
+                'Document Type with ID "%s" does not exist.',
+                $this->model->getId()
+            ));
         }
+
+        $data['id'] = $id;
+        $this->assignVariablesToModel($data);
     }
 
     /**
@@ -54,6 +68,9 @@ class Dao extends Model\Dao\PhpArrayTable
      */
     public function save()
     {
+        if (!$this->model->getId()) {
+            $this->model->setId(Uid::v4());
+        }
         $ts = time();
         if (!$this->model->getCreationDate()) {
             $this->model->setCreationDate($ts);
@@ -62,19 +79,15 @@ class Dao extends Model\Dao\PhpArrayTable
 
         $dataRaw = $this->model->getObjectVars();
         $data = [];
-        $allowedProperties = ['id', 'name', 'group', 'module', 'controller',
-            'action', 'template', 'type', 'priority', 'creationDate', 'modificationDate', ];
+        $allowedProperties = ['name', 'group', 'controller',
+            'template', 'type', 'priority', 'creationDate', 'modificationDate', 'staticGeneratorEnabled', ];
 
         foreach ($dataRaw as $key => $value) {
             if (in_array($key, $allowedProperties)) {
                 $data[$key] = $value;
             }
         }
-        $this->db->insertOrUpdate($data, $this->model->getId());
-
-        if (!$this->model->getId()) {
-            $this->model->setId($this->db->getLastInsertId());
-        }
+        $this->saveData($this->model->getId(), $data);
     }
 
     /**
@@ -82,6 +95,24 @@ class Dao extends Model\Dao\PhpArrayTable
      */
     public function delete()
     {
-        $this->db->delete($this->model->getId());
+        $this->deleteData($this->model->getId());
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function prepareDataStructureForYaml(string $id, $data)
+    {
+        return [
+            'pimcore' => [
+                'documents' => [
+                    'doc_types' => [
+                        'definitions' => [
+                            $id => $data,
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 }

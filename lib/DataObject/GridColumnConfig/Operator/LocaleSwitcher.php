@@ -17,7 +17,10 @@ namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
 use Pimcore\Localization\LocaleServiceInterface;
 
-class LocaleSwitcher extends AbstractOperator
+/**
+ * @internal
+ */
+final class LocaleSwitcher extends AbstractOperator
 {
     /**
      * @var LocaleServiceInterface
@@ -29,6 +32,9 @@ class LocaleSwitcher extends AbstractOperator
      */
     private $locale;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(LocaleServiceInterface $localeService, \stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -37,6 +43,9 @@ class LocaleSwitcher extends AbstractOperator
         $this->locale = $config->locale ?? null;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();

@@ -15,37 +15,44 @@
 
 namespace Pimcore\Model\Tool\Targeting;
 
+use Pimcore\Event\Model\TargetGroupEvent;
+use Pimcore\Event\TargetGroupEvents;
+use Pimcore\Event\Traits\RecursionBlockingEventDispatchHelperTrait;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @method TargetGroup\Dao getDao()
  */
 class TargetGroup extends Model\AbstractModel
 {
-    /**
-     * @var int
-     */
-    public $id;
-
-    /**
-     * @var string
-     */
-    public $name;
-
-    /**
-     * @var string
-     */
-    public $description = '';
+    use RecursionBlockingEventDispatchHelperTrait;
 
     /**
      * @var int
      */
-    public $threshold = 1;
+    protected $id;
+
+    /**
+     * @var string
+     */
+    protected $name;
+
+    /**
+     * @var string
+     */
+    protected $description = '';
+
+    /**
+     * @var int
+     */
+    protected $threshold = 1;
 
     /**
      * @var bool
      */
-    public $active = true;
+    protected $active = true;
 
     /**
      * @param int $id
@@ -56,10 +63,10 @@ class TargetGroup extends Model\AbstractModel
     {
         try {
             $targetGroup = new self();
-            $targetGroup->getDao()->getById(intval($id));
+            $targetGroup->getDao()->getById((int)$id);
 
             return $targetGroup;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -76,7 +83,7 @@ class TargetGroup extends Model\AbstractModel
             $target->getDao()->getByName($name);
 
             return $target;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -124,7 +131,7 @@ class TargetGroup extends Model\AbstractModel
      */
     public function setId($id)
     {
-        $this->id = (int) $id;
+        $this->id = (int)$id;
 
         return $this;
     }
@@ -178,7 +185,7 @@ class TargetGroup extends Model\AbstractModel
      */
     public function setActive($active)
     {
-        $this->active = (bool) $active;
+        $this->active = (bool)$active;
     }
 
     /**
@@ -187,5 +194,33 @@ class TargetGroup extends Model\AbstractModel
     public function getActive()
     {
         return $this->active;
+    }
+
+    /**
+     * @return void
+     */
+    public function delete()
+    {
+        $this->getDao()->delete();
+        $this->dispatchEvent(new TargetGroupEvent($this), TargetGroupEvents::POST_DELETE);
+    }
+
+    /**
+     * @return void
+     */
+    public function save()
+    {
+        $isUpdate = false;
+        if ($this->getId()) {
+            $isUpdate = true;
+        }
+
+        $this->getDao()->save();
+
+        if ($isUpdate) {
+            $this->dispatchEvent(new TargetGroupEvent($this), TargetGroupEvents::POST_UPDATE);
+        } else {
+            $this->dispatchEvent(new TargetGroupEvent($this), TargetGroupEvents::POST_ADD);
+        }
     }
 }

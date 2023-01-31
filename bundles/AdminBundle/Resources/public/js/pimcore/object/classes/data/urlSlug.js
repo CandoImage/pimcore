@@ -74,26 +74,24 @@ pimcore.object.classes.data.urlSlug = Class.create(pimcore.object.classes.data.d
             fields: ['id', 'domain']
         });
 
-
-        var availableSites = null;
-        if (datax.availableSites) {
-            availableSites = datax.availableSites.join(",");
-        }
-
         var specificItems = [
             {
-                xtype: "numberfield",
+                xtype: "textfield",
                 fieldLabel: t("width"),
                 name: "width",
                 value: datax.width
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('width_explanation')
             },
             {
                 xtype: "numberfield",
                 fieldLabel: t("domain_label_width"),
                 name: "domainLabelWidth",
                 value: datax.domainLabelWidth
-            }
-            ,
+            },
             {
                 xtype: "textfield",
                 fieldLabel: t("controller_action"),
@@ -110,7 +108,7 @@ pimcore.object.classes.data.urlSlug = Class.create(pimcore.object.classes.data.d
             new Ext.ux.form.MultiSelect({
                 fieldLabel: t("available_sites"),
                 name: "availableSites",
-                value: availableSites,
+                value: datax.availableSites,
                 displayField: "domain",
                 valueField: "id",
                 store: sitesStore,

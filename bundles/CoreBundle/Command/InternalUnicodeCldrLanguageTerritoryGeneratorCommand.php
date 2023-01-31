@@ -21,14 +21,13 @@ use Pimcore\Localization\LocaleServiceInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class InternalUnicodeCldrLanguageTerritoryGeneratorCommand extends AbstractCommand
 {
-    /** @var LocaleServiceInterface */
-    private $localeService;
-
-    public function __construct(LocaleServiceInterface $localeService)
+    public function __construct(private LocaleServiceInterface $localeService)
     {
-        $this->localeService = $localeService;
         parent::__construct();
     }
 
@@ -41,9 +40,9 @@ class InternalUnicodeCldrLanguageTerritoryGeneratorCommand extends AbstractComma
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $source = 'https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/supplementalData.xml';
         $data = file_get_contents($source);

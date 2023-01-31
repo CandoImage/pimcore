@@ -18,24 +18,14 @@ namespace Pimcore\Model\Schedule\Task;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Schedule\Task\Listing\Dao getDao()
  * @method Model\Schedule\Task[] load()
- * @method Model\Schedule\Task current()
+ * @method Model\Schedule\Task|false current()
  */
 class Listing extends Model\Listing\AbstractListing
 {
-    /**
-     * @var Model\Schedule\Task[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $tasks = null;
-
-    public function __construct()
-    {
-        $this->tasks = & $this->data;
-    }
-
     /**
      * @return Model\Schedule\Task[]
      */
@@ -47,7 +37,7 @@ class Listing extends Model\Listing\AbstractListing
     /**
      * @param Model\Schedule\Task[]|null $tasks
      *
-     * @return static
+     * @return $this
      */
     public function setTasks($tasks)
     {

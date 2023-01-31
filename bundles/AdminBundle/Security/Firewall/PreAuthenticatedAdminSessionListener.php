@@ -20,18 +20,19 @@ namespace Pimcore\Bundle\AdminBundle\Security\Firewall;
 use Pimcore\Bundle\AdminBundle\Security\Authentication\Token\PreAuthenticatedAdminToken;
 use Pimcore\Bundle\AdminBundle\Security\User\User;
 use Pimcore\Tool\Authentication;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\Security\Core\Authentication\AuthenticationManagerInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Http\Firewall\ListenerInterface;
 
 /**
+ * @deprecated will be removed in Pimcore 11
+ *
  * Checks if there's an existing admin session and stores its token on the security token storage.
  *
  * @package Pimcore\Bundle\AdminBundle\Security\Firewall
  */
-class PreAuthenticatedAdminSessionListener implements ListenerInterface
+class PreAuthenticatedAdminSessionListener
 {
     /**
      * @var TokenStorageInterface
@@ -63,10 +64,7 @@ class PreAuthenticatedAdminSessionListener implements ListenerInterface
         $this->providerKey = $providerKey;
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function handle(GetResponseEvent $event)
+    public function __invoke(RequestEvent $event)
     {
         $request = $event->getRequest();
 
@@ -74,8 +72,8 @@ class PreAuthenticatedAdminSessionListener implements ListenerInterface
         if (null !== $pimcoreUser) {
             $user = new User($pimcoreUser);
 
-            $token = new PreAuthenticatedAdminToken($user, '', $this->providerKey);
-            $token->setUser($user->getUsername());
+            $token = new PreAuthenticatedAdminToken($user, $this->providerKey);
+            $token->setUser($user->getUserIdentifier());
 
             try {
                 $authenticatedToken = $this->authenticationManager->authenticate($token);
@@ -83,7 +81,7 @@ class PreAuthenticatedAdminSessionListener implements ListenerInterface
             } catch (AuthenticationException $e) {
                 // clear token on auth failure
                 $storedToken = $this->tokenStorage->getToken();
-                if ($storedToken instanceof PreAuthenticatedAdminToken && $storedToken->getProviderKey() === $this->providerKey) {
+                if ($storedToken instanceof PreAuthenticatedAdminToken && $storedToken->getFirewallName() === $this->providerKey) {
                     $this->tokenStorage->setToken(null);
                 }
             }

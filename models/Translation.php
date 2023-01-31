@@ -15,42 +15,48 @@
 
 namespace Pimcore\Model;
 
+use Doctrine\DBAL\Exception\TableNotFoundException;
 use Pimcore\Cache;
-use Pimcore\Cache\Runtime;
+use Pimcore\Cache\RuntimeCache;
 use Pimcore\Event\Model\TranslationEvent;
+use Pimcore\Event\Traits\RecursionBlockingEventDispatchHelperTrait;
 use Pimcore\Event\TranslationEvents;
 use Pimcore\File;
-use Pimcore\Model\Translation\TranslationInterface;
+use Pimcore\Localization\LocaleServiceInterface;
 use Pimcore\Tool;
+use Pimcore\Translation\TranslationEntriesDumper;
+use Symfony\Component\Translation\Exception\NotFoundResourceException;
 
 /**
  * @method \Pimcore\Model\Translation\Dao getDao()
  */
-class Translation extends AbstractModel implements TranslationInterface
+final class Translation extends AbstractModel
 {
+    use RecursionBlockingEventDispatchHelperTrait;
+
     const DOMAIN_DEFAULT = 'messages';
 
     const DOMAIN_ADMIN = 'admin';
 
     /**
-     * @var string
+     * @var string|null
      */
-    public $key;
+    protected $key;
 
     /**
      * @var string[]
      */
-    public $translations;
+    protected $translations = [];
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
      * @var string
@@ -58,17 +64,42 @@ class Translation extends AbstractModel implements TranslationInterface
     protected $domain = self::DOMAIN_DEFAULT;
 
     /**
-     * @inheritDoc
-     *
-     * @deprecated
+     * @var string
      */
-    public static function isValidLanguage($locale): bool
+    protected $type = 'simple';
+
+    /**
+     * ID of the owner user
+     *
+     * @var int|null
+     */
+    protected ?int $userOwner = null;
+
+    /**
+     * ID of the user who make the latest changes
+     *
+     * @var int|null
+     */
+    protected ?int $userModification = null;
+
+    /**
+     * @return string
+     */
+    public function getType()
     {
-        return static::IsAValidLanguage(static::DOMAIN_DEFAULT, $locale);
+        return $this->type ?: 'simple';
     }
 
     /**
-     * @inheritDoc
+     * @param string $type
+     */
+    public function setType($type): void
+    {
+        $this->type = $type;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public static function IsAValidLanguage(string $domain, string $locale): bool
     {
@@ -76,7 +107,7 @@ class Translation extends AbstractModel implements TranslationInterface
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getKey()
     {
@@ -128,7 +159,7 @@ class Translation extends AbstractModel implements TranslationInterface
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -148,7 +179,7 @@ class Translation extends AbstractModel implements TranslationInterface
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
@@ -180,10 +211,44 @@ class Translation extends AbstractModel implements TranslationInterface
      */
     public function setDomain(string $domain): void
     {
-        $this->domain = $domain;
+        $this->domain = !empty($domain) ? $domain : self::DOMAIN_DEFAULT;
     }
 
     /**
+     * @return int|null
+     */
+    public function getUserOwner(): ?int
+    {
+        return $this->userOwner;
+    }
+
+    /**
+     * @param int|null $userOwner
+     */
+    public function setUserOwner(?int $userOwner): void
+    {
+        $this->userOwner = $userOwner;
+    }
+
+    /**
+     * @return int|null
+     */
+    public function getUserModification(): ?int
+    {
+        return $this->userModification;
+    }
+
+    /**
+     * @param int|null $userModification
+     */
+    public function setUserModification(?int $userModification): void
+    {
+        $this->userModification = $userModification;
+    }
+
+    /**
+     * @internal
+     *
      * @param string $domain
      *
      * @return array
@@ -195,16 +260,6 @@ class Translation extends AbstractModel implements TranslationInterface
         }
 
         return Tool::getValidLanguages();
-    }
-
-    /**
-     * @inheritDoc
-     *
-     * @deprecated
-     */
-    public static function getLanguages(): array
-    {
-        return static::getValidLanguages();
     }
 
     /**
@@ -236,6 +291,9 @@ class Translation extends AbstractModel implements TranslationInterface
         return isset($this->translations[$language]);
     }
 
+    /**
+     * @internal
+     */
     public static function clearDependentCache()
     {
         Cache::clearTags(['translator', 'translate']);
@@ -243,44 +301,49 @@ class Translation extends AbstractModel implements TranslationInterface
 
     /**
      * @param string $id
+     * @param string $domain
+     * @param bool $create
+     * @param bool $returnIdIfEmpty
+     * @param array|null $languages
      *
      * @return static|null
      *
      * @throws \Exception
      */
-    public static function getByKey($id /*, $domain = self::DOMAIN_DEFAULT, $create = false, $returnIdIfEmpty = false */)
+    public static function getByKey(string $id, $domain = self::DOMAIN_DEFAULT, $create = false, $returnIdIfEmpty = false, $languages = null)
     {
-        $args = func_get_args();
-        $domain = $args[1] ?? self::DOMAIN_DEFAULT;
-        $create = $args[2] ?? false;
-        $returnIdIfEmpty = $args[3] ?? false;
+        $cacheKey = 'translation_' . $id . '_' . $domain;
+        if (is_array($languages)) {
+            $cacheKey .= '_' . implode('-', $languages);
+        }
 
-        $cacheKey = 'translation_' . $id;
-        if (Runtime::isRegistered($cacheKey)) {
-            return Runtime::get($cacheKey);
+        if (RuntimeCache::isRegistered($cacheKey)) {
+            return RuntimeCache::get($cacheKey);
         }
 
         $translation = new static();
         $translation->setDomain($domain);
         $idOriginal = $id;
-        $languages = static::getValidLanguages($domain);
+        $languages = $languages ? array_intersect(static::getValidLanguages($domain), $languages) : static::getValidLanguages($domain);
 
         try {
-            $translation->getDao()->getByKey($id);
+            $translation->getDao()->getByKey($id, $languages);
         } catch (\Exception $e) {
-            if (!$create) {
+            if (!$create && !$returnIdIfEmpty) {
                 return null;
-            } else {
-                $translation->setKey($id);
-                $translation->setCreationDate(time());
-                $translation->setModificationDate(time());
+            }
 
+            $translation->setKey($id);
+            $translation->setCreationDate(time());
+            $translation->setModificationDate(time());
+
+            if ($create && ($e instanceof NotFoundResourceException || $e instanceof TableNotFoundException)) {
                 $translations = [];
                 foreach ($languages as $lang) {
                     $translations[$lang] = '';
                 }
                 $translation->setTranslations($translations);
-                $translation->save();
+                TranslationEntriesDumper::addToSaveQueue($translation);
             }
         }
 
@@ -295,19 +358,23 @@ class Translation extends AbstractModel implements TranslationInterface
         }
 
         // add to key cache
-        Runtime::set($cacheKey, $translation);
+        RuntimeCache::set($cacheKey, $translation);
 
         return $translation;
     }
 
     /**
      * @param string $id
+     * @param string $domain
+     * @param bool $create - creates an empty translation entry if the key doesn't exists
+     * @param bool $returnIdIfEmpty - returns $id if no translation is available
+     * @param string|null $language
      *
      * @return string|null
      *
      * @throws \Exception
      */
-    public static function getByKeyLocalized($id /*, $domain = self::DOMAIN_DEFAULT, $create = false, $returnIdIfEmpty = false, $language = null */)
+    public static function getByKeyLocalized(string $id, $domain = self::DOMAIN_DEFAULT, $create = false, $returnIdIfEmpty = false, $language = null)
     {
         $args = func_get_args();
         $domain = $args[1] ?? self::DOMAIN_DEFAULT;
@@ -333,7 +400,7 @@ class Translation extends AbstractModel implements TranslationInterface
         }
 
         if (!$language) {
-            $language = \Pimcore::getContainer()->get('pimcore.locale')->findLocale();
+            $language = \Pimcore::getContainer()->get(LocaleServiceInterface::class)->findLocale();
             if (!$language) {
                 return null;
             }
@@ -347,68 +414,61 @@ class Translation extends AbstractModel implements TranslationInterface
         return null;
     }
 
+    /**
+     * @param string $domain
+     *
+     * @return bool
+     */
+    public static function isAValidDomain(string $domain): bool
+    {
+        $translation = new static();
+
+        return $translation->getDao()->isAValidDomain($domain);
+    }
+
     public function save()
     {
-        \Pimcore::getEventDispatcher()->dispatch(TranslationEvents::PRE_SAVE, new TranslationEvent($this));
-
-        if (!$this->getCreationDate()) {
-            $this->setCreationDate(time());
-        }
-
-        if (!$this->getModificationDate()) {
-            $this->setModificationDate(time());
-        }
+        $this->dispatchEvent(new TranslationEvent($this), TranslationEvents::PRE_SAVE);
 
         $this->getDao()->save();
 
-        \Pimcore::getEventDispatcher()->dispatch(TranslationEvents::POST_SAVE, new TranslationEvent($this));
+        $this->dispatchEvent(new TranslationEvent($this), TranslationEvents::POST_SAVE);
 
         self::clearDependentCache();
     }
 
     public function delete()
     {
-        \Pimcore::getEventDispatcher()->dispatch(TranslationEvents::PRE_DELETE, new TranslationEvent($this));
+        $this->dispatchEvent(new TranslationEvent($this), TranslationEvents::PRE_DELETE);
 
         $this->getDao()->delete();
         self::clearDependentCache();
 
-        \Pimcore::getEventDispatcher()->dispatch(TranslationEvents::POST_DELETE, new TranslationEvent($this));
+        $this->dispatchEvent(new TranslationEvent($this), TranslationEvents::POST_DELETE);
     }
 
     /**
      * Imports translations from a csv file
      * The CSV file has to have the same format as an Pimcore translation-export-file
      *
-     * @static
+     * @internal
      *
      * @param string $file - path to the csv file
+     * @param string $domain
+     * @param bool $replaceExistingTranslations
+     * @param array|null $languages
+     * @param array|null $dialect
      *
-     * @return mixed
+     * @return array
      *
      * @throws \Exception
      */
-    public static function importTranslationsFromFile($file /*, $domain = self::DOMAIN_DEFAULT, $replaceExistingTranslations = true, $languages = null, $dialect = null */)
+    public static function importTranslationsFromFile(string $file, $domain = self::DOMAIN_DEFAULT, $replaceExistingTranslations = true, $languages = null, $dialect = null)
     {
-        $args = func_get_args();
-
-        //old params set
-        if (isset($args[1]) && is_bool($args[1])) {
-            $domain = self::DOMAIN_DEFAULT;
-            $replaceExistingTranslations = $args[1] ?? true;
-            $languages = $args[2] ?? null;
-            $dialect = $args[3] ?? null;
-        } else {
-            $domain = $args[1] ?? self::DOMAIN_DEFAULT;
-            $replaceExistingTranslations = $args[2] ?? true;
-            $languages = $args[3] ?? null;
-            $dialect = $args[4] ?? null;
-        }
-
         $delta = [];
 
         if (is_readable($file)) {
-            if (!$languages || empty($languages) || !is_array($languages)) {
+            if (!$languages || !is_array($languages)) {
                 $languages = static::getValidLanguages($domain);
             }
 
@@ -443,7 +503,7 @@ class Translation extends AbstractModel implements TranslationInterface
             }
 
             //process translations
-            if (is_array($data) and count($data) > 1) {
+            if (is_array($data) && count($data) > 1) {
                 $keys = $data[0];
                 // remove wrong quotes in some export/import constellations
                 $keys = array_map(function ($value) {
@@ -457,25 +517,25 @@ class Translation extends AbstractModel implements TranslationInterface
                         $keyValueArray[$keys[$counter]] = $rd;
                     }
 
-                    $textKey = $keyValueArray['key'];
+                    $textKey = $keyValueArray['key'] ?? null;
                     if ($textKey) {
                         $t = static::getByKey($textKey, $domain, true);
                         $dirty = false;
                         foreach ($keyValueArray as $key => $value) {
                             if (in_array($key, $languages)) {
-                                $currentTranslation = $t->getTranslation($key);
+                                $currentTranslation = $t->hasTranslation($key) ? $t->getTranslation($key) : null;
                                 if ($replaceExistingTranslations) {
                                     $t->addTranslation($key, $value);
                                     if ($currentTranslation != $value) {
                                         $dirty = true;
                                     }
                                 } else {
-                                    if (!$t->getTranslation($key)) {
+                                    if (!$currentTranslation) {
                                         $t->addTranslation($key, $value);
                                         if ($currentTranslation != $value) {
                                             $dirty = true;
                                         }
-                                    } elseif ($t->getTranslation($key) != $value && $value) {
+                                    } elseif ($currentTranslation != $value && $value) {
                                         $delta[] =
                                             [
                                                 'lg' => $key,
@@ -490,11 +550,16 @@ class Translation extends AbstractModel implements TranslationInterface
 
                         if ($dirty) {
                             if (array_key_exists('creationDate', $keyValueArray) && $keyValueArray['creationDate']) {
-                                $t->setCreationDate($keyValueArray['creationDate']);
+                                $t->setCreationDate((int) $keyValueArray['creationDate']);
                             }
                             $t->setModificationDate(time()); //ignore modificationDate from file
                             $t->save();
                         }
+                    }
+
+                    // call the garbage collector if memory consumption is > 100MB
+                    if (memory_get_usage() > 100_000_000) {
+                        \Pimcore::collectGarbage();
                     }
                 }
                 static::clearDependentCache();

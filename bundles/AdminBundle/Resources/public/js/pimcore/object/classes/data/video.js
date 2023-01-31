@@ -54,18 +54,50 @@ pimcore.object.classes.data.video = Class.create(pimcore.object.classes.data.dat
         this.specificPanel.removeAll();
         this.specificPanel.add([
             {
-                xtype: "numberfield",
+                xtype: "textfield",
                 fieldLabel: t("width"),
                 name: "width",
                 value: this.datax.width
             },
             {
-                xtype: "numberfield",
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('width_explanation')
+            },
+            {
+                xtype: "textfield",
                 fieldLabel: t("height"),
                 name: "height",
                 value: this.datax.height
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('height_explanation')
             }
         ]);
+
+        this.supportedTypesStore = new Ext.data.Store({
+            proxy: {
+                type: 'ajax',
+                url: Routing.generate('pimcore_admin_dataobject_class_videosupportedTypestypes')
+            },
+            autoDestroy: true,
+            autoLoad: true,
+            fields: ["key", "value"]
+        });
+
+        this.allowedTypes = new Ext.ux.form.MultiSelect({
+            fieldLabel: t("allowed_video_types") + '<br />' + t('allowed_types_hint'),
+            name: "allowedTypes",
+            store: this.supportedTypesStore,
+            value: this.datax.allowedTypes,
+            displayField: "value",
+            valueField: "key",
+            width: 400
+        });
+
+        this.specificPanel.add(this.allowedTypes);
 
         return this.layout;
     },

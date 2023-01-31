@@ -18,20 +18,21 @@ declare(strict_types=1);
 namespace Pimcore\Bundle\InstallBundle;
 
 use Doctrine\DBAL\Configuration;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver\ServerInfoAwareConnection;
 use Doctrine\DBAL\DriverManager;
 use PDO;
 use Pimcore\Bundle\InstallBundle\Event\InstallerStepEvent;
 use Pimcore\Bundle\InstallBundle\SystemConfig\ConfigWriter;
 use Pimcore\Config;
 use Pimcore\Console\Style\PimcoreStyle;
-use Pimcore\Db\Connection;
-use Pimcore\Db\ConnectionInterface;
 use Pimcore\Model\User;
 use Pimcore\Tool\AssetsInstaller;
 use Pimcore\Tool\Console;
 use Pimcore\Tool\Requirements;
 use Pimcore\Tool\Requirements\Check;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Cache\Adapter\DoctrineDbalAdapter;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\Filesystem\Filesystem;
@@ -39,6 +40,9 @@ use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
+/**
+ * @internal
+ */
 class Installer
 {
     const EVENT_NAME_STEP = 'pimcore.installer.step';
@@ -61,9 +65,9 @@ class Installer
     private $dbCredentials;
 
     /**
-     * @var PimcoreStyle
+     * @var PimcoreStyle|null
      */
-    private $commandLineOutput;
+    private ?PimcoreStyle $commandLineOutput = null;
 
     /**
      * When false, skips creating database structure during install
@@ -115,7 +119,7 @@ class Installer
         'install_assets' => 'Installing assets...',
         'install_classes' => 'Installing classes ...',
         'install_custom_layouts' => 'Installing custom layouts ...',
-        'migrations' => 'Mark existing migrations as done ...',
+        'migrations' => 'Marking all migrations as done ...',
         'complete' => 'Install complete!',
     ];
 
@@ -166,7 +170,7 @@ class Installer
         return empty($this->dbCredentials);
     }
 
-    public function checkPrerequisites(ConnectionInterface $db = null): array
+    public function checkPrerequisites(Connection $db = null): array
     {
         $checks = array_merge(
             Requirements::checkFilesystem(),
@@ -221,7 +225,7 @@ class Installer
 
         $event = new InstallerStepEvent($type, $message, $step, $this->getStepEventCount());
 
-        $this->eventDispatcher->dispatch(self::EVENT_NAME_STEP, $event);
+        $this->eventDispatcher->dispatch($event, self::EVENT_NAME_STEP);
 
         return $event;
     }
@@ -263,17 +267,6 @@ class Installer
         $adminUser = $params['admin_username'] ?? '';
         $adminPass = $params['admin_password'] ?? '';
 
-        //check skipping database creation or database data
-        if (array_key_exists('skip_database_structure', $params)) {
-            $this->createDatabaseStructure = false;
-        }
-        if (array_key_exists('skip_database_data', $params)) {
-            $this->importDatabaseData = false;
-        }
-        if (array_key_exists('skip_database_data_dump', $params)) {
-            $this->importDatabaseDataDump = false;
-        }
-
         if (strlen($adminPass) < 4 || strlen($adminUser) < 4) {
             $errors[] = 'Username and password should have at least 4 characters';
         }
@@ -293,7 +286,7 @@ class Installer
                 ]
             );
         } catch (\Throwable $e) {
-            $this->logger->error($e);
+            $this->logger->error((string) $e);
 
             return [
                 $e->getMessage(),
@@ -307,7 +300,6 @@ class Installer
             'host' => 'localhost',
             'port' => 3306,
             'driver' => 'pdo_mysql',
-            'wrapperClass' => Connection::class,
         ];
 
         // do not handle parameters if db credentials are set via config
@@ -359,23 +351,37 @@ class Installer
             unset($dbConfig['driverOptions']);
         }
 
-        $this->createConfigFiles([
+        $dbConfig['mapping_types'] = [
+            'enum' => 'string',
+            'bit' => 'boolean',
+        ];
+
+        $doctrineConfig = [
             'doctrine' => [
                 'dbal' => [
-                  'connections' => [
-                      'default' => $dbConfig,
-                  ],
+                    'connections' => [
+                        'default' => $dbConfig,
+                    ],
                 ],
             ],
-        ]);
+        ];
+
+        $this->createConfigFiles($doctrineConfig);
 
         $this->dispatchStepEvent('boot_kernel');
 
         // resolve environment with default=dev here as we set debug mode to true and want to
         // load the kernel for the same environment as the app.php would do. the kernel booted here
         // will always be in "dev" with the exception of an environment set via env vars
-        $environment = Config::getEnvironment(true, 'dev');
-        $kernel = new \AppKernel($environment, true);
+        $environment = Config::getEnvironment();
+
+        $kernel = \App\Kernel::class;
+
+        if (isset($_ENV['PIMCORE_KERNEL_CLASS'])) {
+            $kernel = $_ENV['PIMCORE_KERNEL_CLASS'];
+        }
+
+        $kernel = new $kernel($environment, true);
 
         $this->clearKernelCacheDir($kernel);
 
@@ -387,46 +393,47 @@ class Installer
 
         $errors = $this->setupDatabase($userCredentials, $errors);
 
+        if (!$this->skipDatabaseConfig) {
+            // now we're able to write the server version to the database.yml
+            $db = \Pimcore\Db::get();
+            if ($db instanceof Connection) {
+                $connection = $db->getWrappedConnection();
+                if ($connection instanceof ServerInfoAwareConnection) {
+                    $writer = new ConfigWriter();
+                    $doctrineConfig['doctrine']['dbal']['connections']['default']['server_version'] = $connection->getServerVersion();
+                    $writer->writeDbConfig($doctrineConfig);
+                }
+            }
+        }
+
         $this->dispatchStepEvent('install_assets');
         $this->installAssets($kernel);
 
         $this->dispatchStepEvent('install_classes');
-        $this->installClasses($kernel);
+        $this->installClasses();
 
         $this->dispatchStepEvent('install_custom_layouts');
-        $this->installCustomLayouts($kernel);
+        $this->installCustomLayouts();
 
         $this->dispatchStepEvent('migrations');
-        $this->markMigrationsAsDone($kernel);
+        $this->markMigrationsAsDone();
 
         $this->clearKernelCacheDir($kernel);
 
         return $errors;
     }
 
-    private function markMigrationsAsDone(KernelInterface $kernel)
+    private function runCommand(array $arguments, string $taskName)
     {
-        /** @var \Pimcore\Migrations\MigrationManager $manager */
-        $manager = $kernel->getContainer()->get(\Pimcore\Migrations\MigrationManager::class);
-        $config = $manager->getConfiguration('pimcore_core');
-        $config->registerMigrationsFromDirectory($config->getMigrationsDirectory());
-        $migrations = $config->getMigrations();
-        $latest = end($migrations);
-        $manager->markVersionAsMigrated($latest);
-    }
-
-    private function installClasses(KernelInterface $kernel)
-    {
-        $this->logger->info('Running {command} command', ['command' => 'pimcore:deployment:classes-rebuild']);
         $io = $this->commandLineOutput;
 
         try {
-            $arguments = [
+            array_splice($arguments, 0, 0, [
                 Console::getPhpCli(),
                 PIMCORE_PROJECT_ROOT . '/bin/console',
-                'pimcore:deployment:classes-rebuild',
-                '-c',
-            ];
+            ]);
+
+            $this->logger->info('Running {command} command', ['command' => $arguments]);
 
             $process = new Process($arguments);
             $process->setTimeout(0);
@@ -457,56 +464,38 @@ class Installer
 
             $stdErr->write($process->getOutput());
             $stdErr->write($process->getErrorOutput());
-            $stdErr->note('Installing classes failed. Please run the following command manually:');
+            $stdErr->note($taskName . ' failed. Please run the following command manually:');
             $stdErr->writeln('  ' . str_replace("'", '', $process->getCommandLine()));
         }
     }
 
-    private function installCustomLayouts(KernelInterface $kernel)
+    private function markMigrationsAsDone()
     {
-        $this->logger->info('Running {command} command', ['command' => 'pimcore:deployment:custom-layouts-rebuild']);
-        $io = $this->commandLineOutput;
+        $this->runCommand([
+            'doctrine:migrations:sync-metadata-storage',
+            '-q',
+        ], 'Sync migrations metadata storage');
 
-        try {
-            $arguments = [
-                Console::getPhpCli(),
-                PIMCORE_PROJECT_ROOT . '/bin/console',
-                'pimcore:deployment:custom-layouts-rebuild',
-                '-c',
-            ];
+        $this->runCommand([
+            'doctrine:migrations:version',
+            '--all', '--add', '--prefix=Pimcore\\Bundle\\CoreBundle', '-n', '-q',
+        ], 'Marking all migrations as done');
+    }
 
-            $process = new Process($arguments);
-            $process->setTimeout(0);
-            $process->setWorkingDirectory(PIMCORE_PROJECT_ROOT);
-            $process->run();
+    private function installClasses()
+    {
+        $this->runCommand([
+            'pimcore:deployment:classes-rebuild',
+            '-c',
+        ], 'Installing class definitions');
+    }
 
-            if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
-            }
-
-            if (null !== $io) {
-                $io->writeln($process->getOutput());
-            }
-        } catch (ProcessFailedException $e) {
-            $this->logger->error($e->getMessage());
-
-            if (null === $io) {
-                return;
-            }
-
-            $stdErr = $io->getErrorStyle();
-            $process = $e->getProcess();
-
-            $errorOutput = trim($process->getErrorOutput());
-            if (!empty($errorOutput)) {
-                $stdErr->write($errorOutput);
-            }
-
-            $stdErr->write($process->getOutput());
-            $stdErr->write($process->getErrorOutput());
-            $stdErr->note('Installing custom layouts failed. Please run the following command manually:');
-            $stdErr->writeln('  ' . str_replace("'", '', $process->getCommandLine()));
-        }
+    private function installCustomLayouts()
+    {
+        $this->runCommand([
+            'pimcore:deployment:custom-layouts-rebuild',
+            '-c',
+        ], 'Installing custom layout definitions');
     }
 
     private function installAssets(KernelInterface $kernel)
@@ -557,8 +546,6 @@ class Installer
         }
 
         $writer->writeSystemConfig();
-        $writer->writeDebugModeConfig();
-        $writer->generateParametersFile();
     }
 
     private function clearKernelCacheDir(KernelInterface $kernel)
@@ -571,7 +558,7 @@ class Installer
         }
 
         // see Symfony's cache:clear command
-        $oldCacheDir = substr($cacheDir, 0, -1) . ('~' === substr($cacheDir, -1) ? '+' : '~');
+        $oldCacheDir = substr($cacheDir, 0, -1) . '~';
 
         $filesystem = new Filesystem();
         if ($filesystem->exists($oldCacheDir)) {
@@ -590,6 +577,12 @@ class Installer
 
     public function setupDatabase(array $userCredentials, array $errors = []): array
     {
+        /**
+         * @var \Doctrine\DBAL\Connection $db
+         */
+        $db = \Pimcore\Db::get();
+        $db->executeQuery('SET FOREIGN_KEY_CHECKS=0;');
+
         if ($this->createDatabaseStructure) {
             $mysqlInstallScript = file_get_contents(__DIR__ . '/Resources/install.sql');
 
@@ -599,21 +592,29 @@ class Installer
             // get every command as single part
             $mysqlInstallScripts = explode(';', $mysqlInstallScript);
 
-            $db = \Pimcore\Db::get();
             // execute every script with a separate call, otherwise this will end in a PDO_Exception "unbufferd queries, ..." seems to be a PDO bug after some googling
             foreach ($mysqlInstallScripts as $m) {
                 $sql = trim($m);
                 if (strlen($sql) > 0) {
                     $sql .= ';';
-                    $db->query($sql);
+                    $db->executeQuery($sql);
                 }
             }
+
+            $cacheAdapter = new DoctrineDbalAdapter($db);
+            $cacheAdapter->createTable();
+
+            $doctrineTransportConn = new \Symfony\Component\Messenger\Bridge\Doctrine\Transport\Connection([], $db);
+            $doctrineTransportConn->setup();
         }
 
         if ($this->importDatabaseData) {
             $dataFiles = $this->getDataFiles();
 
             try {
+                //create a system user with id 0
+                $this->insertSystemUser($db);
+
                 if (empty($dataFiles) || !$this->importDatabaseDataDump) {
                     // empty installation
                     $this->insertDatabaseContents();
@@ -627,10 +628,16 @@ class Installer
                     $this->createOrUpdateUser($userCredentials);
                 }
             } catch (\Exception $e) {
-                $this->logger->error($e);
+                $this->logger->error((string) $e);
                 $errors[] = $e->getMessage();
             }
         }
+
+        $db->executeQuery('SET FOREIGN_KEY_CHECKS=1;');
+
+        // close connections and collection garbage ... in order to avoid too many connections error
+        // when installing demos
+        \Pimcore::collectGarbage();
 
         return $errors;
     }
@@ -649,7 +656,7 @@ class Installer
     {
         $defaultConfig = [
             'username' => 'admin',
-            'password' => md5(microtime()),
+            'password' => bin2hex(random_bytes(16)),
         ];
 
         $settings = array_replace_recursive($defaultConfig, $config);
@@ -659,7 +666,6 @@ class Installer
             $user->delete();
         }
 
-        /** @var User $user */
         $user = User::create([
             'parentId' => 0,
             'username' => $settings['username'],
@@ -684,9 +690,8 @@ class Installer
         $dumpFile = preg_replace("/\s*(?!<\")\/\*[^\*]+\*\/(?!\")\s*/", '', $dumpFile);
 
         if (strpos($file, 'atomic') !== false) {
-            $db->exec($dumpFile);
+            $db->executeStatement($dumpFile);
         } else {
-
             // get every command as single part - ; at end of line
             $singleQueries = explode(";\n", $dumpFile);
 
@@ -699,16 +704,13 @@ class Installer
                 }
 
                 if (count($batchQueries) > 500) {
-                    $db->exec(implode("\n", $batchQueries));
+                    $db->executeStatement(implode("\n", $batchQueries));
                     $batchQueries = [];
                 }
             }
 
-            $db->exec(implode("\n", $batchQueries));
+            $db->executeStatement(implode("\n", $batchQueries));
         }
-
-        // set the id of the system user to 0
-        $db->update('users', ['id' => 0], ['name' => 'system']);
     }
 
     protected function insertDatabaseContents()
@@ -740,8 +742,7 @@ class Installer
         ]);
         $db->insert('documents_page', [
             'id' => 1,
-            'controller' => 'default',
-            'action' => 'default',
+            'controller' => 'App\\Controller\\DefaultController::defaultAction',
             'template' => '',
             'title' => '',
             'description' => '',
@@ -759,15 +760,6 @@ class Installer
             'o_userOwner' => 1,
             'o_userModification' => 1,
         ]);
-
-        $db->insert('users', [
-            'parentId' => 0,
-            'name' => 'system',
-            'admin' => 1,
-            'active' => 1,
-        ]);
-        $db->update('users', ['id' => 0], ['name' => 'system']);
-
         $userPermissions = [
             ['key' => 'application_logging'],
             ['key' => 'assets'],
@@ -784,12 +776,9 @@ class Installer
             ['key' => 'http_errors'],
             ['key' => 'notes_events'],
             ['key' => 'objects'],
-            ['key' => 'piwik_settings'],
-            ['key' => 'piwik_reports'],
-            ['key' => 'plugins'],
+            ['key' => 'plugins'], // TODO: to be removed in Pimcore 11
             ['key' => 'predefined_properties'],
             ['key' => 'asset_metadata'],
-            ['key' => 'qr_codes'],
             ['key' => 'recyclebin'],
             ['key' => 'redirects'],
             ['key' => 'reports'],
@@ -800,7 +789,6 @@ class Installer
             ['key' => 'seo_document_editor'],
             ['key' => 'share_configurations'],
             ['key' => 'system_settings'],
-            ['key' => 'tag_snippet_management'],
             ['key' => 'tags_configuration'],
             ['key' => 'tags_assignment'],
             ['key' => 'tags_search'],
@@ -814,10 +802,25 @@ class Installer
             ['key' => 'workflow_details'],
             ['key' => 'notifications'],
             ['key' => 'notifications_send'],
+            ['key' => 'sites'],
+            ['key' => 'objects_sort_method'],
         ];
 
         foreach ($userPermissions as $up) {
             $db->insert('users_permission_definitions', $up);
         }
+    }
+
+    protected function insertSystemUser(Connection $db): void
+    {
+        $db->insert('users', [
+            'parentId' => 0,
+            'name' => 'system',
+            'admin' => 1,
+            'active' => 1,
+        ]);
+
+        // set the id of the system user to 0
+        $db->update('users', ['id' => 0], ['name' => 'system', 'type' => 'user' ]);
     }
 }

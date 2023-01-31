@@ -82,6 +82,7 @@ pimcore.settings.document.doctypes = Class.create({
                         autoLoad: true,
                         proxy: {
                             type: 'ajax',
+                            batchActions: false,
                             url: Routing.generate('pimcore_admin_misc_getavailablecontroller_references'),
                             reader: {
                                 type: 'json',
@@ -133,20 +134,6 @@ pimcore.settings.document.doctypes = Class.create({
                 })
             },
             {
-                text: t('bundle') + " (" + t('deprecated') + ")",
-                flex: 50,
-                sortable: true,
-                dataIndex: 'module',
-                editor: new Ext.form.field.Text()
-            },
-            {
-                text: t("action") + " (" + t('deprecated') + ")",
-                flex: 50,
-                sortable: true,
-                dataIndex: 'action',
-                editor: new Ext.form.field.Text()
-            },
-            {
                 text: t("type"),
                 flex: 50,
                 sortable: true,
@@ -170,6 +157,31 @@ pimcore.settings.document.doctypes = Class.create({
                 })
             },
             {
+                xtype: 'checkcolumn',
+                text: t("static"),
+                dataIndex: 'staticGeneratorEnabled',
+                width: 50,
+                renderer: function (value, metaData, record) {
+                    return (record.get('type') !== "page") ? '' : this.defaultRenderer(value, metaData);
+                },
+                listeners: {
+                    beforecheckchange: function (el, rowIndex, checked, record, eOpts) {
+                        if(!record.data.writeable) {
+                            pimcore.helpers.showNotification(t("info"), t("config_not_writeable"), "info");
+                            return false;
+                        }
+                        if (this.store.getAt(rowIndex).get("type") !== "page") {
+                            record.set('staticGeneratorEnabled', false);
+                            return false;
+                        }
+                    }.bind(this),
+                    checkChange: function (column, rowIndex, checked, eOpts) {
+                        var record = this.store.getAt(rowIndex);
+                        record.set('staticGeneratorEnabled', checked);
+                    }.bind(this)
+                }
+            },
+            {
                 text: t("creationDate"),
                 sortable: true,
                 dataIndex: 'creationDate',
@@ -179,7 +191,7 @@ pimcore.settings.document.doctypes = Class.create({
                 renderer: function (d) {
                     if (d !== undefined) {
                         var date = new Date(d * 1000);
-                        return Ext.date.format(date, "Y-m-d H:i:s");
+                        return Ext.Date.format(date, "Y-m-d H:i:s");
                     } else {
                         return "";
                     }
@@ -195,7 +207,7 @@ pimcore.settings.document.doctypes = Class.create({
                 renderer: function (d) {
                     if (d !== undefined) {
                         var date = new Date(d * 1000);
-                        return Ext.date.format(date, "Y-m-d H:i:s");
+                        return Ext.Date.format(date, "Y-m-d H:i:s");
                     } else {
                         return "";
                     }
@@ -206,10 +218,19 @@ pimcore.settings.document.doctypes = Class.create({
                 menuText: t('delete'),
                 width: 30,
                 items: [{
+                    getClass: function (v, meta, rec) {
+                        var klass = "pimcore_action_column ";
+                        if (rec.data.writeable) {
+                            klass += "pimcore_icon_minus";
+                        }
+                        return klass;
+                    },
                     tooltip: t('delete'),
-                    icon: "/bundles/pimcoreadmin/img/flat-color-icons/delete.svg",
                     handler: function (grid, rowIndex) {
-                        grid.getStore().removeAt(rowIndex);
+                        let data = grid.getStore().getAt(rowIndex);
+                        pimcore.helpers.deleteConfirm(t('document_type'), data.data.name, function () {
+                            grid.getStore().removeAt(rowIndex);
+                        }.bind(this));
                     }.bind(this)
                 }]
             }, {
@@ -222,11 +243,11 @@ pimcore.settings.document.doctypes = Class.create({
                     handler: function (grid, rowIndex) {
                         var rec = grid.getStore().getAt(rowIndex);
                         try {
-                            pimcore.globalmanager.get("translationadminmanager").activate(rec.data.name);
+                            pimcore.globalmanager.get("translationdomainmanager").activate(rec.data.name);
                         }
                         catch (e) {
-                            pimcore.globalmanager.add("translationadminmanager",
-                                new pimcore.settings.translation.admin(rec.data.name));
+                            pimcore.globalmanager.add("translationdomainmanager",
+                                new pimcore.settings.translation.domain("admin",rec.data.name));
                         }
                     }.bind(this)
                 }]
@@ -234,8 +255,16 @@ pimcore.settings.document.doctypes = Class.create({
         ];
 
 
-        this.cellEditing = Ext.create('Ext.grid.plugin.CellEditing', {
-            clicksToEdit: 1
+        this.rowEditing = Ext.create('Ext.grid.plugin.RowEditing', {
+            clicksToEdit: 1,
+            clicksToMoveEditor: 1,
+            listeners: {
+                beforeedit: function (editor, context, eOpts) {
+                    if (!context.record.data.writeable) {
+                        return false;
+                    }
+                }
+            }
         });
 
         this.grid = Ext.create('Ext.grid.Panel', {
@@ -254,7 +283,7 @@ pimcore.settings.document.doctypes = Class.create({
             stripeRows: true,
             selModel: Ext.create('Ext.selection.RowModel', {}),
             plugins: [
-                this.cellEditing
+                this.rowEditing
             ],
             tbar: {
                 cls: 'pimcore_main_toolbar',
@@ -262,14 +291,27 @@ pimcore.settings.document.doctypes = Class.create({
                     {
                         text: t('add'),
                         handler: this.onAdd.bind(this),
-                        iconCls: "pimcore_icon_add"
+                        iconCls: "pimcore_icon_add",
+                        disabled: !pimcore.settings['document-types-writeable']
                     }
                 ]
             },
             viewConfig: {
-                forceFit: true
+                forceFit: true,
+                getRowClass: function (record, rowIndex) {
+                    return record.data.writeable ? '' : 'pimcore_grid_row_disabled';
+                }
             }
         });
+
+        const prepareDocumentTypesGrid = new CustomEvent(pimcore.events.prepareDocumentTypesGrid, {
+            detail: {
+                grid: this.grid,
+                object: this
+            }
+        });
+
+        document.dispatchEvent(prepareDocumentTypesGrid);
 
         return this.grid;
     },

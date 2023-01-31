@@ -35,7 +35,7 @@ class Environment implements EnvironmentInterface
     protected $defaultCurrency;
 
     /**
-     * @var array
+     * @var array|null
      */
     protected $customItems = [];
 
@@ -50,17 +50,17 @@ class Environment implements EnvironmentInterface
     protected $useGuestCart = false;
 
     /**
-     * @var string
+     * @var string|null
      */
     protected $currentAssortmentTenant;
 
     /**
-     * @var string
+     * @var string|null
      */
     protected $currentAssortmentSubTenant;
 
     /**
-     * @var string
+     * @var string|null
      */
     protected $currentCheckoutTenant;
 
@@ -70,7 +70,7 @@ class Environment implements EnvironmentInterface
      * This value will not be stored into the session and is only valid for current process
      * set with setCurrentCheckoutTenant('tenant', false');
      *
-     * @var string
+     * @var string|null
      */
     protected $currentTransientCheckoutTenant;
 
@@ -184,66 +184,6 @@ class Environment implements EnvironmentInterface
     }
 
     /**
-     * @deprecated
-     *
-     * use setCurrentAssortmentTenant instead
-     *
-     * @param string $currentTenant
-     *
-     * @return mixed|void
-     */
-    public function setCurrentTenant($currentTenant)
-    {
-        $this->load();
-
-        $this->setCurrentAssortmentTenant($currentTenant);
-    }
-
-    /**
-     * @deprecated
-     *
-     * use getCurrentAssortmentTenant instead
-     *
-     * @return string
-     */
-    public function getCurrentTenant()
-    {
-        $this->load();
-
-        return $this->getCurrentAssortmentTenant();
-    }
-
-    /**
-     * @deprecated
-     *
-     * use setCurrentAssortmentSubTenant instead
-     *
-     * @param mixed $currentSubTenant
-     *
-     * @return mixed|void
-     */
-    public function setCurrentSubTenant($currentSubTenant)
-    {
-        $this->load();
-
-        $this->setCurrentAssortmentSubTenant($currentSubTenant);
-    }
-
-    /**
-     * @deprecated
-     *
-     * use getCurrentAssortmentSubTenant instead
-     *
-     * @return mixed
-     */
-    public function getCurrentSubTenant()
-    {
-        $this->load();
-
-        return $this->getCurrentAssortmentSubTenant();
-    }
-
-    /**
      * @param Currency $currency
      */
     public function setDefaultCurrency(Currency $currency)
@@ -294,7 +234,7 @@ class Environment implements EnvironmentInterface
     /**
      * gets current assortment tenant which is used for indexing and product lists
      *
-     * @return string
+     * @return string|null
      */
     public function getCurrentAssortmentTenant()
     {
@@ -306,9 +246,7 @@ class Environment implements EnvironmentInterface
     /**
      * sets current assortment sub tenant which is used for indexing and product lists
      *
-     * @param mixed $subTenant
-     *
-     * @return mixed
+     * @param string|null $subTenant
      */
     public function setCurrentAssortmentSubTenant($subTenant)
     {
@@ -320,7 +258,7 @@ class Environment implements EnvironmentInterface
     /**
      * gets current assortment tenant which is used for indexing and product lists
      *
-     * @return mixed
+     * @return string|null
      */
     public function getCurrentAssortmentSubTenant()
     {
@@ -334,8 +272,6 @@ class Environment implements EnvironmentInterface
      *
      * @param string $tenant
      * @param bool $persistent - if set to false, tenant is not stored to session and only valid for current process
-     *
-     * @return mixed
      */
     public function setCurrentCheckoutTenant($tenant, $persistent = true)
     {

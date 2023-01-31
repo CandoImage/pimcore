@@ -19,6 +19,9 @@ namespace Pimcore\Tool;
 
 use Symfony\Component\Finder\SplFileInfo;
 
+/**
+ * @internal
+ */
 class ClassUtils
 {
     /**
@@ -40,6 +43,9 @@ class ClassUtils
      *
      * @param \SplFileInfo $file
      *
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     *
      * @return string
      */
     public static function findClassName(\SplFileInfo $file): string
@@ -54,7 +60,6 @@ class ClassUtils
             throw new \InvalidArgumentException(sprintf('File %s does not exist or is not readable', $file->getPathname()));
         }
 
-        $content = '';
         if ($file instanceof SplFileInfo) {
             $content = $file->getContents();
         } else {
@@ -68,14 +73,14 @@ class ClassUtils
 
         foreach (token_get_all($content) as $token) {
             // start collecting as soon as we find the namespace token
-            if (is_array($token) && $token[0] == T_NAMESPACE) {
+            if (is_array($token) && $token[0] === T_NAMESPACE) {
                 $gettingNamespace = true;
             } elseif (is_array($token) && $token[0] === T_CLASS) {
                 $gettingClass = true;
             }
 
             if ($gettingNamespace) {
-                if (is_array($token) && in_array($token[0], [T_STRING, T_NS_SEPARATOR])) {
+                if (is_array($token) && ($token[0] === T_NAME_QUALIFIED || $token[0] === T_STRING)) {
                     // append to namespace
                     $namespace .= $token[1];
                 } elseif ($token === ';') {

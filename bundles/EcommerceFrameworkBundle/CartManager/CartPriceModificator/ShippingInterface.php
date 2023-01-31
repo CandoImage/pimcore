@@ -34,5 +34,3 @@ interface ShippingInterface extends CartPriceModificatorInterface
      */
     public function getCharge(): Decimal;
 }
-
-class_alias(ShippingInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartPriceModificator\IShipping');

@@ -21,7 +21,10 @@ use Pimcore\Model\Document;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigTest;
 
-final class DocumentHelperExtensions extends AbstractExtension
+/**
+ * @internal
+ */
+class DocumentHelperExtensions extends AbstractExtension
 {
     public function getTests(): array
     {

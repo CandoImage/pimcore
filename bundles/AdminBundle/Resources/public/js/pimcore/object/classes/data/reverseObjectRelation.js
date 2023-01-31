@@ -32,7 +32,7 @@ pimcore.object.classes.data.reverseObjectRelation = Class.create(pimcore.object.
         this.initData(initData);
 
         // overwrite default settings
-        this.availableSettingsFields = ["name","title","tooltip","noteditable","invisible","style"];
+        this.availableSettingsFields = ["name","title","tooltip","noteditable","invisible","style", "visibleGridView", "visibleSearch"];
 
         this.treeNode = treeNode;
     },
@@ -54,20 +54,28 @@ pimcore.object.classes.data.reverseObjectRelation = Class.create(pimcore.object.
         $super();
 
         this.specificPanel.removeAll();
-
-        this.specificPanel.removeAll();
         this.specificPanel.add([
             {
-                xtype: "numberfield",
+                xtype: "textfield",
                 fieldLabel: t("width"),
                 name: "width",
                 value: this.datax.width
             },
             {
-                xtype: "numberfield",
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('width_explanation')
+            },
+            {
+                xtype: "textfield",
                 fieldLabel: t("height"),
                 name: "height",
                 value: this.datax.height
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('height_explanation')
             },
             {
                 xtype: 'textfield',
@@ -178,6 +186,3 @@ pimcore.object.classes.data.reverseObjectRelation = Class.create(pimcore.object.
 
 });
 
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.classes.data.nonownerobjects = pimcore.object.classes.data.reverseObjectRelation;
-pimcore.object.classes.data.reverseManyToManyObjectRelation = pimcore.object.classes.data.reverseObjectRelation;

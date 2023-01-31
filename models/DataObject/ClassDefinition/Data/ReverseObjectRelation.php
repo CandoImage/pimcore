@@ -15,6 +15,7 @@
 
 namespace Pimcore\Model\DataObject\ClassDefinition\Data;
 
+use Pimcore\Db;
 use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
@@ -24,27 +25,37 @@ class ReverseObjectRelation extends ManyToManyObjectRelation
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'reverseObjectRelation';
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $ownerClassName;
 
     /**
+     * @internal
+     *
      * @var string|null
      */
     public $ownerClassId;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $ownerFieldName;
 
     /**
-     * NonOwnerObjects must be lazy loading!
+     * ReverseObjectRelation must be lazy loading!
+     *
+     * @internal
      *
      * @var bool
      */
@@ -74,13 +85,16 @@ class ReverseObjectRelation extends ManyToManyObjectRelation
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getOwnerClassName()
     {
         //fallback for legacy data
-        if (empty($this->ownerClassName)) {
+        if (empty($this->ownerClassName) && $this->ownerClassId) {
             try {
+                if (empty($this->ownerClassId)) {
+                    return null;
+                }
                 $class = DataObject\ClassDefinition::getById($this->ownerClassId);
                 $this->ownerClassName = $class->getName();
             } catch (\Exception $e) {
@@ -92,13 +106,18 @@ class ReverseObjectRelation extends ManyToManyObjectRelation
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getOwnerClassId()
     {
         if (empty($this->ownerClassId)) {
             try {
                 $class = DataObject\ClassDefinition::getByName($this->ownerClassName);
+                if (!$class instanceof DataObject\ClassDefinition) {
+                    Logger::error('Reverse relation '.$this->getName().' has no owner class assigned');
+
+                    return null;
+                }
                 $this->ownerClassId = $class->getId();
             } catch (\Exception $e) {
                 Logger::error($e->getMessage());
@@ -129,12 +148,7 @@ class ReverseObjectRelation extends ManyToManyObjectRelation
     }
 
     /**
-     *
-     * Checks if an object is an allowed relation
-     *
-     * @param DataObject\Concrete $object
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     protected function allowObjectRelation($object)
     {
@@ -142,8 +156,8 @@ class ReverseObjectRelation extends ManyToManyObjectRelation
         $ownerClass = DataObject\ClassDefinition::getByName($this->getOwnerClassName());
         if ($ownerClass instanceof DataObject\ClassDefinition && $object instanceof DataObject\Concrete && $ownerClass->getId() == $object->getClassId()) {
             $fd = $ownerClass->getFieldDefinition($this->getOwnerFieldName());
-            if ($fd instanceof DataObject\ClassDefinition\Data\ManyToManyObjectRelation) {
-                return $fd->allowObjectRelation($object);
+            if ($fd instanceof DataObject\ClassDefinition\Data\Relations\AbstractRelations) {
+                return true;
             }
         }
 
@@ -151,70 +165,59 @@ class ReverseObjectRelation extends ManyToManyObjectRelation
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         //TODO
-        if (!$omitMandatoryCheck and $this->getMandatory() and empty($data)) {
+        if (!$omitMandatoryCheck && $this->getMandatory() && empty($data)) {
             throw new Model\Element\ValidationException('Empty mandatory field [ '.$this->getName().' ]');
         }
 
         if (is_array($data)) {
             foreach ($data as $o) {
                 $allowClass = $this->allowObjectRelation($o);
-                if (!$allowClass or !($o instanceof DataObject\Concrete)) {
-                    throw new Model\Element\ValidationException('Invalid non owner object relation to object ['.$o->getId().']', null, null);
+                if (!$allowClass || !($o instanceof DataObject\Concrete)) {
+                    throw new Model\Element\ValidationException('Invalid non owner object relation to object ['.$o->getId().']');
                 }
             }
         }
     }
 
     /**
-     * converts object data to a simple string value or CSV Export
-     *
-     * @abstract
-     *
      * @param DataObject\Concrete $object
      * @param array $params
      *
-     * @return string
-     */
-    public function getForCsvExport($object, $params = [])
-    {
-        return '';
-    }
-
-    /**
-     * fills object field data values from CSV Import String
-     *
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return null
-     */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
-    {
-        return null;
-    }
-
-    /**
-     * This is a dummy and is mostly implemented by relation types
-     *
-     * @param mixed $data
-     * @param array $tags
-     *
      * @return array
      */
-    public function getCacheTags($data, $tags = [])
+    public function load($object, $params = [])
+    {
+        if ($this->getOwnerClassId() === null) {
+            return [];
+        }
+
+        $db = Db::get();
+        $relations = $db->fetchAllAssociative('SELECT * FROM object_relations_'.$this->getOwnerClassId()." WHERE dest_id = ? AND fieldname = ? AND ownertype = 'object'", [$object->getId(), $this->getOwnerFieldName()]);
+
+        $relations = array_map(static function ($relation) {
+            $relation['dest_id'] = $relation['src_id'];
+            unset($relation['src_id']);
+
+            return $relation;
+        }, $relations);
+
+        $data = $this->loadData($relations, $object, $params);
+        if ($object instanceof Model\Element\DirtyIndicatorInterface) {
+            $object->markFieldDirty($this->getName(), false);
+        }
+
+        return $data['data'];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getCacheTags($data, array $tags = [])
     {
         return $tags;
     }
@@ -230,43 +233,29 @@ class ReverseObjectRelation extends ManyToManyObjectRelation
     }
 
     /**
-     * @deprecated
-     *
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return array|null
-     */
-    public function getForWebserviceExport($object, $params = [])
-    {
-        return null;
-    }
-
-    /**
-     * converts data to be imported via webservices
-     *
-     * @deprecated
-     *
-     * @param mixed $value
-     * @param Model\DataObject\Concrete|null $object
-     * @param mixed $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @return mixed
-     */
-    public function getFromWebserviceImport($value, $object = null, $params = [], $idMapper = null)
-    {
-        return null;
-    }
-
-    /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isOptimizedAdminLoading(): bool
     {
         return true;
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function preGetData($container, $params = [])
+    {
+        return $this->load($container);
+    }
+
+    /**
+     * @return false
+     */
+    public function supportsInheritance()
+    {
+        return false;
+    }
 }
 
-class_alias(ReverseObjectRelation::class, 'Pimcore\Model\DataObject\ClassDefinition\Data\Nonownerobjects');
+//TODO remove in Pimcore 11
 class_alias(ReverseObjectRelation::class, 'Pimcore\Model\DataObject\ClassDefinition\Data\ReverseManyToManyObjectRelation');

@@ -39,7 +39,7 @@ class BundleLocator implements BundleLocatorInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getBundle($class): BundleInterface
     {
@@ -47,13 +47,20 @@ class BundleLocator implements BundleLocatorInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getBundlePath($class): string
     {
         return $this->getBundleForClass($class)->getPath();
     }
 
+    /**
+     * @param object|string $class
+     *
+     * @return BundleInterface
+     *
+     * @throws \ReflectionException
+     */
     private function getBundleForClass($class): BundleInterface
     {
         if (is_object($class)) {
@@ -67,6 +74,13 @@ class BundleLocator implements BundleLocatorInterface
         return $this->bundleCache[$class];
     }
 
+    /**
+     * @param string $class
+     *
+     * @return BundleInterface
+     *
+     * @throws \ReflectionException
+     */
     private function findBundleForClass(string $class): BundleInterface
     {
         // see TemplateGuesser from SensioFrameworkExtraBundle

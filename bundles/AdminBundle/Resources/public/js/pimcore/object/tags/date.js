@@ -65,7 +65,7 @@ pimcore.object.tags.date = Class.create(pimcore.object.tags.abstract, {
         var date = {
             fieldLabel:this.fieldConfig.title,
             name:this.fieldConfig.name,
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             width:130,
             format: "Y-m-d"
         };
@@ -73,7 +73,14 @@ pimcore.object.tags.date = Class.create(pimcore.object.tags.abstract, {
         if (this.fieldConfig.labelWidth) {
             date.labelWidth = this.fieldConfig.labelWidth;
         }
-        date.width += date.labelWidth;
+
+        if (this.fieldConfig.labelAlign) {
+            date.labelAlign = this.fieldConfig.labelAlign;
+        }
+
+        if (!this.fieldConfig.labelAlign || 'left' === this.fieldConfig.labelAlign) {
+            date.width = this.sumWidths(date.width, date.labelWidth);
+        }
 
         if (this.data) {
             var tmpDate = new Date(intval(this.data) * 1000);
@@ -94,7 +101,12 @@ pimcore.object.tags.date = Class.create(pimcore.object.tags.abstract, {
 
     getValue:function () {
         if (this.component.getValue()) {
-            return this.component.getValue().getTime();
+            let value = this.component.getValue();
+            if (value && typeof value.getTime == "function") {
+                return value.getTime();
+            } else {
+                return value;
+            }
         }
         return false;
     },

@@ -15,6 +15,7 @@
 
 namespace Pimcore\Twig\Extension\Templating;
 
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\LinkGeneratorAwareInterface;
 use Pimcore\Http\RequestHelper;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Twig\Extension\Templating\Traits\HelperCharsetTrait;
@@ -57,8 +58,8 @@ class PimcoreUrl implements RuntimeExtensionInterface
     public function __invoke(array $urlOptions = [], $name = null, $reset = false, $encode = true, $relative = false)
     {
         // merge all parameters from request to parameters
-        if (!$reset && $this->requestHelper->hasMasterRequest()) {
-            $urlOptions = array_replace($this->requestHelper->getMasterRequest()->query->all(), $urlOptions);
+        if (!$reset && $this->requestHelper->hasMainRequest()) {
+            $urlOptions = array_replace($this->requestHelper->getMainRequest()->query->all(), $urlOptions);
         }
 
         return $this->generateUrl($name, $urlOptions, $relative ? UrlGeneratorInterface::RELATIVE_PATH : UrlGeneratorInterface::ABSOLUTE_PATH, $encode);
@@ -67,8 +68,8 @@ class PimcoreUrl implements RuntimeExtensionInterface
     /**
      * Generate URL with support to only pass parameters ZF1 style (defaults to current route).
      *
-     * @param string|null $name
-     * @param array $parameters
+     * @param string|array|null $name
+     * @param array|null $parameters
      * @param int $referenceType
      * @param bool $encode
      *
@@ -98,20 +99,27 @@ class PimcoreUrl implements RuntimeExtensionInterface
             $name = $this->getCurrentRoute();
         }
 
-        if (isset($parameters['object']) && $parameters['object'] instanceof Concrete) {
-            /** @var Concrete $object */
-            $object = $parameters['object'];
-            if ($linkGenerator = $object->getClass()->getLinkGenerator()) {
-                unset($parameters['object']);
-                $path = $linkGenerator->generate($object, [
-                    'route' => $name,
-                    'parameters' => $parameters,
-                    'context' => $this,
-                    'referenceType' => $referenceType,
-                ]);
+        $object = $parameters['object'] ?? null;
+        $linkGenerator = null;
 
-                return $path;
+        if ($object instanceof LinkGeneratorAwareInterface) { //e.g. Mockup
+            $linkGenerator = $object->getLinkGenerator();
+        } elseif ($object instanceof Concrete) {
+            $linkGenerator = $object->getClass()->getLinkGenerator();
+        }
+
+        if ($linkGenerator) {
+            if (array_key_exists('object', $parameters)) {
+                unset($parameters['object']);
             }
+            $path = $linkGenerator->generate($object, [
+                'route' => $name,
+                'parameters' => $parameters,
+                'context' => $this,
+                'referenceType' => $referenceType,
+            ]);
+
+            return $path;
         }
 
         if ($name !== null) {
@@ -134,12 +142,10 @@ class PimcoreUrl implements RuntimeExtensionInterface
             $route = $this->requestHelper->getCurrentRequest()->attributes->get('_route');
         }
 
-        if (!$route && $this->requestHelper->hasMasterRequest()) {
-            $route = $this->requestHelper->getMasterRequest()->attributes->get('_route');
+        if (!$route && $this->requestHelper->hasMainRequest()) {
+            $route = $this->requestHelper->getMainRequest()->attributes->get('_route');
         }
 
         return $route;
     }
 }
-
-class_alias(PimcoreUrl::class, 'Pimcore\Templating\Helper\PimcoreUrl');

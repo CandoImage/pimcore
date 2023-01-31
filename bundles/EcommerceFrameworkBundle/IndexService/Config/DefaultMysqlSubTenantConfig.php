@@ -15,9 +15,9 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config;
 
+use Doctrine\DBAL\Connection;
 use Pimcore\Bundle\EcommerceFrameworkBundle\EnvironmentInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\IndexableInterface;
-use Pimcore\Db\ConnectionInterface;
 
 /**
  * Sample implementation for sub-tenants based on mysql.
@@ -32,21 +32,21 @@ class DefaultMysqlSubTenantConfig extends DefaultMysql
     protected $environment;
 
     /**
-     * @var ConnectionInterface
+     * @var Connection
      */
     protected $db;
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function __construct(
         string $tenantName,
         array $attributes,
         array $searchAttributes,
         array $filterTypes,
-        array $options = [],
+        array $options,
         EnvironmentInterface $environment,
-        ConnectionInterface $db
+        Connection $db
     ) {
         $this->environment = $environment;
         $this->db = $db;
@@ -93,7 +93,10 @@ class DefaultMysqlSubTenantConfig extends DefaultMysql
      */
     public function inIndex(IndexableInterface $object)
     {
-        $tenants = $object->getTenants();
+        $tenants = null;
+        if (method_exists($object, 'getTenants')) {
+            $tenants = $object->getTenants();
+        }
 
         return !empty($tenants);
     }
@@ -142,14 +145,19 @@ class DefaultMysqlSubTenantConfig extends DefaultMysql
      * @param IndexableInterface $object
      * @param int|null $subObjectId
      *
-     * @return mixed $subTenantData
+     * @return array $subTenantData
      */
     public function prepareSubTenantEntries(IndexableInterface $object, $subObjectId = null)
     {
         $subTenantData = [];
         if ($this->inIndex($object)) {
             //implementation specific tenant get logic
-            foreach ($object->getTenants() as $tenant) {
+            $tenants = [];
+            if (method_exists($object, 'getTenants')) {
+                $tenants = $object->getTenants();
+            }
+
+            foreach ($tenants as $tenant) {
                 $subTenantData[] = ['o_id' => $object->getId(), 'subtenant_id' => $tenant->getId()];
             }
         }
@@ -170,7 +178,7 @@ class DefaultMysqlSubTenantConfig extends DefaultMysql
      */
     public function updateSubTenantEntries($objectId, $subTenantData, $subObjectId = null)
     {
-        $this->db->deleteWhere($this->getTenantRelationTablename(), 'o_id = ' . $this->db->quote($subObjectId ? $subObjectId : $objectId));
+        $this->db->delete($this->getTenantRelationTablename(), ['o_id' => $subObjectId ?: $objectId]);
 
         if ($subTenantData) {
             //implementation specific tenant get logic

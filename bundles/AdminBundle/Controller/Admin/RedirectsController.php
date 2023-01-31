@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace Pimcore\Bundle\AdminBundle\Controller\Admin;
 
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
+use Pimcore\Bundle\AdminBundle\Helper\QueryParams;
 use Pimcore\Bundle\AdminBundle\HttpFoundation\JsonResponse;
 use Pimcore\Logger;
 use Pimcore\Model\Document;
@@ -34,6 +35,8 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * @Route("/redirects")
+ *
+ * @internal
  */
 class RedirectsController extends AdminController
 {
@@ -51,21 +54,26 @@ class RedirectsController extends AdminController
         $this->checkPermission('redirects');
 
         if ($request->get('data')) {
-            if ($request->get('xaction') == 'destroy') {
+            if ($request->get('xaction') === 'destroy') {
                 $data = $this->decodeJson($request->get('data'));
 
                 $id = $data['id'] ?? null;
                 if ($id) {
                     $redirect = Redirect::getById($id);
-                    $redirect->delete();
+                    $redirect?->delete();
                 }
 
                 return $this->adminJson(['success' => true, 'data' => []]);
-            } elseif ($request->get('xaction') == 'update') {
+            }
+            if ($request->get('xaction') === 'update') {
                 $data = $this->decodeJson($request->get('data'));
 
                 // save redirect
                 $redirect = Redirect::getById($data['id']);
+
+                if (!$redirect) {
+                    return $this->adminJson(['success' => false]);
+                }
 
                 if ($data['target']) {
                     if ($doc = Document::getByPath($data['target'])) {
@@ -83,13 +91,14 @@ class RedirectsController extends AdminController
 
                 $redirectTarget = $redirect->getTarget();
                 if (is_numeric($redirectTarget)) {
-                    if ($doc = Document::getById(intval($redirectTarget))) {
+                    if ($doc = Document::getById((int)$redirectTarget)) {
                         $redirect->setTarget($doc->getRealFullPath());
                     }
                 }
 
-                return $this->adminJson(['data' => $redirect, 'success' => true]);
-            } elseif ($request->get('xaction') == 'create') {
+                return $this->adminJson(['data' => $redirect->getObjectVars(), 'success' => true]);
+            }
+            if ($request->get('xaction') === 'create') {
                 $data = $this->decodeJson($request->get('data'));
                 unset($data['id']);
 
@@ -112,12 +121,12 @@ class RedirectsController extends AdminController
 
                 $redirectTarget = $redirect->getTarget();
                 if (is_numeric($redirectTarget)) {
-                    if ($doc = Document::getById(intval($redirectTarget))) {
+                    if ($doc = Document::getById((int)$redirectTarget)) {
                         $redirect->setTarget($doc->getRealFullPath());
                     }
                 }
 
-                return $this->adminJson(['data' => $redirect, 'success' => true]);
+                return $this->adminJson(['data' => $redirect->getObjectVars(), 'success' => true]);
             }
         } else {
             // get list of routes
@@ -126,7 +135,7 @@ class RedirectsController extends AdminController
             $list->setLimit($request->get('limit'));
             $list->setOffset($request->get('start'));
 
-            $sortingSettings = \Pimcore\Bundle\AdminBundle\Helper\QueryParams::extractSortingSettings(array_merge($request->request->all(), $request->query->all()));
+            $sortingSettings = QueryParams::extractSortingSettings(array_merge($request->request->all(), $request->query->all()));
             if ($sortingSettings['orderKey']) {
                 $list->setOrderKey($sortingSettings['orderKey']);
                 $list->setOrder($sortingSettings['order']);
@@ -156,13 +165,13 @@ class RedirectsController extends AdminController
             foreach ($list->getRedirects() as $redirect) {
                 if ($link = $redirect->getTarget()) {
                     if (is_numeric($link)) {
-                        if ($doc = Document::getById(intval($link))) {
+                        if ($doc = Document::getById((int)$link)) {
                             $redirect->setTarget($doc->getRealFullPath());
                         }
                     }
                 }
 
-                $redirects[] = $redirect;
+                $redirects[] = $redirect->getObjectVars();
             }
 
             return $this->adminJson(['data' => $redirects, 'success' => true, 'total' => $list->getTotalCount()]);
@@ -174,12 +183,11 @@ class RedirectsController extends AdminController
     /**
      * @Route("/csv-export", name="pimcore_admin_redirects_csvexport", methods={"GET"})
      *
-     * @param Request $request
      * @param Csv $csv
      *
      * @return Response
      */
-    public function csvExportAction(Request $request, Csv $csv)
+    public function csvExportAction(Csv $csv)
     {
         $this->checkPermission('redirects');
 
@@ -198,7 +206,7 @@ class RedirectsController extends AdminController
             'redirects.csv'
         ));
 
-        $response->setContent($writer->getContent());
+        $response->setContent($writer->toString());
 
         return $response;
     }
@@ -215,7 +223,7 @@ class RedirectsController extends AdminController
     {
         $this->checkPermission('redirects');
 
-        /** @var UploadedFile $file */
+        /** @var UploadedFile|null $file */
         $file = $request->files->get('redirects');
 
         if (!$file) {
@@ -233,11 +241,9 @@ class RedirectsController extends AdminController
     /**
      * @Route("/cleanup", name="pimcore_admin_redirects_cleanup", methods={"DELETE"})
      *
-     * @param Request $request
-     *
      * @return JsonResponse
      */
-    public function cleanupAction(Request $request)
+    public function cleanupAction()
     {
         $this->checkPermission('redirects');
 
@@ -257,5 +263,30 @@ class RedirectsController extends AdminController
 
             return $this->adminJson(['success' => false]);
         }
+    }
+
+    /**
+     * @Route("/get-statuscodes", name="pimcore_admin_redirects_statuscodes", methods={"GET"})
+     *
+     * @return JsonResponse
+     */
+    public function statusCodesAction(): JsonResponse
+    {
+        $this->checkPermission('redirects');
+        $statusCodes = Redirect::getStatusCodes();
+        $codes = [];
+        foreach ($statusCodes as $statusCode => $label) {
+            $codes[] = [
+                'statusCode' => $statusCode,
+                'display' => "$label ($statusCode)",
+            ];
+        }
+        $response = [
+            'config' => [
+                'statuscodes' => $codes,
+            ],
+        ];
+
+        return $this->adminJson($response);
     }
 }

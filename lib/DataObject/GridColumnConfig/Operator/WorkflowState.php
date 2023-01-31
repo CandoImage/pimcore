@@ -17,13 +17,19 @@ namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
 use Pimcore\Workflow\Place\StatusInfo;
 
-class WorkflowState extends AbstractOperator
+/**
+ * @internal
+ */
+final class WorkflowState extends AbstractOperator
 {
     /**
      * @var StatusInfo
      */
     private $statusInfo;
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();
@@ -43,6 +49,7 @@ class WorkflowState extends AbstractOperator
 
     /**
      * @param StatusInfo $statusInfo
+     *
      * @required
      */
     public function setWorkflowStatusInfo(StatusInfo $statusInfo)

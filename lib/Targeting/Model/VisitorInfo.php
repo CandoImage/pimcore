@@ -316,7 +316,11 @@ class VisitorInfo implements \IteratorAggregate
         $this->data = $data;
     }
 
-    public function getIterator()
+    /**
+     * @return \ArrayIterator
+     */
+    #[\ReturnTypeWillChange]
+    public function getIterator()// : \ArrayIterator
     {
         return new \ArrayIterator($this->data);
     }
@@ -326,6 +330,12 @@ class VisitorInfo implements \IteratorAggregate
         return isset($this->data[$key]);
     }
 
+    /**
+     * @param string|int $key
+     * @param mixed $default
+     *
+     * @return mixed
+     */
     public function get($key, $default = null)
     {
         return $this->data[$key] ?? $default;

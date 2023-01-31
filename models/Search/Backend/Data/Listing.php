@@ -18,20 +18,15 @@ namespace Pimcore\Model\Search\Backend\Data;
 use Pimcore\Model\Search\Backend\Data;
 
 /**
+ * @internal
+ *
  * @method \Pimcore\Model\Search\Backend\Data\Listing\Dao getDao()
  * @method Data[] load()
- * @method Data current()
+ * @method Data|false current()
  * @method int getTotalCount()
  */
 class Listing extends \Pimcore\Model\Listing\AbstractListing
 {
-    /**
-     * @var Data[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $entries = null;
-
     /**
      * @return Data[]
      */
@@ -43,7 +38,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing
     /**
      * @param Data[]|null $entries
      *
-     * @return static
+     * @return $this
      */
     public function setEntries($entries)
     {
@@ -56,6 +51,5 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing
     public function __construct()
     {
         $this->initDao(__CLASS__);
-        $this->entries = & $this->data;
     }
 }

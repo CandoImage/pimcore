@@ -16,6 +16,7 @@
 namespace Pimcore\Model\DataObject\Objectbrick\Data;
 
 use Pimcore\Db;
+use Pimcore\Db\Helper;
 use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
@@ -24,6 +25,8 @@ use Pimcore\Model\DataObject\ClassDefinition\Data\QueryResourcePersistenceAwareI
 use Pimcore\Model\DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Objectbrick\Data\AbstractData $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -84,31 +87,31 @@ class Dao extends Model\Dao\AbstractDao
                 }
                 if ($dirtyRelations) {
                     $where .= ' AND fieldname IN (' . implode(',', $dirtyRelations) . ')';
-                    $this->db->deleteWhere('object_relations_' . $object->getClassId(), $where);
+                    $this->db->executeStatement('DELETE FROM object_relations_' . $object->getClassId() . ' WHERE ' . $where);
                 }
             } else {
-                $this->db->deleteWhere('object_relations_' . $object->getClassId(), $where);
+                $this->db->executeStatement('DELETE FROM object_relations_' . $object->getClassId() . ' WHERE ' . $where);
             }
         } catch (\Exception $e) {
             Logger::warning('Error during removing old relations: ' . $e);
         }
 
-        foreach ($fieldDefinitions as $key => $fd) {
-            $getter = 'get' . ucfirst($fd->getName());
+        if ($this->model->getObject()->getClass()->getAllowInherit() && isset($params['isUpdate']) && $params['isUpdate'] === false) {
+            // if this is a fresh object, then we don't need the check
+            $isBrickUpdate = false; // used to indicate whether we want to consider the default value
+        } else {
+            // or brick has been added
+            $existsResult = $this->db->fetchOne('SELECT o_id FROM ' . $storetable . ' WHERE o_id = ? LIMIT 1', [$object->getId()]);
+            $isBrickUpdate = $existsResult ? true : false;  // used to indicate whether we want to consider the default value
+        }
 
-            if ($this->model->getObject()->getClass()->getAllowInherit() && isset($params['isUpdate']) && $params['isUpdate'] === false) {
-                // if this is a fresh object, then we don't need the check
-                $isBrickUpdate = false; // used to indicate whether we want to consider the default value
-            } else {
-                // or brick has been added
-                $existsResult = $this->db->fetchOne('SELECT o_id FROM ' . $storetable . ' WHERE o_id = ? LIMIT 1', $object->getId());
-                $isBrickUpdate = $existsResult ? true : false;  // used to indicate whether we want to consider the default value
-            }
+        foreach ($fieldDefinitions as $fieldName => $fd) {
+            $getter = 'get' . ucfirst($fd->getName());
 
             if ($fd instanceof CustomResourcePersistingInterface) {
                 if ((!isset($params['newParent']) || !$params['newParent']) && isset($params['isUpdate']) && $params['isUpdate'] && !DataObject::isDirtyDetectionDisabled() && $this->model instanceof Model\Element\DirtyIndicatorInterface) {
                     // ownerNameList contains the dirty stuff
-                    if ($fd instanceof DataObject\ClassDefinition\Data\Relations\AbstractRelations && !in_array($db->quote($key), $dirtyRelations)) {
+                    if ($fd instanceof DataObject\ClassDefinition\Data\Relations\AbstractRelations && !in_array($db->quote($fieldName), $dirtyRelations)) {
                         continue;
                     }
                 }
@@ -123,39 +126,42 @@ class Dao extends Model\Dao\AbstractDao
                         ],
                         'isUpdate' => $isBrickUpdate,
                         'owner' => $this->model,
-                        'fieldname' => $key,
+                        'fieldname' => $fieldName,
                     ]));
             }
 
             if ($fd instanceof ResourcePersistenceAwareInterface) {
+                $fieldDefinitionParams = [
+                    'owner' => $this->model, //\Pimcore\Model\DataObject\Objectbrick\Data\Dao
+                    'fieldname' => $fieldName,
+                    'isUpdate' => $isBrickUpdate,
+                    'context' => [
+                        'containerType' => 'objectbrick',
+                        'containerKey' => $this->model->getType(),
+                        'fieldname' => $this->model->getFieldname(),
+                    ],
+                ];
                 if (is_array($fd->getColumnType())) {
-                    $insertDataArray = $fd->getDataForResource($this->model->$getter(), $object, [
-                        'owner' => $this->model, //\Pimcore\Model\DataObject\Objectbrick\Data\Dao
-                        'isUpdate' => $isBrickUpdate,
-                        'context' => [
-                            'containerType' => 'objectbrick',
-                            'containerKey' => $this->model->getType(),
-                            'fieldname' => $this->model->getFieldname(),
-                        ],
-                    ]);
+                    $insertDataArray = $fd->getDataForResource($this->model->$getter(), $object, $fieldDefinitionParams);
                     $data = array_merge($data, $insertDataArray);
+                    $this->model->set($fieldName, $fd->getDataFromResource($insertDataArray, $object, $fieldDefinitionParams));
                 } else {
-                    $insertData = $fd->getDataForResource($this->model->$getter(), $object, [
-                        'owner' => $this->model, //\Pimcore\Model\DataObject\Objectbrick\Data\Dao
-                        'fieldname' => $key,
-                        'isUpdate' => $isBrickUpdate,
-                        'context' => [
-                            'containerType' => 'objectbrick',
-                            'containerKey' => $this->model->getType(),
-                            'fieldname' => $this->model->getFieldname(),
-                        ],
-                    ]);
-                    $data[$key] = $insertData;
+                    $insertData = $fd->getDataForResource($this->model->$getter(), $object, $fieldDefinitionParams);
+                    $data[$fieldName] = $insertData;
+                    $this->model->set($fieldName, $fd->getDataFromResource($insertData, $object, $fieldDefinitionParams));
+                }
+
+                if ($this->model instanceof Model\Element\DirtyIndicatorInterface) {
+                    $this->model->markFieldDirty($fieldName, false);
                 }
             }
         }
 
-        $this->db->insertOrUpdate($storetable, $data);
+        if ($isBrickUpdate) {
+            $this->db->update($storetable, $data, ['o_id'=> $object->getId()]);
+        } else {
+            $this->db->insert($storetable, $data);
+        }
 
         // get data for query table
         // $tableName = $this->model->getDefinition()->getTableName($object->getClass(), true);
@@ -166,7 +172,7 @@ class Dao extends Model\Dao\AbstractDao
         $data['fieldname'] = $this->model->getFieldname();
 
         $this->inheritanceHelper->resetFieldsToCheck();
-        $oldData = $this->db->fetchRow('SELECT * FROM ' . $querytable . ' WHERE o_id = ?', $object->getId());
+        $oldData = $this->db->fetchAssociative('SELECT * FROM ' . $querytable . ' WHERE o_id = ?', [$object->getId()]);
 
         $inheritanceEnabled = $object->getClass()->getAllowInherit();
         $parentData = null;
@@ -178,7 +184,7 @@ class Dao extends Model\Dao\AbstractDao
                 // we cannot DataObject::setGetInheritedValues(true); and then $this->model->$method();
                 // so we select the data from the parent object using FOR UPDATE, which causes a lock on this row
                 // so the data of the parent cannot be changed while this transaction is on progress
-                $parentData = $this->db->fetchRow('SELECT * FROM ' . $querytable . ' WHERE o_id = ? FOR UPDATE', $parentForInheritance->getId());
+                $parentData = $this->db->fetchAssociative('SELECT * FROM ' . $querytable . ' WHERE o_id = ? FOR UPDATE', [$parentForInheritance->getId()]);
             }
         }
 
@@ -269,7 +275,7 @@ class Dao extends Model\Dao\AbstractDao
             }
         }
 
-        $this->db->insertOrUpdate($querytable, $data);
+        Helper::insertOrUpdate($this->db, $querytable, $data);
 
         if ($inheritanceEnabled) {
             $this->inheritanceHelper->doUpdate($object->getId(), true,
@@ -295,7 +301,7 @@ class Dao extends Model\Dao\AbstractDao
         // update data for query table
         $queryTable = $this->model->getDefinition()->getTableName($object->getClass(), true);
 
-        $oldData = $this->db->fetchRow('SELECT * FROM ' . $queryTable . ' WHERE o_id = ?', $object->getId());
+        $oldData = $this->db->fetchAssociative('SELECT * FROM ' . $queryTable . ' WHERE o_id = ?', [$object->getId()]);
         $this->db->delete($queryTable, ['o_id' => $object->getId()]);
 
         //update data for relations table
@@ -384,7 +390,7 @@ class Dao extends Model\Dao\AbstractDao
             $src = 'dest_id';
         }
 
-        $relations = $this->db->fetchAll('SELECT r.' . $dest . ' as dest_id, r.' . $dest . ' as id, r.type, o.o_className as subtype, concat(o.o_path ,o.o_key) as path , r.index, o.o_published as published
+        $relations = $this->db->fetchAllAssociative('SELECT r.' . $dest . ' as dest_id, r.' . $dest . ' as id, r.type, o.o_className as subtype, concat(o.o_path ,o.o_key) as path , r.index, o.o_published as published
             FROM objects o, object_relations_' . $classId . " r
             WHERE r.fieldname= ?
             AND r.ownertype = 'objectbrick'
@@ -412,7 +418,7 @@ class Dao extends Model\Dao\AbstractDao
             AND r.type='document'
             ORDER BY `index` ASC", $params);
 
-        if (is_array($relations) and count($relations) > 0) {
+        if (is_array($relations) && count($relations) > 0) {
             return $relations;
         } else {
             return [];

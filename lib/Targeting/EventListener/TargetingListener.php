@@ -20,6 +20,7 @@ namespace Pimcore\Targeting\EventListener;
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\EnabledTrait;
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\PimcoreContextAwareTrait;
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\ResponseInjectionTrait;
+use Pimcore\Bundle\CoreBundle\EventListener\Traits\StaticPageContextAwareTrait;
 use Pimcore\Debug\Traits\StopwatchTrait;
 use Pimcore\Event\Targeting\TargetingEvent;
 use Pimcore\Event\TargetingEvents;
@@ -35,8 +36,8 @@ use Pimcore\Targeting\VisitorInfoResolver;
 use Pimcore\Targeting\VisitorInfoStorageInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
 class TargetingListener implements EventSubscriberInterface
@@ -45,6 +46,7 @@ class TargetingListener implements EventSubscriberInterface
     use PimcoreContextAwareTrait;
     use EnabledTrait;
     use ResponseInjectionTrait;
+    use StaticPageContextAwareTrait;
 
     /**
      * @var VisitorInfoResolver
@@ -85,7 +87,10 @@ class TargetingListener implements EventSubscriberInterface
         $this->codeGenerator = $codeGenerator;
     }
 
-    public static function getSubscribedEvents()
+    /**
+     * @return array
+     */
+    public static function getSubscribedEvents()//: array
     {
         return [
             // needs to run before ElementListener to make sure there's a
@@ -96,7 +101,7 @@ class TargetingListener implements EventSubscriberInterface
         ];
     }
 
-    public function onKernelRequest(GetResponseEvent $event)
+    public function onKernelRequest(RequestEvent $event)
     {
         if (!$this->enabled) {
             return;
@@ -108,11 +113,11 @@ class TargetingListener implements EventSubscriberInterface
             return;
         }
 
-        if (!$event->isMasterRequest()) {
+        $request = $event->getRequest();
+
+        if (!$event->isMainRequest() && !$this->matchesStaticPageContext($request)) {
             return;
         }
-
-        $request = $event->getRequest();
 
         // only apply targeting for GET requests
         // this may revised in later versions
@@ -120,11 +125,12 @@ class TargetingListener implements EventSubscriberInterface
             return;
         }
 
-        if (!$this->matchesPimcoreContext($request, PimcoreContextResolver::CONTEXT_DEFAULT)) {
+        if (!$this->matchesPimcoreContext($request, PimcoreContextResolver::CONTEXT_DEFAULT)
+            && !$this->matchesStaticPageContext($request)) {
             return;
         }
 
-        if (!$this->requestHelper->isFrontendRequest($request) || $this->requestHelper->isFrontendRequestByAdmin($request)) {
+        if ((!$this->requestHelper->isFrontendRequest($request) && !$this->matchesStaticPageContext($request)) || $this->requestHelper->isFrontendRequestByAdmin($request)) {
             return;
         }
 
@@ -148,14 +154,17 @@ class TargetingListener implements EventSubscriberInterface
     {
         $this->startStopwatch('Targeting:loadStoredAssignments', 'targeting');
 
-        /** @var AssignTargetGroup $assignTargetGroupHandler */
-        $assignTargetGroupHandler = $this->actionHandler->getActionHandler('assign_target_group');
-        $assignTargetGroupHandler->loadStoredAssignments($event->getVisitorInfo()); // load previously assigned target groups
+        if (method_exists($this->actionHandler, 'getActionHandler')) {
+            /** @var AssignTargetGroup $assignTargetGroupHandler */
+            $assignTargetGroupHandler = $this->actionHandler->getActionHandler('assign_target_group');
+
+            $assignTargetGroupHandler->loadStoredAssignments($event->getVisitorInfo()); // load previously assigned target groups
+        }
 
         $this->stopStopwatch('Targeting:loadStoredAssignments');
     }
 
-    public function onKernelResponse(FilterResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event)
     {
         if (!$this->enabled) {
             return;
@@ -168,7 +177,7 @@ class TargetingListener implements EventSubscriberInterface
         $visitorInfo = $this->visitorInfoStorage->getVisitorInfo();
         $response = $event->getResponse();
 
-        if ($event->isMasterRequest()) {
+        if ($event->isMainRequest() || $this->matchesStaticPageContext($event->getRequest())) {
             $this->startStopwatch('Targeting:responseActions', 'targeting');
 
             // handle recorded actions on response
@@ -210,7 +219,11 @@ class TargetingListener implements EventSubscriberInterface
         }
 
         foreach ($actions as $type => $typeActions) {
-            $handler = $this->actionHandler->getActionHandler($type);
+            $handler = null;
+            if (method_exists($this->actionHandler, 'getActionHandler')) {
+                $handler = $this->actionHandler->getActionHandler($type);
+            }
+
             if (!$handler instanceof ResponseTransformingActionHandlerInterface) {
                 throw new \RuntimeException(sprintf(
                     'The "%s" action handler does not implement ResponseTransformingActionHandlerInterface',
@@ -238,7 +251,7 @@ class TargetingListener implements EventSubscriberInterface
                 continue;
             }
 
-            if (!is_array($actions[$type])) {
+            if (!isset($actions[$type])) {
                 $actions[$type] = [$action];
             } else {
                 $actions[$type][] = $action;

@@ -16,12 +16,15 @@
 namespace Pimcore\Model\Redirect;
 
 use Pimcore\Model;
+use Pimcore\Model\Exception\NotFoundException;
 use Pimcore\Model\Redirect;
 use Pimcore\Model\Site;
 use Pimcore\Routing\Redirect\RedirectUrlPartResolver;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Redirect $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -29,7 +32,7 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int|null $id
      *
-     * @throws \Exception
+     * @throws NotFoundException
      */
     public function getById($id = null)
     {
@@ -37,9 +40,9 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow('SELECT * FROM redirects WHERE id = ?', $this->model->getId());
+        $data = $this->db->fetchAssociative('SELECT * FROM redirects WHERE id = ?', [$this->model->getId()]);
         if (!$data) {
-            throw new \Exception(sprintf('Redirect with ID %d doesn\'t exist', $this->model->getId()));
+            throw new NotFoundException(sprintf('Redirect with ID %d doesn\'t exist', $this->model->getId()));
         }
 
         $this->assignVariablesToModel($data);
@@ -50,7 +53,7 @@ class Dao extends Model\Dao\AbstractDao
      * @param Site|null $site
      * @param bool $override
      *
-     * @throws \Exception
+     * @throws NotFoundException
      */
     public function getByExactMatch(Request $request, ?Site $site = null, bool $override = false)
     {
@@ -76,7 +79,7 @@ class Dao extends Model\Dao\AbstractDao
 
         $sql .= ' ORDER BY `priority` DESC';
 
-        $data = $this->db->fetchRow($sql, [
+        $data = $this->db->fetchAssociative($sql, [
             'sourcePath' => $partResolver->getRequestUriPart(Redirect::TYPE_PATH),
             'sourcePathQuery' => $partResolver->getRequestUriPart(Redirect::TYPE_PATH_QUERY),
             'sourceEntireUri' => $partResolver->getRequestUriPart(Redirect::TYPE_ENTIRE_URI),
@@ -87,7 +90,7 @@ class Dao extends Model\Dao\AbstractDao
         ]);
 
         if (!$data) {
-            throw new \Exception('No matching redirect found for the given request');
+            throw new NotFoundException('No matching redirect found for the given request');
         }
 
         $this->assignVariablesToModel($data);
@@ -102,7 +105,7 @@ class Dao extends Model\Dao\AbstractDao
             // create in database
             $this->db->insert('redirects', []);
 
-            $this->model->setId($this->db->lastInsertId());
+            $this->model->setId((int) $this->db->lastInsertId());
         }
 
         $this->updateModificationInfos();

@@ -15,15 +15,15 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Worker;
 
+use Doctrine\DBAL\Connection;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config\ConfigInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\IndexableInterface;
-use Pimcore\Db\ConnectionInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 abstract class AbstractWorker implements WorkerInterface
 {
     /**
-     * @var ConnectionInterface
+     * @var Connection
      */
     protected $db;
 
@@ -52,7 +52,7 @@ abstract class AbstractWorker implements WorkerInterface
      */
     protected $eventDispatcher;
 
-    public function __construct(ConfigInterface $tenantConfig, ConnectionInterface $db, EventDispatcherInterface $eventDispatcher)
+    public function __construct(ConfigInterface $tenantConfig, Connection $db, EventDispatcherInterface $eventDispatcher)
     {
         $this->tenantConfig = $tenantConfig;
         $tenantConfig->setTenantWorker($this);
@@ -80,7 +80,7 @@ abstract class AbstractWorker implements WorkerInterface
             ];
 
             foreach ($this->tenantConfig->getAttributes() as $attribute) {
-                if (!$considerHideInFieldList || ($considerHideInFieldList && !$attribute->getHideInFieldlistDatatype())) {
+                if (!$considerHideInFieldList || !$attribute->getHideInFieldlistDatatype()) {
                     $indexColumns[$attribute->getName()] = $attribute->getName();
                 }
             }
@@ -95,7 +95,7 @@ abstract class AbstractWorker implements WorkerInterface
     {
         $this->getAllFilterGroups();
 
-        return $this->filterGroups[$filterGroup] ? $this->filterGroups[$filterGroup] : [];
+        return $this->filterGroups[$filterGroup] ?? [];
     }
 
     public function getAllFilterGroups()

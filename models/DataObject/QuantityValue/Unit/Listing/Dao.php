@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Model\DataObject;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\QuantityValue\Unit\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -30,7 +32,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
     {
         $units = [];
 
-        $unitConfigs = $this->db->fetchAll('SELECT * FROM ' . DataObject\QuantityValue\Unit\Dao::TABLE_NAME .
+        $unitConfigs = $this->db->fetchAllAssociative('SELECT * FROM ' . DataObject\QuantityValue\Unit\Dao::TABLE_NAME .
             $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
 
         foreach ($unitConfigs as $unitConfig) {

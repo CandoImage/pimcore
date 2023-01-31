@@ -38,22 +38,8 @@ pimcore.object.classificationstore.groupsPanel = Class.create({
         return this.layout;
     },
 
-
-    createRelationsGrid: function() {
-        this.relationsFields = ['id', 'keyId', 'groupId', 'keyName', 'keyDescription', 'sorter'];
-
-        var readerFields = [];
-        for (var i = 0; i < this.relationsFields.length; i++) {
-            var columnConfig = {name: this.relationsFields[i], type: 'string'};
-            if (this.relationsFields[i] == "sorter") {
-                columnConfig["type"] = "int";
-            }
-            readerFields.push(columnConfig);
-        }
-
-        readerFields.push({name: 'mandatory', type: 'bool'});
-
-        var proxy = {
+    getRelationsProxy: function() {
+        let proxy = {
             url: Routing.generate('pimcore_admin_dataobject_classificationstore_relationsactionget'),
             type: 'ajax',
             batchActions: false,
@@ -73,6 +59,23 @@ pimcore.object.classificationstore.groupsPanel = Class.create({
             }
         };
 
+        return proxy;
+    },
+
+    createRelationsGrid: function() {
+        this.relationsFields = ['id', 'keyId', 'groupId', 'keyName', 'keyDescription', 'sorter'];
+
+        var readerFields = [];
+        for (var i = 0; i < this.relationsFields.length; i++) {
+            var columnConfig = {name: this.relationsFields[i], type: 'string'};
+            if (this.relationsFields[i] == "sorter" || this.relationsFields[i] == "keyId") {
+                columnConfig["type"] = "int";
+            }
+            readerFields.push(columnConfig);
+        }
+
+        readerFields.push({name: 'mandatory', type: 'bool'});
+
         var listeners = {};
 
         listeners.write = function(store, action, result, response, rs) {};
@@ -85,7 +88,7 @@ pimcore.object.classificationstore.groupsPanel = Class.create({
 
         this.relationsStore = new Ext.data.Store({
             autoSync: true,
-            proxy: proxy,
+            proxy: this.getRelationsProxy(),
             fields: readerFields,
             listeners: listeners
         });
@@ -119,8 +122,10 @@ pimcore.object.classificationstore.groupsPanel = Class.create({
 
 
         gridColumns.push({text: t("key_id"), flex: 60, sortable: true, dataIndex: 'keyId', filter: 'string'});
-        gridColumns.push({text: t("name"), flex: 200, sortable: true, dataIndex: 'keyName', filter: 'string'});
-        gridColumns.push({text: t("description"), flex: 200, sortable: true, dataIndex: 'keyDescription', filter: 'string'});
+        gridColumns.push({text: t("name"), flex: 200, sortable: true, dataIndex: 'keyName', filter: 'string',
+            renderer: Ext.util.Format.htmlEncode});
+        gridColumns.push({text: t("description"), flex: 200, sortable: true, dataIndex: 'keyDescription', filter: 'string',
+            renderer: Ext.util.Format.htmlEncode});
 
         gridColumns.push(mandatoryCheck);
         gridColumns.push({text: t('sorter'), width: 150, sortable: true, dataIndex: 'sorter',
@@ -143,16 +148,20 @@ pimcore.object.classificationstore.groupsPanel = Class.create({
                         var keyId = data.data.keyId;
                         var groupId = data.data.groupId;
 
-                        Ext.Ajax.request({
-                            url: Routing.generate('pimcore_admin_dataobject_classificationstore_deleterelation'),
-                            method: 'DELETE',
-                            params: {
-                                keyId: keyId,
-                                groupId: groupId
-                            },
-                            success: function (response) {
-                                this.relationsStore.reload();
-                            }.bind(this)});
+                        Ext.Msg.confirm(t('delete'), sprintf(t('delete_message_advanced'), t('classificationstore_relation'), data.data.keyName), function(btn) {
+                            if (btn == 'yes') {
+                                Ext.Ajax.request({
+                                    url: Routing.generate('pimcore_admin_dataobject_classificationstore_deleterelation'),
+                                    method: 'DELETE',
+                                    params: {
+                                        keyId: keyId,
+                                        groupId: groupId
+                                    },
+                                    success: function (response) {
+                                        this.relationsStore.reload();
+                                    }.bind(this)});
+                            }
+                        }.bind(this));
                     }.bind(this)
                 }
             ]
@@ -269,8 +278,10 @@ pimcore.object.classificationstore.groupsPanel = Class.create({
         //gridColumns.push({text: t("store"), width: 60, sortable: true, dataIndex: 'storeId', filter: 'string'});
         gridColumns.push({text: "ID", width: 60, sortable: true, dataIndex: 'id', filter: 'string'});
         gridColumns.push({text: t("parent_id"), width: 160, sortable: true, dataIndex: 'parentId', hidden: true, editor: new Ext.form.TextField({})});
-        gridColumns.push({text: t("name"), flex: 200, sortable: true, dataIndex: 'name', editor: new Ext.form.TextField({}), filter: 'string'});
-        gridColumns.push({text: t("description"), flex: 300, sortable: true, dataIndex: 'description', editor: new Ext.form.TextField({}), filter: 'string'});
+        gridColumns.push({text: t("name"), flex: 200, sortable: true, dataIndex: 'name', editor: new Ext.form.TextField({}), filter: 'string',
+            renderer: Ext.util.Format.htmlEncode});
+        gridColumns.push({text: t("description"), flex: 300, sortable: true, dataIndex: 'description', editor: new Ext.form.TextField({}), filter: 'string',
+            renderer: Ext.util.Format.htmlEncode});
 
         var dateRenderer =  function(d) {
             if (d !== undefined) {
@@ -308,19 +319,28 @@ pimcore.object.classificationstore.groupsPanel = Class.create({
                         var data = grid.getStore().getAt(rowIndex);
                         var id = data.data.id;
 
-                        this.relationsStore.removeAll(true);
-                        this.relationsGrid.hide();
-                        this.relationsPanel.disable();
+                        Ext.Msg.confirm(t('delete'), sprintf(t('delete_message_advanced'), t('classificationstore_group'), data.data.name), function(btn) {
+                            if (btn == 'yes') {
 
-                        Ext.Ajax.request({
-                            url: Routing.generate('pimcore_admin_dataobject_classificationstore_deletegroup'),
-                            method: 'DELETE',
-                            params: {
-                                id: id
-                            },
-                            success: function (response) {
-                                this.groupsStore.reload();
-                            }.bind(this)});
+                                //necessary for aborting all pending proxy requests
+                                //https://github.com/pimcore/pimcore/issues/11284
+                                this.relationsStore.getProxy().destroy();
+                                this.relationsStore.setProxy(this.getRelationsProxy());
+
+                                this.relationsGrid.hide();
+                                this.relationsPanel.disable();
+
+                                Ext.Ajax.request({
+                                    url: Routing.generate('pimcore_admin_dataobject_classificationstore_deletegroup'),
+                                    method: 'DELETE',
+                                    params: {
+                                        id: id
+                                    },
+                                    success: function (response) {
+                                        this.groupsStore.reload();
+                                    }.bind(this)});
+                            }
+                        }.bind(this));
                     }.bind(this)
                 }
             ]
@@ -365,7 +385,7 @@ pimcore.object.classificationstore.groupsPanel = Class.create({
                     if (selected.length > 0) {
                         var record = selected[0];
                         var groupId = record.data.id;
-                        var groupName = record.data.name;
+                        var groupName = Ext.util.Format.htmlEncode(record.data.name);
 
                         this.groupId = groupId;
 

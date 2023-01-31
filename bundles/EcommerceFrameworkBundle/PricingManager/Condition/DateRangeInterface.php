@@ -34,14 +34,12 @@ interface DateRangeInterface extends ConditionInterface
     public function setEnding(\DateTime $date);
 
     /**
-     * @return \DateTime
+     * @return \DateTime|null
      */
     public function getStarting();
 
     /**
-     * @return \DateTime
+     * @return \DateTime|null
      */
     public function getEnding();
 }
-
-class_alias(DateRangeInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Condition\IDateRange');

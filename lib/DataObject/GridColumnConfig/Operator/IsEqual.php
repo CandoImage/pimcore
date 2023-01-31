@@ -15,11 +15,19 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class IsEqual extends AbstractOperator
+/**
+ * @internal
+ */
+final class IsEqual extends AbstractOperator
 {
-    /** @var bool */
+    /**
+     * @var bool
+     */
     private $skipNull;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -27,6 +35,9 @@ class IsEqual extends AbstractOperator
         $this->skipNull = $config->skipNull ?? false;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();

@@ -27,11 +27,19 @@ pimcore.report.custom.item = Class.create({
     addLayout: function () {
 
         var panelButtons = [];
-        panelButtons.push({
+
+        let buttonConfig = {
             text: t("save"),
             iconCls: "pimcore_icon_apply",
-            handler: this.save.bind(this)
-        });
+            handler: this.save.bind(this),
+            disabled: !this.data.writeable
+        };
+
+        if (!this.data.writeable) {
+            buttonConfig.tooltip = t("config_not_writeable");
+        }
+
+        panelButtons.push(buttonConfig);
 
         this.columnStore = Ext.create('Ext.data.Store', {
             autoDestroy: false,
@@ -90,6 +98,11 @@ pimcore.report.custom.item = Class.create({
             plugins: [
                 this.cellEditing
             ],
+            viewConfig: {
+                plugins: {
+                    ptype: 'gridviewdragdrop'
+                }
+            },
             columns: [
                 {text: t("name"), sortable: false, dataIndex: 'name', editable: false, width: 200},
                 checkDisplay,
@@ -434,7 +447,7 @@ pimcore.report.custom.item = Class.create({
             });
 
             var userSharingField = Ext.create('Ext.form.field.Tag', {
-                name: "sharedUserIds",
+                name: "sharedUserNames",
                 width: '100%',
                 height: 100,
                 fieldLabel: t("visible_to_users"),
@@ -444,10 +457,10 @@ pimcore.report.custom.item = Class.create({
                 minChars: 1,
                 store: userStore,
                 displayField: 'label',
-                valueField: 'id',
+                valueField: 'label',
                 forceSelection: true,
                 filterPickList: true,
-                value: this.data.sharedUserIds ? this.data.sharedUserIds : ""
+                value: this.data.sharedUserNames ? this.data.sharedUserNames : ""
             });
             items.push(userSharingField);
 
@@ -469,7 +482,7 @@ pimcore.report.custom.item = Class.create({
             });
 
             var rolesSharingField = Ext.create('Ext.form.field.Tag', {
-                name: "sharedRoleIds",
+                name: "sharedRoleNames",
                 width: '100%',
                 height: 100,
                 fieldLabel: t("visible_to_roles"),
@@ -479,10 +492,10 @@ pimcore.report.custom.item = Class.create({
                 minChars: 1,
                 store: rolesStore,
                 displayField: 'label',
-                valueField: 'id',
+                valueField: 'label',
                 forceSelection: true,
                 filterPickList: true,
-                value: this.data.sharedRoleIds ? this.data.sharedRoleIds : ""
+                value: this.data.sharedRoleNames ? this.data.sharedRoleNames : ""
             });
             items.push(rolesSharingField);
         }
@@ -886,7 +899,25 @@ pimcore.report.custom.item = Class.create({
 
     save: function () {
 
-        var m = this.getValues();
+        let m = this.getValues();
+        let error = false;
+
+        ['group', 'groupIconClass', 'iconClass', 'reportClass'].forEach(function (name) {
+            if(m[name].length && !m[name].match(/^[_a-zA-Z]+[_a-zA-Z0-9-.\s]*$/)) {
+                error = name;
+            }
+        });
+
+        if(error !== false) {
+            Ext.Msg.show({
+                title: t("error"),
+                msg: t('class_field_name_error') + ': ' + error,
+                buttons: Ext.Msg.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+
+            return;
+        }
 
         Ext.Ajax.request({
             url: Routing.generate('pimcore_admin_reports_customreport_update'),

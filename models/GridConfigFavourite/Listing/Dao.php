@@ -18,6 +18,8 @@ namespace Pimcore\Model\GridConfigFavourite\Listing;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\GridConfigFavourite\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -30,7 +32,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
     public function load()
     {
         $gridConfigsFavourites = [];
-        $data = $this->db->fetchAll('SELECT * FROM gridconfig_favourites' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $data = $this->db->fetchAllAssociative('SELECT * FROM gridconfig_favourites' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
         $gridConfigs = [];
 
         foreach ($data as $configData) {

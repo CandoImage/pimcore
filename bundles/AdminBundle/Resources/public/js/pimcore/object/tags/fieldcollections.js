@@ -18,7 +18,6 @@ pimcore.object.tags.fieldcollections = Class.create(pimcore.object.tags.abstract
     dirty: false,
 
     initialize: function (data, fieldConfig) {
-
         this.dirty = false;
         this.data = [];
         this.currentElements = [];
@@ -30,7 +29,8 @@ pimcore.object.tags.fieldcollections = Class.create(pimcore.object.tags.abstract
         }
         this.fieldConfig = fieldConfig;
 
-        this.eventDispatcherKey = pimcore.eventDispatcher.registerTarget(this.eventDispatcherKey, this);
+        document.addEventListener(pimcore.events.postSaveObject, this.postSaveObject.bind(this));
+
     },
 
     setObject:function (object) {
@@ -82,7 +82,7 @@ pimcore.object.tags.fieldcollections = Class.create(pimcore.object.tags.abstract
             border: this.fieldConfig.border,
             style: "margin-bottom: 10px",
             bodyStyle: 'padding-top: 5px',
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             collapsible: this.fieldConfig.collapsible,
             collapsed: this.fieldConfig.collapsed
         };
@@ -93,16 +93,15 @@ pimcore.object.tags.fieldcollections = Class.create(pimcore.object.tags.abstract
         this.component = new Ext.Panel(panelConf);
 
         this.component.on("destroy", function() {
-            pimcore.eventDispatcher.unregisterTarget(this.eventDispatcherKey);
+            document.removeEventListener(pimcore.events.postSaveObject, this.postSaveObject.bind(this));
         }.bind(this));
 
         return this.component;
     },
 
 
-    postSaveObject: function(object, task) {
-
-        if (object.id == this.object.id && task == "publish") {
+    postSaveObject: function(e) {
+        if (e.detail.object.id === this.object.id) {
             for (var itemIndex = 0; itemIndex < this.component.items.items.length; itemIndex++) {
                 var item = this.component.items.items[itemIndex];
                 item["pimcore_oIndex"] = itemIndex;
@@ -337,23 +336,27 @@ pimcore.object.tags.fieldcollections = Class.create(pimcore.object.tags.abstract
 
     removeBlock: function (blockElement) {
 
-        this.closeOpenEditors();
+        Ext.Msg.confirm(t('delete'), t('delete_group_message'), function(btn){
+            if (btn == 'yes') {
+                this.closeOpenEditors();
 
-        var key = blockElement.key;
-        this.currentElements[key] = "deleted";
+                var key = blockElement.key;
+                this.currentElements[key] = "deleted";
 
-        this.component.remove(blockElement);
-        this.dirty = true;
+                this.component.remove(blockElement);
+                this.dirty = true;
 
-        // check for remaining elements
-        if(this.component.items.items.length < 1) {
-            this.component.removeAll();
-            this.component.add(this.getControls());
-            this.component.updateLayout();
-            this.currentElements = [];
-        }
+                // check for remaining elements
+                if (this.component.items.items.length < 1) {
+                    this.component.removeAll();
+                    this.component.add(this.getControls());
+                    this.component.updateLayout();
+                    this.currentElements = [];
+                }
 
-        this.updateBlockIndices();
+                this.updateBlockIndices();
+            }
+        }.bind(this));
     },
 
     moveBlockUp: function (blockElement) {
@@ -483,7 +486,7 @@ pimcore.object.tags.fieldcollections = Class.create(pimcore.object.tags.abstract
             // this is especially for localized fields which get aggregated here into one field definition
             // in the case that there are more than one localized fields in the class definition
             // see also ClassDefinition::extractDataDefinitions();
-            if(typeof this.dataFields[name]["addReferencedField"]){
+            if (typeof this.dataFields[name]['addReferencedField'] === 'function') {
                 this.dataFields[name].addReferencedField(field);
             }
         } else {

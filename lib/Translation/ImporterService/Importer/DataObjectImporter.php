@@ -64,19 +64,19 @@ class DataObjectImporter extends AbstractElementImporter
             list($blockName, $blockIndex, $fieldname, $sourceLanguage) = explode(DataObjectDataExtractor::BLOCK_DELIMITER, $attribute->getName());
             /** @var array $originalBlockData */
             $originalBlockData = $element->{'get' . $blockName}($sourceLanguage);
-            $originalBlockItem = $originalBlockData[$blockIndex];
-            $originalBlockItemData = $originalBlockItem[$fieldname];
+            $originalBlockItem = $originalBlockData[$blockIndex] ?? null;
+            $originalBlockItemData = $originalBlockItem[$fieldname] ?? null;
 
             /** @var array $blockData */
             $blockData = $element->{'get' . $blockName}($targetLanguage);
-            $blockItem = !empty($blockData) && $blockData[$blockIndex] ? $blockData[$blockIndex] : $originalBlockItem;
+            $blockItem =  isset($blockData[$blockIndex]) ? $blockData[$blockIndex] : $originalBlockItem;
+            /** @var DataObject\Data\BlockElement $blockItemData */
+            $blockItemData = !empty($blockData) ? clone $blockItem[$fieldname] : clone $originalBlockItemData;
 
-            $blockItemData = !empty($blockData) ? $blockItem[$fieldname] : clone $originalBlockItemData;
-
-            // @var $blockItemData DataObject\Data\BlockElement
             $blockItemData->setLanguage($targetLanguage);
 
             $blockItemData->setData($attribute->getContent());
+
             $blockItem[$fieldname] = $blockItemData;
             $blockData[$blockIndex] = $blockItem;
 
@@ -100,10 +100,10 @@ class DataObjectImporter extends AbstractElementImporter
         if ($attribute->getType() === Attribute::TYPE_FIELD_COLLECTION_LOCALIZED_FIELD) {
             list($fieldCollectionField, $index, $field) = explode(DataObjectDataExtractor::FIELD_COLLECTIONS_DELIMITER, $attribute->getName());
 
-            /** @var DataObject\Fieldcollection $fieldCollection */
+            /** @var DataObject\Fieldcollection|null $fieldCollection */
             $fieldCollection = $element->{'get' . $fieldCollectionField}();
             if ($fieldCollection) {
-                $item = $fieldCollection->get($index);
+                $item = $fieldCollection->get((int) $index);
                 /** @var DataObject\Localizedfield $localizedFields */
                 if ($item && method_exists($item, 'getLocalizedfields') && ($localizedFields = $item->getLocalizedfields())) {
                     $localizedFields->setLocalizedValue($field, $attribute->getContent(), $targetLanguage);
@@ -119,7 +119,14 @@ class DataObjectImporter extends AbstractElementImporter
      */
     protected function saveElement(Element\ElementInterface $element)
     {
-        $element->setOmitMandatoryCheck(true);
-        parent::saveElement($element);
+        $isDirtyDetectionDisabled = DataObject::isDirtyDetectionDisabled();
+
+        try {
+            DataObject::disableDirtyDetection();
+            $element->setOmitMandatoryCheck(true);
+            parent::saveElement($element);
+        } finally {
+            DataObject::setDisableDirtyDetection($isDirtyDetectionDisabled);
+        }
     }
 }

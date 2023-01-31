@@ -15,10 +15,8 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\Order\Listing\Filter;
 
-use Doctrine\DBAL\Query\QueryBuilder as DoctrineQueryBuilder;
 use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderListFilterInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderListInterface;
-use Pimcore\Db\ZendCompatibility\QueryBuilder as ZendCompatibilityQueryBuilder;
 
 class ProductType implements OrderListFilterInterface
 {
@@ -41,13 +39,9 @@ class ProductType implements OrderListFilterInterface
         foreach ($this->getTypes() as $type) {
             $types[] = $db->quote($type);
         }
-        $queryBuilder = $orderList->getQueryBuilderCompatibility();
+        $queryBuilder = $orderList->getQueryBuilder();
         $condition = 'orderItemObjects.o_className IN (' . implode(',', $types) . ')';
-        if ($queryBuilder instanceof ZendCompatibilityQueryBuilder) {
-            $queryBuilder->where($condition);
-        } elseif ($queryBuilder instanceof DoctrineQueryBuilder) {
-            $queryBuilder->andWhere($condition);
-        }
+        $queryBuilder->andWhere($condition);
 
         return $this;
     }

@@ -16,48 +16,64 @@
 namespace Pimcore\Model\DataObject\Classificationstore;
 
 use Pimcore\Model;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
  * @method \Pimcore\Model\DataObject\Classificationstore\CollectionGroupRelation\Dao getDao()
  * @method void save()
  * @method void delete()
  */
-class CollectionGroupRelation extends Model\AbstractModel
+final class CollectionGroupRelation extends Model\AbstractModel
 {
     /**
      * @var int
      */
-    public $colId;
+    protected $colId;
 
     /**
      * @var int
      */
-    public $groupId;
+    protected $groupId;
 
     /** The key
      * @var string
      */
-    public $name;
+    protected $name;
 
     /**
      * The key description.
      *
      * @var string
      */
-    public $description;
+    protected $description;
 
     /** @var int */
-    public $sorter;
+    protected $sorter;
 
     /**
      * @return Model\DataObject\Classificationstore\CollectionGroupRelation
      */
     public static function create()
     {
-        $config = new self();
-        $config->save();
+        return new self();
+    }
 
-        return $config;
+    /**
+     * @param int|null $groupId
+     * @param int|null $colId
+     *
+     * @return self|null
+     */
+    public static function getByGroupAndColId($groupId = null, $colId = null)
+    {
+        try {
+            $config = new self();
+            $config->getDao()->getById((int)$colId, (int)$groupId);
+
+            return $config;
+        } catch (NotFoundException) {
+            return null;
+        }
     }
 
     /**

@@ -23,15 +23,23 @@ use Symfony\Component\VarDumper\Dumper\HtmlDumper;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
+/**
+ * @internal
+ */
 class DumpExtension extends AbstractExtension
 {
-    public function getFunctions()
+    public function getFunctions(): array
     {
         return [
             new TwigFunction('pimcore_dump', [$this, 'dump'], ['is_safe' => ['html']]),
         ];
     }
 
+    /**
+     * @param mixed $value
+     *
+     * @return null|string
+     */
     public function dump($value)
     {
         $cloner = new VarCloner();

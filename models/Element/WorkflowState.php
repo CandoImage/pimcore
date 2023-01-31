@@ -27,22 +27,22 @@ class WorkflowState extends Model\AbstractModel
     /**
      * @var int
      */
-    public $cid;
+    protected $cid;
 
     /**
      * @var string
      */
-    public $ctype;
+    protected $ctype;
 
     /**
      * @var string
      */
-    public $workflow;
+    protected $workflow;
 
     /**
      * @var string
      */
-    public $place;
+    protected $place;
 
     /**
      * @param int $cid
@@ -58,7 +58,7 @@ class WorkflowState extends Model\AbstractModel
             $workflowState->getDao()->getByPrimary($cid, $ctype, $workflow);
 
             return $workflowState;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }

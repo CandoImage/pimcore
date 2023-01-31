@@ -20,6 +20,8 @@ namespace Pimcore\Debug\Traits;
 use Symfony\Component\Stopwatch\Stopwatch;
 
 /**
+ * @internal
+ *
  * Simple integration into the profiler timeline by adding events to
  * the debug stopwatch. Usage:
  *
@@ -32,23 +34,23 @@ use Symfony\Component\Stopwatch\Stopwatch;
 trait StopwatchTrait
 {
     /**
-     * @var Stopwatch
+     * @var Stopwatch|null
      */
-    private $stopwatch;
+    private ?Stopwatch $stopwatch = null;
 
-    public function setStopwatch(Stopwatch $stopwatch = null)
+    public function setStopwatch(Stopwatch $stopwatch = null): void
     {
         $this->stopwatch = $stopwatch;
     }
 
-    private function startStopwatch(string $name, string $category)
+    private function startStopwatch(string $name, string $category): void
     {
         if ($this->stopwatch) {
             $this->stopwatch->start($name, $category);
         }
     }
 
-    private function stopStopwatch(string $name)
+    private function stopStopwatch(string $name): void
     {
         if ($this->stopwatch) {
             $this->stopwatch->stop($name);

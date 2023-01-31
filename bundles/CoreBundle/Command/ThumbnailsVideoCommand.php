@@ -24,6 +24,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class ThumbnailsVideoCommand extends AbstractCommand
 {
     use Parallelization;
@@ -62,8 +65,8 @@ class ThumbnailsVideoCommand extends AbstractCommand
 
         // get only videos
         $conditions = ["type = 'video'"];
-        if ($input->getOption('parent')) {
-            $parent = Asset::getById($input->getOption('parent'));
+        if ($parentId = $input->getOption('parent')) {
+            $parent = Asset::getById((int) $parentId);
             if ($parent instanceof Asset\Folder) {
                 $conditions[] = "path LIKE '" . $list->escapeLike($parent->getRealFullPath()) . "/%'";
             } else {
@@ -73,50 +76,54 @@ class ThumbnailsVideoCommand extends AbstractCommand
         }
 
         $list->setCondition(implode(' AND ', $conditions));
-
-        return $list->loadIdList();
-    }
-
-    protected function runSingleCommand(string $assetId, InputInterface $input, OutputInterface $output): void
-    {
-        // disable versioning
-        Version::disable();
-
-        $video = Asset\Video::getById($assetId);
-        if (!$video) {
-            $this->writeError('No video with ID=' . $assetId . ' found. Has the video been deleted or is the asset of another type?</error>');
-
-            return;
-        }
+        $assetIdsList = $list->loadIdList();
 
         // get all thumbnails
-        $thumbnails = [];
-
-        $list = new Asset\Video\Thumbnail\Config\Listing();
-        $items = $list->getThumbnails();
-
-        foreach ($items as $item) {
-            $thumbnails[] = $item->getName();
-        }
+        $videoThumbnailList = new Asset\Video\Thumbnail\Config\Listing();
 
         $allowedThumbs = [];
         if ($input->getOption('thumbnails')) {
             $allowedThumbs = explode(',', $input->getOption('thumbnails'));
         }
 
-        foreach ($thumbnails as $thumbnail) {
-            if ((empty($allowedThumbs) && !$input->getOption('system')) || in_array($thumbnail, $allowedThumbs)) {
-                if ($output->isVerbose()) {
-                    $this->output->writeln('generating thumbnail for video: ' . $video->getRealFullPath() . ' | ' . $video->getId() . ' | Thumbnail: ' . $thumbnail . ' : ' . formatBytes(memory_get_usage()));
+        $items = [];
+        foreach ($assetIdsList as $assetId) {
+            foreach ($videoThumbnailList->getThumbnails() as $thumbnailConfig) {
+                $thumbName = $thumbnailConfig->getName();
+                if (empty($allowedThumbs) || in_array($thumbName, $allowedThumbs)) {
+                    $items[] = $assetId . '~~~' . $thumbName;
                 }
-                $video->getThumbnail($thumbnail);
-                $this->waitTillFinished($video->getId(), $thumbnail);
             }
         }
 
+        return $items;
+    }
+
+    protected function runSingleCommand(string $item, InputInterface $input, OutputInterface $output): void
+    {
+        // disable versioning
+        Version::disable();
+
+        list($assetId, $thumbnailConfigName) = explode('~~~', $item, 2);
+
+        $video = Asset\Video::getById((int) $assetId);
+        if (!$video) {
+            $this->writeError('No video with ID=' . $assetId . ' found. Has the video been deleted or is the asset of another type?');
+
+            return;
+        }
+
+        $thumbnail = Asset\Video\Thumbnail\Config::getByName($thumbnailConfigName);
+
+        if ($output->isVerbose()) {
+            $this->output->writeln(' generating thumbnail for video: ' . $video->getRealFullPath() . ' | ' . $video->getId() . ' | Thumbnail: ' . $thumbnailConfigName . ' : ' . formatBytes(memory_get_usage()));
+        }
+        $video->getThumbnail($thumbnail);
+        $this->waitTillFinished($video->getId(), $thumbnail);
+
         if ($input->getOption('system')) {
             if ($output->isVerbose()) {
-                $this->output->writeln('generating thumbnail for video: ' . $video->getRealFullPath() . ' | ' . $video->getId() . ' | Thumbnail: System Preview : ' . formatBytes(memory_get_usage()));
+                $this->output->writeln(' generating thumbnail for video: ' . $video->getRealFullPath() . ' | ' . $video->getId() . ' | Thumbnail: System Preview : ' . formatBytes(memory_get_usage()));
             }
             $thumbnail = Asset\Video\Thumbnail\Config::getPreviewConfig();
             $video->getThumbnail($thumbnail);
@@ -126,14 +133,14 @@ class ThumbnailsVideoCommand extends AbstractCommand
 
     /**
      * @param int $videoId
-     * @param string $thumbnail
+     * @param string|Asset\Video\Thumbnail\Config $thumbnail
      */
     protected function waitTillFinished($videoId, $thumbnail)
     {
         $finished = false;
 
         // initial delay
-        $video = Asset::getById($videoId);
+        $video = Asset\Video::getById($videoId);
         $thumb = $video->getThumbnail($thumbnail);
         if ($thumb['status'] != 'finished') {
             sleep(20);
@@ -142,7 +149,7 @@ class ThumbnailsVideoCommand extends AbstractCommand
         while (!$finished) {
             \Pimcore::collectGarbage();
 
-            $video = Asset::getById($videoId);
+            $video = Asset\Video::getById($videoId);
             $thumb = $video->getThumbnail($thumbnail);
             if ($thumb['status'] == 'finished') {
                 $finished = true;
@@ -161,6 +168,6 @@ class ThumbnailsVideoCommand extends AbstractCommand
 
     protected function getItemName(int $count): string
     {
-        return $count == 1 ? 'video' : 'videos';
+        return $count == 1 ? 'thumbnail' : 'thumbnails';
     }
 }

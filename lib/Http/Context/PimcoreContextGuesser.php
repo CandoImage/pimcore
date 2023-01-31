@@ -19,6 +19,9 @@ use Pimcore\Http\RequestMatcherFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestMatcherInterface;
 
+/**
+ * @internal
+ */
 class PimcoreContextGuesser
 {
     /**
@@ -27,7 +30,7 @@ class PimcoreContextGuesser
     private $routes = [];
 
     /**
-     * @var RequestMatcherInterface[]
+     * @var RequestMatcherInterface[][]
      */
     private $matchers;
 
@@ -65,7 +68,6 @@ class PimcoreContextGuesser
      */
     public function guess(Request $request, string $default): string
     {
-        /** @var RequestMatcherInterface[] $matchers */
         foreach ($this->getMatchers() as $context => $matchers) {
             foreach ($matchers as $matcher) {
                 if ($matcher->matches($request)) {
@@ -80,7 +82,7 @@ class PimcoreContextGuesser
     /**
      * Get request matchers to query admin pimcore context from
      *
-     * @return RequestMatcherInterface[]
+     * @return RequestMatcherInterface[][]
      */
     private function getMatchers(): array
     {

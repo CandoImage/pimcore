@@ -15,9 +15,14 @@
 
 namespace Pimcore\Bundle\AdminBundle\Controller\Traits;
 
+use Pimcore\Event\Admin\ElementAdminStyleEvent;
+use Pimcore\Event\AdminEvents;
+use Pimcore\Model\Element\AdminStyle;
 use Pimcore\Model\Element\ElementInterface;
-use Pimcore\Model\Element\Service;
 
+/**
+ * @internal
+ */
 trait AdminStyleTrait
 {
     /**
@@ -29,9 +34,16 @@ trait AdminStyleTrait
      */
     protected function addAdminStyle(ElementInterface $element, $context = null, &$data = [])
     {
-        $adminStyle = Service::getElementAdminStyle($element, $context);
-        $data['icon'] = $adminStyle->getElementIcon() !== false ? $adminStyle->getElementIcon() : null;
+        $event = new ElementAdminStyleEvent($element, new AdminStyle($element), $context);
+        \Pimcore::getEventDispatcher()->dispatch($event, AdminEvents::RESOLVE_ELEMENT_ADMIN_STYLE);
+        $adminStyle = $event->getAdminStyle();
+
         $data['iconCls'] = $adminStyle->getElementIconClass() !== false ? $adminStyle->getElementIconClass() : null;
+        if (!$data['iconCls']) {
+            $data['icon'] = $adminStyle->getElementIcon() !== false ? $adminStyle->getElementIcon() : null;
+        } else {
+            $data['icon'] = null;
+        }
         if ($adminStyle->getElementCssClass() !== false) {
             if (!isset($data['cls'])) {
                 $data['cls'] = '';

@@ -18,9 +18,14 @@ namespace Pimcore\DataObject\BlockDataMarshaller;
 use Pimcore\Element\MarshallerService;
 use Pimcore\Marshaller\MarshallerInterface;
 
+/**
+ * @internal
+ */
 class Localizedfields implements MarshallerInterface
 {
-    /** @var MarshallerService */
+    /**
+     * @var MarshallerService
+     */
     protected $marshallerService;
 
     /**
@@ -34,7 +39,7 @@ class Localizedfields implements MarshallerInterface
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function marshal($value, $params = [])
     {
@@ -68,7 +73,7 @@ class Localizedfields implements MarshallerInterface
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function unmarshal($value, $params = [])
     {
@@ -82,6 +87,10 @@ class Localizedfields implements MarshallerInterface
             foreach ($value as $language => $items) {
                 $result[$language] = [];
                 foreach ($items as $key => $normalizedData) {
+                    if (!isset($childDefs[$key])) {
+                        continue;
+                    }
+
                     $childDef = $childDefs[$key];
 
                     if ($this->marshallerService->supportsFielddefinition('block', $childDef->getFieldtype())) {

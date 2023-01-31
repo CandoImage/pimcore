@@ -17,6 +17,9 @@ namespace Pimcore\Bundle\AdminBundle\Helper;
 
 use Carbon\Carbon;
 
+/**
+ * @internal
+ */
 class QueryParams
 {
     /**
@@ -28,7 +31,6 @@ class QueryParams
     {
         $orderKey = null;
         $order = null;
-        $orderByFeature = null;
 
         $sortParam = isset($params['sort']) ? $params['sort'] : false;
         if ($sortParam) {
@@ -47,8 +49,8 @@ class QueryParams
                 $fieldname = $parts[2];
                 $groupKeyId = $parts[3];
                 $groupKeyId = explode('-', $groupKeyId);
-                $groupId = $groupKeyId[0];
-                $keyid = $groupKeyId[1];
+                $groupId = (int) $groupKeyId[0];
+                $keyid = (int) $groupKeyId[1];
 
                 return ['orderKey' => $sortParam['property'], 'fieldname' => $fieldname, 'groupId' => $groupId, 'keyId' => $keyid, 'order' => $order, 'isFeature' => 1];
             }

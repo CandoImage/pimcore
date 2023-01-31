@@ -15,8 +15,10 @@
 
 namespace Pimcore\Bundle\AdminBundle;
 
+use Pimcore\Bundle\AdminBundle\DependencyInjection\Compiler\ContentSecurityPolicyUrlsPass;
 use Pimcore\Bundle\AdminBundle\DependencyInjection\Compiler\GDPRDataProviderPass;
 use Pimcore\Bundle\AdminBundle\DependencyInjection\Compiler\ImportExportLocatorsPass;
+use Pimcore\Bundle\AdminBundle\DependencyInjection\Compiler\LegacyAuthenticationSecurityPass;
 use Pimcore\Bundle\AdminBundle\DependencyInjection\Compiler\SerializerPass;
 use Pimcore\Bundle\AdminBundle\DependencyInjection\Compiler\TranslationServicesPass;
 use Pimcore\Bundle\AdminBundle\GDPR\DataProvider\DataProviderInterface;
@@ -25,10 +27,13 @@ use Symfony\Bundle\SecurityBundle\DependencyInjection\SecurityExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
+/**
+ * @internal
+ */
 class PimcoreAdminBundle extends Bundle
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function build(ContainerBuilder $container)
     {
@@ -41,9 +46,11 @@ class PimcoreAdminBundle extends Bundle
         $container->addCompilerPass(new GDPRDataProviderPass());
         $container->addCompilerPass(new ImportExportLocatorsPass());
         $container->addCompilerPass(new TranslationServicesPass());
+        $container->addCompilerPass(new ContentSecurityPolicyUrlsPass());
+        $container->addCompilerPass(new LegacyAuthenticationSecurityPass());
 
         /** @var SecurityExtension $extension */
         $extension = $container->getExtension('security');
-        $extension->addSecurityListenerFactory(new PreAuthenticatedAdminSessionFactory());
+        $extension->addAuthenticatorFactory(new PreAuthenticatedAdminSessionFactory());
     }
 }

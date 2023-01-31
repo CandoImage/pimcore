@@ -25,11 +25,13 @@ use Symfony\Component\Security\Core\Exception\BadCredentialsException;
  * user object. If user is no pimcore user, fall back to default implementation.
  *
  * @method User getUser()
+ *
+ * @internal
  */
 class AdminPasswordEncoder extends AbstractUserAwarePasswordEncoder
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function encodePassword($raw, $salt)
     {
@@ -41,7 +43,7 @@ class AdminPasswordEncoder extends AbstractUserAwarePasswordEncoder
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function isPasswordValid($encoded, $raw, $salt)
     {

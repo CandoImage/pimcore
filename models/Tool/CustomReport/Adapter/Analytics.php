@@ -15,20 +15,13 @@
 
 namespace Pimcore\Model\Tool\CustomReport\Adapter;
 
+/**
+ * @internal
+ */
 class Analytics extends AbstractAdapter
 {
     /**
-     * @param array|null $filters
-     * @param string|null $sort
-     * @param string|null $dir
-     * @param int|null $offset
-     * @param int|null $limit
-     * @param array|null $fields
-     * @param array|null $drillDownFilters
-     *
-     * @return array
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
     public function getData($filters, $sort, $dir, $offset, $limit, $fields = null, $drillDownFilters = null)
     {
@@ -54,11 +47,7 @@ class Analytics extends AbstractAdapter
     }
 
     /**
-     * @param \stdClass $configuration
-     *
-     * @return array
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
     public function getColumns($configuration)
     {
@@ -76,25 +65,25 @@ class Analytics extends AbstractAdapter
      * @param array $filters
      * @param array $drillDownFilters
      */
-    protected function setFilters($filters, $drillDownFilters = [])
+    protected function setFilters(array $filters, $drillDownFilters = []): void
     {
         $gaFilters = [ $this->config->filters ];
         if (count($filters)) {
             foreach ($filters as $filter) {
-                if ($filter['type'] == 'string') {
+                if ($filter['type'] === 'string') {
                     $value = str_replace(';', '', addslashes($filter['value']));
                     $gaFilters[] = "{$filter['field']}=~{$value}";
-                } elseif ($filter['type'] == 'numeric') {
-                    $value = floatval($filter['value']);
+                } elseif ($filter['type'] === 'numeric') {
+                    $value = (float)$filter['value'];
                     $compMapping = [
                         'lt' => '<',
                         'gt' => '>',
                         'eq' => '==',
                     ];
-                    if ($compMapping[$filter['comparison']]) {
+                    if (isset($compMapping[$filter['comparison']])) {
                         $gaFilters[] = "{$filter['field']}{$compMapping[$filter['comparison']]}{$value}";
                     }
-                } elseif ($filter['type'] == 'boolean') {
+                } elseif ($filter['type'] === 'boolean') {
                     $value = $filter['value'] ? 'Yes' : 'No';
                     $gaFilters[] = "{$filter['field']}=={$value}";
                 }
@@ -121,7 +110,7 @@ class Analytics extends AbstractAdapter
      * @param array|null $drillDownFilters
      * @param bool $useDimensionHandling
      *
-     * @return mixed
+     * @return array
      *
      * @throws \Exception
      */
@@ -142,7 +131,7 @@ class Analytics extends AbstractAdapter
             throw new \Exception('Google Analytics is not configured');
         }
 
-        $service = new \Google_Service_Analytics($client);
+        $service = new \Google\Service\Analytics($client);
 
         if (!$configuration->profileId) {
             throw new \Exception('no profileId given');
@@ -213,7 +202,7 @@ class Analytics extends AbstractAdapter
      * @param \stdClass $configuration
      * @param array $fields
      *
-     * @return mixed
+     * @return \stdClass
      */
     protected function handleFields($configuration, $fields)
     {
@@ -245,7 +234,7 @@ class Analytics extends AbstractAdapter
     {
         $dimension = $configuration->dimension;
         if (count($dimension)) {
-            foreach ($this->fullConfig->columnConfiguration as $column) {
+            foreach ($this->fullConfig->getColumnConfiguration() as $column) {
                 if ($column['filter_drilldown'] == 'only_filter') {
                     foreach ($dimension as $key => $dim) {
                         if ($dim == $column['name']) {
@@ -303,13 +292,7 @@ class Analytics extends AbstractAdapter
     }
 
     /**
-     * @param array $filters
-     * @param string $field
-     * @param array $drillDownFilters
-     *
-     * @return array
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
     public function getAvailableOptions($filters, $field, $drillDownFilters)
     {

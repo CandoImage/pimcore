@@ -15,6 +15,7 @@
 
 namespace Pimcore\Model\Document;
 
+use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\Asset;
 use Pimcore\Model\Document;
@@ -24,10 +25,12 @@ use Pimcore\Model\Document;
  */
 class Link extends Model\Document
 {
-    use Document\Traits\ScheduledTasksTrait;
+    use Model\Element\Traits\ScheduledTasksTrait;
 
     /**
      * Contains the ID of the internal ID
+     *
+     * @internal
      *
      * @var int|null
      */
@@ -36,60 +39,68 @@ class Link extends Model\Document
     /**
      * Contains the type of the internal ID
      *
-     * @var string
+     * @internal
+     *
+     * @var string|null
      */
     protected $internalType;
 
     /**
      * Contains object of linked Document|Asset|DataObject
      *
-     * @var Document|Asset|Model\DataObject\Concrete|null
+     * @internal
+     *
+     * @var Model\Element\ElementInterface|null
      */
     protected $object;
 
     /**
      * Contains the direct link as plain text
      *
+     * @internal
+     *
      * @var string
      */
-    protected $direct = '';
+    protected string $direct = '';
 
     /**
      * Type of the link (internal/direct)
      *
-     * @var string
-     */
-    protected $linktype = 'internal';
-
-    /**
-     * static type of this object
+     * @internal
      *
      * @var string
      */
-    protected $type = 'link';
+    protected string $linktype = 'internal';
+
+    /**
+     * {@inheritdoc}
+     */
+    protected string $type = 'link';
 
     /**
      * path of the link
      *
+     * @internal
+     *
      * @var string
      */
-    protected $href = '';
+    protected string $href = '';
 
     /**
-     * @see Document::resolveDependencies
-     *
-     * @return array
+     * {@inheritdoc}
      */
-    public function resolveDependencies()
+    protected function resolveDependencies(): array
     {
         $dependencies = parent::resolveDependencies();
 
-        if ($this->getLinktype() == 'internal') {
-            if ($this->getObject() instanceof Document || $this->getObject() instanceof Asset) {
-                $key = $this->getInternalType() . '_' . $this->getObject()->getId();
+        if ($this->getLinktype() === 'internal') {
+            $element = $this->getElement();
+
+            if ($element instanceof Document || $element instanceof Asset) {
+                $key = $this->getInternalType() . '_' . $element->getId();
 
                 $dependencies[$key] = [
-                    'id' => $this->getObject()->getId(),
+                    'id' => $element->getId(),
                     'type' => $this->getInternalType(),
                 ];
             }
@@ -99,22 +110,17 @@ class Link extends Model\Document
     }
 
     /**
-     * Resolves dependencies and create tags for caching out of them
-     *
-     * @param array $tags
-     *
-     * @return array
+     * {@inheritdoc}
      */
-    public function getCacheTags($tags = [])
+    public function getCacheTags(array $tags = []): array
     {
-        $tags = is_array($tags) ? $tags : [];
-
         $tags = parent::getCacheTags($tags);
 
-        if ($this->getLinktype() == 'internal') {
-            if ($this->getObject() instanceof Document || $this->getObject() instanceof Asset) {
-                if ($this->getObject()->getId() != $this->getId() and !array_key_exists($this->getObject()->getCacheTag(), $tags)) {
-                    $tags = $this->getObject()->getCacheTags($tags);
+        if ($this->getLinktype() === 'internal') {
+            $element = $this->getElement();
+            if ($element instanceof Document || $element instanceof Asset) {
+                if ($element->getId() != $this->getId() && !array_key_exists($element->getCacheTag(), $tags)) {
+                    $tags = $element->getCacheTags($tags);
                 }
             }
         }
@@ -130,14 +136,15 @@ class Link extends Model\Document
     public function getHref()
     {
         $path = '';
-        if ($this->getLinktype() == 'internal') {
-            if ($this->getObject() instanceof Document || $this->getObject() instanceof Asset) {
-                $path = $this->getObject()->getFullPath();
+        if ($this->getLinktype() === 'internal') {
+            $element = $this->getElement();
+            if ($element instanceof Document || $element instanceof Asset) {
+                $path = $element->getFullPath();
             } else {
-                if ($this->getObject() instanceof Model\DataObject\Concrete) {
-                    if ($linkGenerator = $this->getObject()->getClass()->getLinkGenerator()) {
+                if ($element instanceof Model\DataObject\Concrete) {
+                    if ($linkGenerator = $element->getClass()->getLinkGenerator()) {
                         $path = $linkGenerator->generate(
-                            $this->getObject(),
+                            $element,
                             [
                                 'document' => $this,
                                 'context' => $this,
@@ -163,11 +170,14 @@ class Link extends Model\Document
     public function getRawHref()
     {
         $rawHref = '';
-        if ($this->getLinktype() == 'internal') {
-            if ($this->getObject() instanceof Document || $this->getObject() instanceof Asset ||
-                ($this->getObject() instanceof Model\DataObject\Concrete)
+        if ($this->getLinktype() === 'internal') {
+            $element = $this->getElement();
+            if (
+                $element instanceof Document ||
+                $element instanceof Asset ||
+                $element instanceof Model\DataObject\Concrete
             ) {
-                $rawHref = $this->getObject()->getFullPath();
+                $rawHref = $element->getFullPath();
             }
         } else {
             $rawHref = $this->getDirect();
@@ -270,7 +280,7 @@ class Link extends Model\Document
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getInternalType()
     {
@@ -278,7 +288,7 @@ class Link extends Model\Document
     }
 
     /**
-     * @param string $type
+     * @param string|null $type
      *
      * @return $this
      */
@@ -290,46 +300,89 @@ class Link extends Model\Document
     }
 
     /**
-     * @return Document|Asset|Model\DataObject\Concrete|null
+     * @return Model\Element\ElementInterface|null
      */
-    public function getObject()
+    public function getElement()
     {
-        if ($this->object instanceof Document || $this->object instanceof Asset || $this->object instanceof Model\DataObject\Concrete) {
+        if ($this->object instanceof Model\Element\ElementInterface) {
             return $this->object;
-        } else {
-            if ($this->setObjectFromId()) {
-                return $this->object;
-            }
+        }
+        if ($this->setObjectFromId()) {
+            return $this->object;
         }
 
         return null;
     }
 
     /**
-     * @param Document|Asset|Model\DataObject\Concrete $object
+     * @param Model\Element\ElementInterface|null $element
      *
      * @return $this
      */
-    public function setObject($object)
+    public function setElement($element)
     {
-        $this->object = $object;
+        $this->object = $element;
 
         return $this;
     }
 
     /**
-     * @return Asset|Document|Model\DataObject\Concrete
+     * @deprecated use getElement() instead, will be removed in Pimcore 11
+     *
+     * @return Model\Element\ElementInterface|null
      */
-    public function setObjectFromId()
+    public function getObject()
     {
-        if ($this->internal) {
-            if ($this->internalType == 'document') {
-                $this->object = Document::getById($this->internal);
-            } elseif ($this->internalType == 'asset') {
-                $this->object = Asset::getById($this->internal);
-            } elseif ($this->internalType == 'object') {
-                $this->object = Model\DataObject\Concrete::getById($this->internal);
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.0',
+            'The Link::getObject() method is deprecated, use Link::getElement() instead.'
+        );
+
+        return $this->getElement();
+    }
+
+    /**
+     * @deprecated use getElement() instead, will be removed in Pimcore 11
+     *
+     * @param Model\Element\ElementInterface $object
+     *
+     * @return $this
+     */
+    public function setObject($object)
+    {
+        trigger_deprecation(
+            'pimcore/pimcore',
+            '10.0',
+            'The Link::setObject() method is deprecated, use Link::setElement() instead.'
+        );
+
+        return $this->setElement($object);
+    }
+
+    /**
+     * @return Model\Element\ElementInterface|null
+     */
+    private function setObjectFromId()
+    {
+        try {
+            if ($this->internal) {
+                if ($this->internalType == 'document') {
+                    if ($this->getId() == $this->internal) {
+                        throw new \Exception('Prevented infinite redirection loop: attempted to linking "' . $this->getKey() . '" to itself. ');
+                    }
+                    $this->object = Document::getById($this->internal);
+                } elseif ($this->internalType == 'asset') {
+                    $this->object = Asset::getById($this->internal);
+                } elseif ($this->internalType == 'object') {
+                    $this->object = Model\DataObject\Concrete::getById($this->internal);
+                }
             }
+        } catch (\Exception $e) {
+            Logger::warn((string) $e);
+            $this->internalType = '';
+            $this->internal = null;
+            $this->object = null;
         }
 
         return $this->object;
@@ -367,7 +420,7 @@ class Link extends Model\Document
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function update($params = [])
     {

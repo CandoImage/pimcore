@@ -16,54 +16,34 @@
 namespace Pimcore\Model\DataObject\ClassDefinition\Layout;
 
 use Pimcore\Model;
+use Pimcore\Model\DataObject\ClassDefinition\Layout\Traits\LabelTrait;
 
 class Fieldcontainer extends Model\DataObject\ClassDefinition\Layout
 {
+    use LabelTrait;
+
     /**
      * Static type of this element
+     *
+     * @internal
      *
      * @var string
      */
     public $fieldtype = 'fieldcontainer';
 
     /**
-     * Width of input field labels
+     * @internal
      *
-     * @var int
-     */
-    public $labelWidth = 100;
-
-    /**
      * @var string
      */
     public $layout = 'hbox';
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $fieldLabel;
-
-    /**
-     * @param int $labelWidth
-     *
-     * @return $this
-     */
-    public function setLabelWidth($labelWidth)
-    {
-        if (!empty($labelWidth)) {
-            $this->labelWidth = intval($labelWidth);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getLabelWidth()
-    {
-        return $this->labelWidth;
-    }
 
     /**
      * @param string $layout

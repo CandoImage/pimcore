@@ -17,8 +17,8 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager;
 
 use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\UnsupportedException;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractOrder;
-use Pimcore\Bundle\EcommerceFrameworkBundle\PaymentManager\Payment\PaymentInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PaymentManager\StatusInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\PaymentManager\V7\Payment\PaymentInterface;
 
 interface CommitOrderProcessorInterface
 {
@@ -60,7 +60,7 @@ interface CommitOrderProcessorInterface
      *
      * @param StatusInterface $paymentStatus
      * @param PaymentInterface $paymentProvider
-     * @param AbstractOrder $sourceOrder Source order for recurring payment
+     * @param AbstractOrder|null $sourceOrder Source order for recurring payment
      *
      * @return AbstractOrder
      */
@@ -82,5 +82,3 @@ interface CommitOrderProcessorInterface
      */
     public function cleanUpPendingOrders();
 }
-
-class_alias(CommitOrderProcessorInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\ICommitOrderProcessor');

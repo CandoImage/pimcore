@@ -15,13 +15,11 @@
 
 namespace Pimcore\Model\Asset\MetaData;
 
-use Pimcore\Helper\TemporaryFileHelperTrait;
+use Pimcore\Logger;
 use Symfony\Component\Process\Process;
 
 trait EmbeddedMetaDataTrait
 {
-    use TemporaryFileHelperTrait;
-
     /**
      * @param bool $force
      * @param bool $useExifTool
@@ -40,12 +38,14 @@ trait EmbeddedMetaDataTrait
     }
 
     /**
+     * @internal
+     *
      * @param bool $useExifTool
      * @param string|null $filePath
      *
      * @throws \Exception
      */
-    protected function handleEmbeddedMetaData(bool $useExifTool = true, ?string $filePath = null)
+    public function handleEmbeddedMetaData(bool $useExifTool = true, ?string $filePath = null)
     {
         if (!$this->getCustomSetting('embeddedMetaDataExtracted') || $this->getDataChanged()) {
             $this->readEmbeddedMetaData($useExifTool, $filePath);
@@ -65,10 +65,8 @@ trait EmbeddedMetaDataTrait
         $exiftool = \Pimcore\Tool\Console::getExecutable('exiftool');
 
         if (!$filePath) {
-            $filePath = $this->getFileSystemPath();
+            $filePath = $this->getLocalFile();
         }
-
-        $filePath = $this->getLocalFile($filePath);
 
         if ($exiftool && $useExifTool) {
             $process = new Process([$exiftool, '-j', $filePath]);
@@ -82,7 +80,14 @@ trait EmbeddedMetaDataTrait
                 }
             }
         } else {
-            $xmp = $this->flattenArray($this->getXMPData($filePath));
+            try {
+                $xmp = $this->flattenArray($this->getXMPData($filePath));
+            } catch (\Exception $e) {
+                $xmp = [];
+                Logger::error('Problem reading XMP metadata of the image with ID ' . $this->getId() . ' Reason: '
+                    . $e->getMessage());
+            }
+
             $iptc = $this->flattenArray($this->getIPTCData($filePath));
             $exif = $this->flattenArray($this->getEXIFData($filePath));
             $embeddedMetaData = array_merge(array_merge($xmp, $exif), $iptc);
@@ -118,7 +123,7 @@ trait EmbeddedMetaDataTrait
     public function getEXIFData(?string $filePath = null)
     {
         if (!$filePath) {
-            $filePath = $this->getFileSystemPath();
+            $filePath = $this->getLocalFile();
         }
 
         $data = [];
@@ -137,23 +142,23 @@ trait EmbeddedMetaDataTrait
         return $data;
     }
 
+    /**
+     * @param string|null $filePath
+     *
+     * @return array
+     *
+     * @throws \Exception
+     */
     public function getXMPData(?string $filePath = null)
     {
         if (!$filePath) {
-            $filePath = $this->getFileSystemPath();
+            $filePath = $this->getLocalFile();
         }
 
         $data = [];
 
         if (is_file($filePath)) {
             $chunkSize = 1024;
-            if (!is_int($chunkSize)) {
-                throw new \RuntimeException('Expected integer value for argument #2 (chunkSize)');
-            }
-
-            if ($chunkSize < 12) {
-                throw new \RuntimeException('Chunk size cannot be less than 12 argument #2 (chunkSize)');
-            }
 
             if (($file_pointer = fopen($filePath, 'rb')) === false) {
                 throw new \RuntimeException('Could not open file for reading');
@@ -164,13 +169,17 @@ trait EmbeddedMetaDataTrait
             $buffer = false;
 
             // find open tag
+            $overlapString = '';
             while ($buffer === false && ($chunk = fread($file_pointer, $chunkSize)) !== false) {
                 if (strlen($chunk) <= $tagLength) {
                     break;
                 }
+
+                $chunk = $overlapString . $chunk;
+
                 if (($position = strpos($chunk, $tag)) === false) {
                     // if open tag not found, back up just in case the open tag is on the split.
-                    fseek($file_pointer, $tagLength * -1, SEEK_CUR);
+                    $overlapString = substr($chunk, $tagLength * -1);
                 } else {
                     $buffer = substr($chunk, $position);
                 }
@@ -181,7 +190,7 @@ trait EmbeddedMetaDataTrait
                 $tagLength = strlen($tag);
                 $offset = 0;
                 while (($position = strpos($buffer, $tag, $offset)) === false && ($chunk = fread($file_pointer,
-                        $chunkSize)) !== false && !empty($chunk)) {
+                    $chunkSize)) !== false && !empty($chunk)) {
                     $offset = strlen($buffer) - $tagLength; // subtract the tag size just in case it's split between chunks.
                     $buffer .= $chunk;
                 }
@@ -237,13 +246,13 @@ trait EmbeddedMetaDataTrait
     public function getIPTCData(?string $filePath = null)
     {
         if (!$filePath) {
-            $filePath = $this->getFileSystemPath();
+            $filePath = $this->getLocalFile();
         }
 
         $data = [];
 
         if (is_file($filePath)) {
-            $result = getimagesize($filePath, $info);
+            $result = @getimagesize($filePath, $info);
             if ($result) {
                 $mapping = [
                     '1#000' => 'EnvelopeRecordVersion',

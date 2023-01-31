@@ -17,6 +17,7 @@ namespace Pimcore\Bundle\CoreBundle\EventListener\Frontend;
 
 use Pimcore\Bundle\AdminBundle\Security\User\UserLoader;
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\PimcoreContextAwareTrait;
+use Pimcore\Document\Editable\EditmodeEditableDefinitionCollector;
 use Pimcore\Extension\Bundle\PimcoreBundleManager;
 use Pimcore\Http\Request\Resolver\DocumentResolver;
 use Pimcore\Http\Request\Resolver\EditmodeResolver;
@@ -24,51 +25,22 @@ use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Pimcore\Model\Document;
 use Pimcore\Version;
 use Psr\Log\LoggerAwareTrait;
-use Symfony\Component\Asset\Packages;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Routing\RouterInterface;
 
 /**
  * Modifies responses for editmode
+ *
+ * @internal
  */
 class EditmodeListener implements EventSubscriberInterface
 {
     use LoggerAwareTrait;
     use PimcoreContextAwareTrait;
-
-    /**
-     * @var EditmodeResolver
-     */
-    protected $editmodeResolver;
-
-    /**
-     * @var DocumentResolver
-     */
-    protected $documentResolver;
-
-    /**
-     * @var UserLoader
-     */
-    protected $userLoader;
-
-    /**
-     * @var PimcoreBundleManager
-     */
-    protected $bundleManager;
-
-    /**
-     * @var RouterInterface
-     */
-    protected $router;
-
-    /**
-     * @var Packages
-     */
-    protected $package;
 
     /**
      * @var array
@@ -83,28 +55,22 @@ class EditmodeListener implements EventSubscriberInterface
      * @param UserLoader $userLoader
      * @param PimcoreBundleManager $bundleManager
      * @param RouterInterface $router
-     * @param Packages $package
+     * @param EditmodeEditableDefinitionCollector $editableConfigCollector
      */
     public function __construct(
-        EditmodeResolver $editmodeResolver,
-        DocumentResolver $documentResolver,
-        UserLoader $userLoader,
-        PimcoreBundleManager $bundleManager,
-        RouterInterface $router,
-        Packages $package
+        protected EditmodeResolver $editmodeResolver,
+        protected DocumentResolver $documentResolver,
+        protected UserLoader $userLoader,
+        protected PimcoreBundleManager $bundleManager,
+        protected RouterInterface $router,
+        private EditmodeEditableDefinitionCollector $editableConfigCollector
     ) {
-        $this->editmodeResolver = $editmodeResolver;
-        $this->documentResolver = $documentResolver;
-        $this->userLoader = $userLoader;
-        $this->bundleManager = $bundleManager;
-        $this->router = $router;
-        $this->package = $package;
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             KernelEvents::REQUEST => 'onKernelRequest',
@@ -112,11 +78,11 @@ class EditmodeListener implements EventSubscriberInterface
         ];
     }
 
-    public function onKernelRequest(GetResponseEvent $event)
+    public function onKernelRequest(RequestEvent $event)
     {
         $request = $event->getRequest();
 
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return; // only resolve editmode in frontend
         }
 
@@ -129,12 +95,12 @@ class EditmodeListener implements EventSubscriberInterface
         $this->editmodeResolver->isEditmode($request);
     }
 
-    public function onKernelResponse(FilterResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event)
     {
         $request = $event->getRequest();
         $response = $event->getResponse();
 
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return; // only master requests inject editmode assets
         }
 
@@ -221,16 +187,28 @@ class EditmodeListener implements EventSubscriberInterface
                 $startupJavascript = '/bundles/pimcoreadmin/js/pimcore/document/edit/startup.js';
 
                 $headHtml = $this->buildHeadHtml($document, $user->getLanguage());
-                $bodyHtml = "\n\n" . '<script src="' . $startupJavascript . '?_dc=' . Version::getRevision() . '"></script>' . "\n\n";
+                $bodyHtml = "\n\n" . $this->editableConfigCollector->getHtml() . "\n\n";
+                $bodyHtml .= "\n\n" . '<script src="' . $startupJavascript . '?_dc=' . Version::getRevision() . '"></script>' . "\n\n";
 
-                $html = preg_replace('@</head>@i', $headHtml . "\n\n</head>", $html, 1);
-                $html = preg_replace('@</body>@i', $bodyHtml . "\n\n</body>", $html, 1);
+                $html = $this->insertBefore('</head>', $html, $headHtml);
+                $html = $this->insertBefore('</body>', $html, $bodyHtml);
 
                 $response->setContent($html);
             } else {
                 $response->setContent('<div style="font-size:30px; font-family: Arial; font-weight:bold; color:red; text-align: center; margin: 40px 0">You have to define a &lt;html&gt;, &lt;head&gt;, &lt;body&gt;<br />HTML-tag in your view/layout markup!</div>');
             }
         }
+    }
+
+    private function insertBefore(string $search, string $code, string $insert): string
+    {
+        $endPosition = strripos($code, $search);
+
+        if (false !== $endPosition) {
+            $code = substr_replace($code, $insert . "\n\n" . $search, $endPosition, 7);
+        }
+
+        return $code;
     }
 
     /**
@@ -275,7 +253,7 @@ class EditmodeListener implements EventSubscriberInterface
                 $scriptContents .= file_get_contents(PIMCORE_WEB_ROOT . $scriptUrl) . "\n\n\n";
             }
 
-            $headHtml .= '<script src="' . $this->router->generate('pimcore_admin_misc_scriptproxy', \Pimcore\Tool\Admin::getMinimizedScriptPath($scriptContents, false)) . '"></script>' . "\n";
+            $headHtml .= '<script src="' . $this->router->generate('pimcore_admin_misc_scriptproxy', \Pimcore\Tool\Admin::getMinimizedScriptPath($scriptContents)) . '"></script>' . "\n";
         }
         $path = $this->router->generate('pimcore_admin_misc_jsontranslationssystem', [
             'language' => $language,
@@ -307,7 +285,7 @@ class EditmodeListener implements EventSubscriberInterface
         return [
             '/bundles/pimcoreadmin/js/pimcore/common.js',
             '/bundles/pimcoreadmin/js/lib/class.js',
-            '/bundles/pimcoreadmin/js/lib/ext/ext-all' . ($disableMinifyJs ? '-debug' : '') . '.js',
+            '/bundles/pimcoreadmin/extjs/js/ext-all' . ($disableMinifyJs ? '-debug' : '') . '.js',
             '/bundles/pimcoreadmin/js/lib/ckeditor/ckeditor.js',
         ];
     }
@@ -352,7 +330,7 @@ class EditmodeListener implements EventSubscriberInterface
                 '/bundles/pimcoreadmin/js/pimcore/document/editables/area.js',
                 '/bundles/pimcoreadmin/js/pimcore/document/editables/pdf.js',
                 '/bundles/pimcoreadmin/js/pimcore/document/editables/embed.js',
-                '/bundles/pimcoreadmin/js/pimcore/document/tags/compatibility-layer.js', //@TODO Remove deprecated tag aliases in Pimcore 10.
+                '/bundles/pimcoreadmin/js/pimcore/document/editables/manager.js',
                 '/bundles/pimcoreadmin/js/pimcore/document/edit/helper.js',
             ],
             $this->bundleManager->getEditmodeJsPaths()
@@ -367,6 +345,8 @@ class EditmodeListener implements EventSubscriberInterface
         return array_merge(
             [
                 '/bundles/pimcoreadmin/css/icons.css',
+                '/bundles/pimcoreadmin/extjs/css/PimcoreApp-all_1.css',
+                '/bundles/pimcoreadmin/extjs/css/PimcoreApp-all_2.css',
                 '/bundles/pimcoreadmin/css/editmode.css?_dc=' . time(),
             ],
             $this->bundleManager->getEditmodeCssPaths()

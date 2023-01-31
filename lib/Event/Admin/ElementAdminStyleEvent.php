@@ -19,7 +19,7 @@ namespace Pimcore\Event\Admin;
 
 use Pimcore\Model\Element\AdminStyle;
 use Pimcore\Model\Element\ElementInterface;
-use Symfony\Component\EventDispatcher\Event;
+use Symfony\Contracts\EventDispatcher\Event;
 
 class ElementAdminStyleEvent extends Event
 {
@@ -32,6 +32,11 @@ class ElementAdminStyleEvent extends Event
      * Style needed for element editor
      */
     const CONTEXT_EDITOR = 2;
+
+    /**
+     * Style needed for quicksearch
+     */
+    const CONTEXT_SEARCH = 3;
 
     /**
      * @var int
@@ -95,7 +100,7 @@ class ElementAdminStyleEvent extends Event
     }
 
     /**
-     * Returns the context. CONTEXT_TREE or CONTEXT_EDITOR.
+     * Returns the context. e.g. CONTEXT_TREE or CONTEXT_EDITOR.
      *
      * @return null|int
      */

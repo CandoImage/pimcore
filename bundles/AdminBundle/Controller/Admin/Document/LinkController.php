@@ -15,102 +15,69 @@
 
 namespace Pimcore\Bundle\AdminBundle\Controller\Admin\Document;
 
-use Pimcore\Controller\Traits\ElementEditLockHelperTrait;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\Document;
 use Pimcore\Model\Element;
+use Pimcore\Model\Schedule\Task;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Serializer\SerializerInterface;
 
 /**
- * @Route("/link")
+ * @Route("/link", name="pimcore_admin_document_link_")
+ *
+ * @internal
  */
 class LinkController extends DocumentControllerBase
 {
-    use ElementEditLockHelperTrait;
-
     /**
-     * @Route("/save-to-session", name="pimcore_admin_document_link_savetosession", methods={"POST"})
-     *
-     * {@inheritDoc}
-     */
-    public function saveToSessionAction(Request $request)
-    {
-        return parent::saveToSessionAction($request);
-    }
-
-    /**
-     * @Route("/remove-from-session", name="pimcore_admin_document_link_removefromsession", methods={"DELETE"})
-     *
-     * {@inheritDoc}
-     */
-    public function removeFromSessionAction(Request $request)
-    {
-        return parent::removeFromSessionAction($request);
-    }
-
-    /**
-     * @Route("/change-master-document", name="pimcore_admin_document_link_changemasterdocument", methods={"PUT"})
-     *
-     * {@inheritDoc}
-     */
-    public function changeMasterDocumentAction(Request $request)
-    {
-        return parent::changeMasterDocumentAction($request);
-    }
-
-    /**
-     * @Route("/get-data-by-id", name="pimcore_admin_document_link_getdatabyid", methods={"GET"})
+     * @Route("/get-data-by-id", name="getdatabyid", methods={"GET"})
      *
      * @param Request $request
+     * @param SerializerInterface $serializer
      *
      * @return JsonResponse
+     *
+     * @throws \Exception
      */
-    public function getDataByIdAction(Request $request)
+    public function getDataByIdAction(Request $request, SerializerInterface $serializer): JsonResponse
     {
-        $link = Document\Link::getById($request->get('id'));
+        $link = Document\Link::getById((int)$request->get('id'));
 
         if (!$link) {
             throw $this->createNotFoundException('Link not found');
         }
 
-        // check for lock
-        if ($link->isAllowed('save') || $link->isAllowed('publish') || $link->isAllowed('unpublish') || $link->isAllowed('delete')) {
-            if (Element\Editlock::isLocked($request->get('id'), 'document')) {
-                return $this->getEditLockResponse($request->get('id'), 'document');
-            }
-            Element\Editlock::lock($request->get('id'), 'document');
+        if (($lock = $this->checkForLock($link)) instanceof JsonResponse) {
+            return $lock;
         }
 
         $link = clone $link;
 
-        $link->setObject(null);
-        $link->setLocked($link->isLocked());
+        $link->setElement(null);
         $link->setParent(null);
-        $link->getScheduledTasks();
-
-        $serializer = $this->get('pimcore_admin.serializer');
 
         $data = $serializer->serialize($link->getObjectVars(), 'json', []);
         $data = json_decode($data, true);
+        $data['locked'] = $link->isLocked();
         $data['rawHref'] = $link->getRawHref();
+        $data['scheduledTasks'] = array_map(
+            static function (Task $task) {
+                return $task->getObjectVars();
+            },
+            $link->getScheduledTasks()
+        );
 
         $this->addTranslationsData($link, $data);
         $this->minimizeProperties($link, $data);
 
-        $this->preSendDataActions($data, $link);
-
-        if ($link->isAllowed('view')) {
-            return $this->adminJson($data);
-        }
-
-        throw $this->createAccessDeniedHttpException();
+        return $this->preSendDataActions($data, $link);
     }
 
     /**
-     * @Route("/save", name="pimcore_admin_document_link_save", methods={"POST", "PUT"})
+     * @Route("/save", name="save", methods={"POST", "PUT"})
      *
      * @param Request $request
      *
@@ -118,47 +85,26 @@ class LinkController extends DocumentControllerBase
      *
      * @throws \Exception
      */
-    public function saveAction(Request $request)
+    public function saveAction(Request $request): JsonResponse
     {
-        $link = Document\Link::getById($request->get('id'));
-
+        $link = Document\Link::getById((int) $request->get('id'));
         if (!$link) {
             throw $this->createNotFoundException('Link not found');
         }
 
-        $this->setValuesToDocument($request, $link);
+        $result = $this->saveDocument($link, $request);
+        /** @var Document\Link $link */
+        $link = $result[1];
+        $treeData = $this->getTreeNodeConfig($link);
 
-        $link->setModificationDate(time());
-        $link->setUserModification($this->getAdminUser()->getId());
-
-        if ($request->get('task') == 'unpublish') {
-            $link->setPublished(false);
-        }
-        if ($request->get('task') == 'publish') {
-            $link->setPublished(true);
-        }
-
-        $task = $request->get('task');
-        // only save when publish or unpublish
-        if (($task == 'publish' && $link->isAllowed('publish'))
-            || ($task == 'unpublish' && $link->isAllowed('unpublish'))
-            || $task == 'scheduler' && $link->isAllowed('settings')
-        ) {
-            $link->save();
-
-            $treeData = $this->getTreeNodeConfig($link);
-
-            return $this->adminJson([
-                'success' => true,
-                'data' => [
-                    'versionDate' => $link->getModificationDate(),
-                    'versionCount' => $link->getVersionCount(),
-                ],
-                'treeData' => $treeData,
-            ]);
-        } else {
-            throw $this->createAccessDeniedHttpException();
-        }
+        return $this->adminJson([
+            'success' => true,
+            'data' => [
+                'versionDate' => $link->getModificationDate(),
+                'versionCount' => $link->getVersionCount(),
+            ],
+            'treeData' => $treeData,
+        ]);
     }
 
     /**

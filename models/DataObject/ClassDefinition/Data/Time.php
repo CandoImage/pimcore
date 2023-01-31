@@ -22,6 +22,8 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'time';
@@ -29,21 +31,29 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
     /**
      * Column length
      *
+     * @internal
+     *
      * @var int
      */
     public $columnLength = 5;
 
     /**
+     * @internal
+     *
      * @var string|null
      */
     public $minValue;
 
     /**
+     * @internal
+     *
      * @var string|null
      */
     public $maxValue;
 
     /**
+     * @internal
+     *
      * @var int
      */
     public $increment = 15 ;
@@ -61,7 +71,7 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
      */
     public function setMinValue($minValue)
     {
-        if (strlen($minValue)) {
+        if (is_string($minValue) && strlen($minValue)) {
             $this->minValue = $this->toTime($minValue);
         } else {
             $this->minValue = null;
@@ -81,7 +91,7 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
      */
     public function setMaxValue($maxValue)
     {
-        if (strlen($maxValue)) {
+        if (is_string($maxValue) && strlen($maxValue)) {
             $this->maxValue = $this->toTime($maxValue);
         } else {
             $this->maxValue = null;
@@ -89,41 +99,37 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         parent::checkValidity($data, $omitMandatoryCheck);
 
-        if ((is_string($data) && strlen($data) != 5 && !empty($data)) || (!empty($data) && !is_string($data))) {
+        if (is_string($data)) {
+            if (!preg_match('/^(2[0-3]|[01][0-9]):[0-5][0-9]$/', $data) && $data !== '') {
+                throw new Model\Element\ValidationException('Wrong time format given must be a 5 digit string (eg: 06:49) [ '.$this->getName().' ]');
+            }
+        } elseif (!empty($data)) {
             throw new Model\Element\ValidationException('Wrong time format given must be a 5 digit string (eg: 06:49) [ '.$this->getName().' ]');
         }
 
-        if (!$omitMandatoryCheck && strlen($data)) {
+        if (!$omitMandatoryCheck && $data) {
             if (!$this->toTime($data)) {
-                throw new \Exception('Wrong time format given must be a 5 digit string (eg: 06:49) [ '.$this->getName().' ]');
+                throw new Model\Element\ValidationException('Wrong time format given must be a 5 digit string (eg: 06:49) [ '.$this->getName().' ]');
             }
 
-            if (strlen($this->getMinValue()) && $this->isEarlier($this->getMinValue(), $data)) {
-                throw new \Exception('Value in field [ '.$this->getName().' ] is not at least ' . $this->getMinValue());
+            if ($this->getMinValue() && $this->isEarlier($this->getMinValue(), $data)) {
+                throw new Model\Element\ValidationException('Value in field [ '.$this->getName().' ] is not at least ' . $this->getMinValue());
             }
 
-            if (strlen($this->getMaxValue()) && $this->isLater($this->getMaxValue(), $data)) {
-                throw new \Exception('Value in field [ ' . $this->getName() . ' ] is bigger than ' . $this->getMaxValue());
+            if ($this->getMaxValue() && $this->isLater($this->getMaxValue(), $data)) {
+                throw new Model\Element\ValidationException('Value in field [ ' . $this->getName() . ' ] is bigger than ' . $this->getMaxValue());
             }
         }
     }
 
-    /** True if change is allowed in edit mode.
-     * @param Model\DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return bool
+    /**
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
@@ -137,35 +143,35 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
      */
     public function isEmpty($data)
     {
-        return strlen($data) !== 5;
+        return !is_string($data) || !preg_match('/^(2[0-3]|[01][0-9]):[0-5][0-9]$/', $data);
     }
 
     /**
      * Returns a 5 digit time string of a given time
      *
-     * @param int $timestamp
+     * @param string $timestamp
      *
      * @return null|string
      */
-    public function toTime($timestamp)
+    private function toTime($timestamp)
     {
-        $time = @date('H:i', strtotime($timestamp));
-        if (!$time) {
+        $timestamp = strtotime($timestamp);
+        if (!$timestamp) {
             return null;
         }
 
-        return $time;
+        return date('H:i', $timestamp);
     }
 
     /**
      * Returns a timestamp representation of a given time
      *
      * @param string $string
-     * @param null $baseTimestamp
+     * @param int|null $baseTimestamp
      *
      * @return int
      */
-    protected function toTimestamp($string, $baseTimestamp = null)
+    private function toTimestamp($string, $baseTimestamp = null)
     {
         if ($baseTimestamp === null) {
             $baseTimestamp = time();
@@ -182,7 +188,7 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
      *
      * @return bool
      */
-    public function isEarlier($subject, $comparison)
+    private function isEarlier($subject, $comparison)
     {
         $baseTs = time();
 
@@ -197,7 +203,7 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
      *
      * @return bool
      */
-    public function isLater($subject, $comparison)
+    private function isLater($subject, $comparison)
     {
         $baseTs = time();
 
@@ -205,10 +211,7 @@ class Time extends Model\DataObject\ClassDefinition\Data\Input
     }
 
     /**
-     * @param Model\DataObject\Concrete\Dao|Model\DataObject\Localizedfield|Model\DataObject\Objectbrick\Data\AbstractData|\Pimcore\Model\DataObject\Fieldcollection\Data\AbstractData $object
-     * @param mixed $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getDataForSearchIndex($object, $params = [])
     {

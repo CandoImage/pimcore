@@ -50,7 +50,7 @@ pimcore:
                 type:                expression
                 arguments:
                     - \Pimcore\Model\DataObject\Product
-                    - subject.getProductType() == "article" and is_fully_authenticated() and "ROLE_PIMCORE_ADMIN" in roles
+                    - subject.getProductType() == "article" and is_fully_authenticated() and "ROLE_PIMCORE_ADMIN" in role_names
 
                 # Type "expression": a symfony expression to define a criteria.
                 type:                 ~ # One of "expression"
@@ -59,11 +59,8 @@ pimcore:
                 # Define a custom service to handle the logic. Take a look at the Symfony docs for more details.
                 service:              ~
 
-            # Will get way over initial_place and adds the possibility to add multiple initial places.
+            # Possibility to add multiple initial places.
             initial_markings:     []
-
-            # DEPRECATED: Will be applied when the current place is empty.
-            initial_place:        null
 
             places:
 
@@ -73,7 +70,7 @@ pimcore:
                         label:               close product
                         permissions:
                             -
-                                condition:           is_fully_authenticated() and 'ROLE_PIMCORE_ADMIN' in roles
+                                condition:           is_fully_authenticated() and 'ROLE_PIMCORE_ADMIN' in role_names
                                 modify:
                             -
                                 modify:
@@ -175,7 +172,7 @@ pimcore:
                     name:                 ~ # Required
 
                     # An expression to block the transition
-                    guard:                ~ # Example: is_fully_authenticated() and has_role('ROLE_JOURNALIST') and subject.getTitle() == 'My first article'
+                    guard:                ~ # Example: is_fully_authenticated() and 'ROLE_JOURNALIST' in role_names and subject.getTitle() == 'My first article'
                     from:                 []
                     to:                   []
                     options:
@@ -212,7 +209,7 @@ pimcore:
                                     name:                 ~ # Required
 
                                     # The data component name/field type.
-                                    fieldType:            ~ # One of "input"; "textarea"; "select"; "datetime"; "date"; "user"; "checkbox", Required
+                                    fieldType:            ~ # One of "input"; "numeric"; "textarea"; "select"; "datetime"; "date"; "user"; "checkbox", Required
 
                                     # The label used by the field
                                     title:                ~
@@ -225,7 +222,16 @@ pimcore:
 
                                     # Will be passed to the underlying Pimcore data object field type. Can be used to configure the options of a select box for example.
                                     fieldTypeSettings:    []
-
+                                    
+                            # Configure the output of custom HTML for a transition.
+                            customHtml:
+                            
+                                # Define a custom service for rendering custom HTML within the note modal.
+                                service: 'App\Service\Workflow\CustomHtmlService'
+                                
+                                # Set position of custom HTML inside modal (top, center, bottom; default=top).
+                                position: 'top'
+                            
                         # Css class to define the icon which will be used in the actions button in the backend.
                         iconClass:            ~
                         # Forces an object layout after the transition was performed.
@@ -278,7 +284,7 @@ pimcore:
                     objectLayout:         false
 
                     # An expression to block the action
-                    guard:                ~ # Example: is_fully_authenticated() and has_role('ROLE_JOURNALIST') and subject.getTitle() == 'My first article'
+                    guard:                ~ # Example: is_fully_authenticated() and is_granted('ROLE_JOURNALIST') and subject.getTitle() == 'My first article'
 
                     # Optionally set the current place of the workflow. Can be used for example to reset the workflow to the initial place.
                     to:                   []
@@ -301,4 +307,13 @@ pimcore:
                                 required:             false
                                 setterFn:             ~
                                 fieldTypeSettings:    []
+                                
+                        # Configure the output of custom HTML for a transition.
+                        customHtml:
+                        
+                            # Define a custom service for rendering custom HTML within the note modal.
+                            service: 'App\Service\Workflow\CustomHtmlService'
+                            
+                            # Set position of custom HTML inside modal (top, center, bottom; default=top).
+                            position: 'top'                                
 ```

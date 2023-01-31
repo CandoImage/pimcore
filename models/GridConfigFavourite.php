@@ -15,40 +15,46 @@
 
 namespace Pimcore\Model;
 
+use Pimcore\Model\Exception\NotFoundException;
+
 /**
  * @method \Pimcore\Model\GridConfigFavourite\Dao getDao()
+ *
+ * @internal
  */
 class GridConfigFavourite extends AbstractModel
 {
     /**
      * @var int
      */
-    public $ownerId;
+    protected $ownerId;
 
     /**
      * @var string
      */
-    public $classId;
+    protected $classId;
 
     /**
      * @var int
      */
-    public $objectId;
+    protected $objectId;
 
     /**
      * @var int
      */
-    public $gridConfigId;
+    protected $gridConfigId;
 
     /**
      * @var string
      */
-    public $searchType;
+    protected $searchType;
 
     /**
+     * enum('asset','object')
+     *
      * @var string
      */
-    public $type;
+    protected $type;
 
     /**
      * @param int $ownerId
@@ -56,14 +62,18 @@ class GridConfigFavourite extends AbstractModel
      * @param int|null $objectId
      * @param string|null $searchType
      *
-     * @return GridConfigFavourite
+     * @return GridConfigFavourite|null
      */
     public static function getByOwnerAndClassAndObjectId($ownerId, $classId, $objectId = null, $searchType = '')
     {
-        $favourite = new self();
-        $favourite->getDao()->getByOwnerAndClassAndObjectId($ownerId, $classId, $objectId, $searchType);
+        try {
+            $favourite = new self();
+            $favourite->getDao()->getByOwnerAndClassAndObjectId($ownerId, $classId, $objectId, $searchType);
 
-        return $favourite;
+            return $favourite;
+        } catch (NotFoundException $e) {
+            return null;
+        }
     }
 
     /**
@@ -163,6 +173,8 @@ class GridConfigFavourite extends AbstractModel
     }
 
     /**
+     * enum('asset','object')
+     *
      * @return string
      */
     public function getType()
@@ -171,6 +183,8 @@ class GridConfigFavourite extends AbstractModel
     }
 
     /**
+     * enum('asset','object')
+     *
      * @param string $type
      */
     public function setType(string $type)

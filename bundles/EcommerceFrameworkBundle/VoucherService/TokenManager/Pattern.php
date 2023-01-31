@@ -26,17 +26,19 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Statistic;
 use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Token;
 use Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Token\Listing;
 use Pimcore\File;
+use Pimcore\Logger;
 use Pimcore\Model\DataObject\Fieldcollection\Data\VoucherTokenTypePattern;
 use Pimcore\Model\DataObject\OnlineShopVoucherSeries;
 use Pimcore\Model\DataObject\OnlineShopVoucherToken;
 
 /**
- * Class Pattern
+ * @property \Pimcore\Model\DataObject\Fieldcollection\Data\VoucherTokenTypePattern $configuration
  */
 class Pattern extends AbstractTokenManager implements ExportableTokenManagerInterface
 {
-    // @var float Max probability to hit a duplicate entry on insertion e.g. to guess a code
-
+    /**
+     * Max probability to hit a duplicate entry on insertion e.g. to guess a code
+     */
     const MAX_PROBABILITY = 0.005;
 
     protected $template;
@@ -51,7 +53,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
     {
         parent::__construct($configuration);
         if ($configuration instanceof VoucherTokenTypePattern) {
-            $this->template = 'PimcoreEcommerceFrameworkBundle:voucher:voucher_code_tab_pattern.html.twig';
+            $this->template = '@PimcoreEcommerceFramework/voucher/voucher_code_tab_pattern.html.twig';
         } else {
             throw new InvalidConfigException('Invalid Configuration Class for Type VoucherTokenTypePattern.');
         }
@@ -85,7 +87,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
      *
      * @throws VoucherServiceException
      *
-     * @return bool|int
+     * @return bool
      */
     public function checkToken($code, CartInterface $cart)
     {
@@ -112,12 +114,12 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
      */
     public function reserveToken($code, CartInterface $cart)
     {
-        if ($token = Token::getByCode($code)) {
+        if (Token::getByCode($code)) {
             if (Reservation::create($code, $cart)) {
                 return true;
-            } else {
-                throw new VoucherServiceException('Token Reservation not possible.', VoucherServiceException::ERROR_CODE_TOKEN_RESERVATION_NOT_POSSIBLE);
             }
+
+            throw new VoucherServiceException('Token Reservation not possible.', VoucherServiceException::ERROR_CODE_TOKEN_RESERVATION_NOT_POSSIBLE);
         }
 
         throw new VoucherServiceException('No Token for this code exists.', VoucherServiceException::ERROR_CODE_NO_TOKEN_FOR_THIS_CODE_EXISTS);
@@ -146,7 +148,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
                 $orderToken->setVoucherSeries($series);
                 $orderToken->setParent($series);
                 $orderToken->setKey(File::getValidFilename($token->getToken()));
-                $orderToken->setPublished(1);
+                $orderToken->setPublished(true);
                 $orderToken->save();
 
                 return $orderToken;
@@ -240,15 +242,13 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
 
             if (is_array($codeSets)) {
                 foreach ($codeSets as $query) {
-                    $db->query($this->buildInsertQuery($query));
+                    $db->executeQuery($this->buildInsertQuery($query));
                 }
-            } else {
-                $db->query($this->buildInsertQuery($codeSets));
             }
 
             return $codeSets;
         } catch (\Exception $e) {
-            return false;
+            Logger::error((string) $e);
         }
 
         return false;
@@ -267,10 +267,10 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
         $prefix = $this->configuration->getPrefix();
         if (!empty($separator)) {
             if (!empty($prefix)) {
-                return strlen($this->configuration->getPrefix()) + 1 + floor($this->configuration->getLength() / $separatorCount) + $this->configuration->getLength();
+                return strlen($this->configuration->getPrefix()) + 1 + (int) floor($this->configuration->getLength() / $separatorCount) + $this->configuration->getLength();
             }
 
-            return floor($this->configuration->getLength() / $separatorCount) + $this->configuration->getLength();
+            return (int) floor($this->configuration->getLength() / $separatorCount) + $this->configuration->getLength();
         }
 
         return strlen($this->configuration->getPrefix()) + $this->configuration->getLength();
@@ -392,24 +392,21 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
      */
     protected function buildInsertQuery($insertTokens)
     {
-        $query = 'INSERT INTO ' . Token\Dao::TABLE_NAME . '(token,length,voucherSeriesId) ';
         $finalLength = $this->getFinalTokenLength();
         $insertParts = [];
 
-        if (count($insertTokens) > 0) {
-            foreach ($insertTokens as $token) {
-                $insertParts[] =
-                    "('" .
-                    $token .
-                    "'," .
-                    $finalLength .
-                    ',' .
-                    $this->seriesId .
-                    ')';
-            }
+        foreach ($insertTokens as $token) {
+            $insertParts[] =
+                "('" .
+                $token .
+                "'," .
+                $finalLength .
+                ',' .
+                $this->seriesId .
+                ')';
         }
 
-        return $query . 'VALUES ' . implode(',', $insertParts);
+        return 'INSERT INTO ' . Token\Dao::TABLE_NAME . '(token,length,voucherSeriesId) VALUES ' . implode(',', $insertParts);
     }
 
     /**
@@ -429,7 +426,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
             // Check if a max_packet_size Error is possible
             $possibleMaxQuerySizeError = ($finalTokenLength * $this->configuration->getCount() / 1024 / 1024) > 15;
             // Return Query
-            $resultTokenSet = false;
+            $resultTokenSet = [];
             // Tokens of one Insert Query
             $insertTokens = [];
             // Tokens of all Insert Queries together
@@ -464,7 +461,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
                     $checkTokenCount--;
                     unset($checkTokens[$token]);
                 // Check if the length of the checkTokens Array matches the defined step range
-                    // so the the checkTokens get matched against the database.
+                // so the the checkTokens get matched against the database.
                 } elseif ($checkTokenCount == $tokenCheckStep) {
                     // Check if any of the tokens in the temporary array checkTokens already exists,
                     // if not so, merge the checkTokens array with the array of tokens to insert and
@@ -538,27 +535,23 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
         try {
             $tokens->setFilterConditions($params['id'], $params);
         } catch (\Exception $e) {
-            $this->template = 'PimcoreEcommerceFrameworkBundle:voucher:voucher_code_tab_error.html.twig';
+            $this->template = '@PimcoreEcommerceFramework/voucher/voucher_code_tab_error.html.twig';
             $viewParamsBag['errors'][] = $e->getMessage() . ' | Error-Code: ' . $e->getCode();
         }
 
-        if ($tokens) {
-            /** @var PaginatorInterface $paginator */
-            $paginator = \Pimcore::getContainer()->get(\Knp\Component\Pager\PaginatorInterface::class);
-            $paginator = $paginator->paginate(
-                $tokens,
-                $params['page'] ?? 1,
-                $params['tokensPerPage'] ? (int)$params['tokensPerPage'] : 25
-            );
+        /** @var PaginatorInterface $paginator */
+        $paginator = \Pimcore::getContainer()->get(\Knp\Component\Pager\PaginatorInterface::class);
+        $paginator = $paginator->paginate(
+            $tokens,
+            $params['page'] ?? 1,
+            isset($params['tokensPerPage']) ? (int)$params['tokensPerPage'] : 25
+        );
 
-            $viewParamsBag['paginator'] = $paginator;
-            $viewParamsBag['count'] = count($tokens);
-        } else {
-            $viewParamsBag['msg']['result'] = 'bundle_ecommerce_voucherservice_msg-error-token-noresult';
-        }
+        $viewParamsBag['paginator'] = $paginator;
+        $viewParamsBag['count'] = count($tokens);
 
-        $viewParamsBag['msg']['error'] = $params['error'] ?? '';
-        $viewParamsBag['msg']['success'] = $params['success'] ?? '';
+        $viewParamsBag['msg']['error'] = $params['error'] ?? null;
+        $viewParamsBag['msg']['success'] = $params['success'] ?? null;
 
         // Settings parsed via foreach in view -> key is translation
         $viewParamsBag['settings'] = [
@@ -610,11 +603,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
     }
 
     /**
-     * Removes reservations
-     *
-     * @param int $duration
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function cleanUpReservations($duration = 0)
     {
@@ -704,7 +693,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
     }
 
     /**
-     * @param mixed $seriesId
+     * @param string|int|null $seriesId
      */
     public function setSeriesId($seriesId)
     {
@@ -712,7 +701,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
     }
 
     /**
-     * @return mixed
+     * @return string|int|null
      */
     public function getSeriesId()
     {

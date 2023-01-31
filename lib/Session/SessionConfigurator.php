@@ -18,6 +18,8 @@ namespace Pimcore\Session;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
 /**
+ * @deprecated will be removed in Pimcore 11
+ *
  * Handles a collection of session configurators.
  */
 class SessionConfigurator implements SessionConfiguratorInterface
@@ -48,7 +50,7 @@ class SessionConfigurator implements SessionConfiguratorInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function configure(SessionInterface $session)
     {

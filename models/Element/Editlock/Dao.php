@@ -15,9 +15,12 @@
 
 namespace Pimcore\Model\Element\Editlock;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Element\Editlock $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -26,14 +29,14 @@ class Dao extends Model\Dao\AbstractDao
      * @param int $cid
      * @param string $ctype
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getByElement($cid, $ctype)
     {
-        $data = $this->db->fetchRow('SELECT * FROM edit_lock WHERE cid = ? AND ctype = ?', [$cid, $ctype]);
+        $data = $this->db->fetchAssociative('SELECT * FROM edit_lock WHERE cid = ? AND ctype = ?', [$cid, $ctype]);
 
-        if (!$data['id']) {
-            throw new \Exception('Lock with cid ' . $cid . ' and ctype ' . $ctype . ' not found');
+        if (!$data) {
+            throw new Model\Exception\NotFoundException('Lock with cid ' . $cid . ' and ctype ' . $ctype . ' not found');
         }
 
         $this->assignVariablesToModel($data);
@@ -63,12 +66,11 @@ class Dao extends Model\Dao\AbstractDao
             }
         }
 
-        //var_dump($data);exit;
-        $this->db->insertOrUpdate('edit_lock', $data);
+        Helper::insertOrUpdate($this->db, 'edit_lock', $data);
 
         $lastInsertId = $this->db->lastInsertId();
         if (!$this->model->getId() && $lastInsertId) {
-            $this->model->setId($lastInsertId);
+            $this->model->setId((int) $lastInsertId);
         }
 
         return true;

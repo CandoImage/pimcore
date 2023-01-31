@@ -16,34 +16,21 @@
 namespace Pimcore\Element;
 
 use Pimcore\Marshaller\MarshallerInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 
 final class MarshallerService
 {
     /**
-     * @var array
+     * @var ServiceLocator
      */
-    private $supportedFieldDefinitionMarshallers = [];
-
-    /** @var ContainerInterface */
-    private $container;
+    private $marshallerLocator;
 
     /**
-     * MarshallerService constructor.
-     *
-     * @param ContainerInterface $container
+     * @param ServiceLocator $marshallerLocator
      */
-    public function __construct($container)
+    public function __construct(ServiceLocator $marshallerLocator)
     {
-        $this->container = $container;
-    }
-
-    /**
-     * @param array $supportedFieldDefinitionMarshallers
-     */
-    public function setSupportedFieldDefinitionMarshallers($supportedFieldDefinitionMarshallers)
-    {
-        $this->supportedFieldDefinitionMarshallers = $supportedFieldDefinitionMarshallers;
+        $this->marshallerLocator = $marshallerLocator;
     }
 
     /**
@@ -54,10 +41,7 @@ final class MarshallerService
      */
     public function buildFieldefinitionMarshaller($format, $name)
     {
-        $key = $this->supportedFieldDefinitionMarshallers[$format . '_' . $name];
-        $result = $this->container->get($key);
-
-        return $result;
+        return $this->marshallerLocator->get($format . '_' . $name);
     }
 
     /**
@@ -68,6 +52,6 @@ final class MarshallerService
      */
     public function supportsFielddefinition(string $format, string $name)
     {
-        return isset($this->supportedFieldDefinitionMarshallers[$format . '_' . $name]);
+        return $this->marshallerLocator->has($format . '_' . $name);
     }
 }

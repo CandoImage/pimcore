@@ -17,8 +17,16 @@ namespace Pimcore\Model\DataObject\ClassDefinition\Helper;
 
 use Pimcore\Model\DataObject\ClassDefinition\DefaultValueGeneratorInterface;
 
+/**
+ * @internal
+ */
 class DefaultValueGeneratorResolver extends ClassResolver
 {
+    /**
+     * @param string $generatorClass
+     *
+     * @return DefaultValueGeneratorInterface|null
+     */
     public static function resolveGenerator($generatorClass)
     {
         return self::resolve($generatorClass, static function ($generator) {

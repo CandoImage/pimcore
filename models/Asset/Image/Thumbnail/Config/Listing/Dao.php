@@ -15,37 +15,35 @@
 
 namespace Pimcore\Model\Asset\Image\Thumbnail\Config\Listing;
 
-use Pimcore\Model;
 use Pimcore\Model\Asset\Image\Thumbnail\Config;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Asset\Image\Thumbnail\Config\Listing $model
  */
-class Dao extends Model\Dao\PhpArrayTable
+class Dao extends Config\Dao
 {
-    public function configure()
-    {
-        parent::configure();
-        $this->setFile('image-thumbnails');
-    }
-
     /**
-     * Loads a list of predefined properties for the specicifies parameters, returns an array of Property\Predefined elements
-     *
      * @return array
      */
-    public function load()
+    public function loadList()
     {
-        $properties = [];
-        $propertiesData = $this->db->fetchAll($this->model->getFilter(), $this->model->getOrder());
+        $configs = [];
 
-        foreach ($propertiesData as $propertyData) {
-            $properties[] = Config::getByName($propertyData['id']);
+        foreach ($this->loadIdList() as $name) {
+            $configs[] = Config::getByName($name);
+        }
+        if ($this->model->getFilter()) {
+            $configs = array_filter($configs, $this->model->getFilter());
+        }
+        if ($this->model->getOrder()) {
+            usort($configs, $this->model->getOrder());
         }
 
-        $this->model->setThumbnails($properties);
+        $this->model->setThumbnails($configs);
 
-        return $properties;
+        return $configs;
     }
 
     /**
@@ -53,9 +51,6 @@ class Dao extends Model\Dao\PhpArrayTable
      */
     public function getTotalCount()
     {
-        $data = $this->db->fetchAll($this->model->getFilter(), $this->model->getOrder());
-        $amount = count($data);
-
-        return $amount;
+        return count($this->loadList());
     }
 }

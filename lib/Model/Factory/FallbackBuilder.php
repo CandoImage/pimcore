@@ -19,10 +19,13 @@ namespace Pimcore\Model\Factory;
 
 use Pimcore\Loader\ImplementationLoader\AbstractClassNameLoader;
 
-class FallbackBuilder extends AbstractClassNameLoader
+/**
+ * @internal
+ */
+final class FallbackBuilder extends AbstractClassNameLoader
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function supports(string $name): bool
     {
@@ -30,7 +33,7 @@ class FallbackBuilder extends AbstractClassNameLoader
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function getClassName(string $name)
     {

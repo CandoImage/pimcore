@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Tool\Serialize;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\ClassDefinition\CustomLayout $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -31,7 +33,7 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param string|null $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id = null)
     {
@@ -39,21 +41,21 @@ class Dao extends Model\Dao\AbstractDao
             $id = $this->model->getId();
         }
 
-        $layoutRaw = $this->db->fetchRow('SELECT * FROM custom_layouts WHERE id = ?', $id);
+        $layoutRaw = $this->db->fetchAssociative('SELECT * FROM custom_layouts WHERE id = ?', [$id]);
 
         if (!empty($layoutRaw['id'])) {
             $this->assignVariablesToModel($layoutRaw);
 
             $this->model->setLayoutDefinitions($this->getLayoutData());
         } else {
-            throw new \Exception('Layout with ID ' . $id . " doesn't exist");
+            throw new Model\Exception\NotFoundException('Layout with ID ' . $id . " doesn't exist");
         }
     }
 
     /**
      * @param string $name
      *
-     * @return mixed|null
+     * @return string|null
      */
     public function getIdByName($name)
     {
@@ -61,7 +63,7 @@ class Dao extends Model\Dao\AbstractDao
 
         try {
             if (!empty($name)) {
-                $id = $this->db->fetchOne('SELECT id FROM custom_layouts WHERE name = ?', $name);
+                $id = $this->db->fetchOne('SELECT id FROM custom_layouts WHERE name = ?', [$name]);
             }
         } catch (\Exception $e) {
         }
@@ -80,7 +82,7 @@ class Dao extends Model\Dao\AbstractDao
 
         try {
             if (!empty($id)) {
-                $name = $this->db->fetchOne('SELECT name FROM custom_layouts WHERE id = ?', $id);
+                $name = $this->db->fetchOne('SELECT name FROM custom_layouts WHERE id = ?', [$id]);
             }
         } catch (\Exception $e) {
         }
@@ -92,7 +94,7 @@ class Dao extends Model\Dao\AbstractDao
      * @param string $name
      * @param string $classId
      *
-     * @return int|null
+     * @return string|null
      */
     public function getIdByNameAndClassId($name, $classId)
     {
@@ -115,7 +117,7 @@ class Dao extends Model\Dao\AbstractDao
     {
         $maxId = $this->db->fetchOne('SELECT MAX(CAST(id AS SIGNED)) FROM custom_layouts;');
         $newId = $maxId ? $maxId + 1 : 1;
-        $this->model->setId($newId);
+        $this->model->setId((string) $newId);
 
         return $newId;
     }
@@ -161,7 +163,8 @@ class Dao extends Model\Dao\AbstractDao
     {
         if (!$this->model->getId()) {
             $maxId = $this->db->fetchOne('SELECT MAX(CAST(id AS SIGNED)) FROM custom_layouts;');
-            $this->model->setId($maxId ? $maxId + 1 : 1);
+            $maxId = $maxId ? $maxId + 1 : 1;
+            $this->model->setId((string) $maxId);
         }
 
         if (!$isUpdate) {

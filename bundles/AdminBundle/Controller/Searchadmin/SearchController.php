@@ -16,25 +16,32 @@
 namespace Pimcore\Bundle\AdminBundle\Controller\Searchadmin;
 
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
+use Pimcore\Bundle\AdminBundle\Controller\Traits\AdminStyleTrait;
 use Pimcore\Bundle\AdminBundle\Helper\GridHelperService;
 use Pimcore\Config;
+use Pimcore\Db\Helper;
+use Pimcore\Event\Admin\ElementAdminStyleEvent;
 use Pimcore\Event\AdminEvents;
 use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject;
 use Pimcore\Model\Document;
 use Pimcore\Model\Element;
 use Pimcore\Model\Search\Backend\Data;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\GenericEvent;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @Route("/search")
+ *
+ * @internal
  */
 class SearchController extends AdminController
 {
+    use AdminStyleTrait;
+
     /**
      * @Route("/find", name="pimcore_admin_searchadmin_search_find", methods={"GET", "POST"})
      *
@@ -43,8 +50,11 @@ class SearchController extends AdminController
      * @return JsonResponse
      *
      * @todo: $conditionTypeParts could be undefined
+     *
      * @todo: $conditionSubtypeParts could be undefined
+     *
      * @todo: $conditionClassnameParts could be undefined
+     *
      * @todo: $data could be undefined
      */
     public function findAction(Request $request, EventDispatcherInterface $eventDispatcher, GridHelperService $gridHelperService)
@@ -61,18 +71,18 @@ class SearchController extends AdminController
         $filterPrepareEvent = new GenericEvent($this, [
             'requestParams' => $allParams,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::SEARCH_LIST_BEFORE_FILTER_PREPARE, $filterPrepareEvent);
+        $eventDispatcher->dispatch($filterPrepareEvent, AdminEvents::SEARCH_LIST_BEFORE_FILTER_PREPARE);
 
         $allParams = $filterPrepareEvent->getArgument('requestParams');
 
-        $query = $this->filterQueryParam($allParams['query']);
+        $query = $this->filterQueryParam($allParams['query'] ?? '');
 
         $types = explode(',', $allParams['type'] ?? '');
         $subtypes = explode(',', $allParams['subtype'] ?? '');
         $classnames = explode(',', $allParams['class'] ?? '');
 
-        $offset = intval($allParams['start']);
-        $limit = intval($allParams['limit']);
+        $offset = (int)$allParams['start'];
+        $limit = (int)$allParams['limit'];
 
         $offset = $offset ? $offset : 0;
         $limit = $limit ? $limit : 50;
@@ -81,11 +91,7 @@ class SearchController extends AdminController
         $conditionParts = [];
         $db = \Pimcore\Db::get();
 
-        $forbiddenConditions = $this->getForbiddenCondition($types);
-
-        if ($forbiddenConditions) {
-            $conditionParts[] = '(' . implode(' AND ', $forbiddenConditions) . ')';
-        }
+        $conditionParts[] = $this->getPermittedPaths($types);
 
         $queryCondition = '';
         if (!empty($query)) {
@@ -150,10 +156,15 @@ class SearchController extends AdminController
                 : null;
 
             $join = '';
+            $localizedJoin = '';
             foreach ($bricks as $ob) {
                 $join .= ' LEFT JOIN object_brick_query_' . $ob . '_' . $class->getId();
-
                 $join .= ' `' . $ob . '`';
+
+                if ($localizedConditionFilters) {
+                    $localizedJoin = $join . ' ON `' . $ob . '`.o_id = `object_localized_data_' . $class->getId() . '`.ooo_id';
+                }
+
                 $join .= ' ON `' . $ob . '`.o_id = `object_' . $class->getId() . '`.o_id';
             }
 
@@ -166,12 +177,12 @@ class SearchController extends AdminController
             if (null !== $localizedConditionFilters) {
                 //add condition query for localised fields
                 $conditionParts[] = '( id IN (SELECT `object_localized_data_' . $class->getId()
-                    . '`.ooo_id FROM object_localized_data_' . $class->getId() . $join . ' WHERE '
+                    . '`.ooo_id FROM object_localized_data_' . $class->getId() . $localizedJoin . ' WHERE '
                     . $localizedConditionFilters . ' GROUP BY ooo_id ' . ') )';
             }
         }
 
-        if (is_array($types) and !empty($types[0])) {
+        if (is_array($types) && !empty($types[0])) {
             $conditionTypeParts = [];
             foreach ($types as $type) {
                 $conditionTypeParts[] = $db->quote($type);
@@ -182,7 +193,7 @@ class SearchController extends AdminController
             $conditionParts[] = '( maintype IN (' . implode(',', $conditionTypeParts) . ') )';
         }
 
-        if (is_array($subtypes) and !empty($subtypes[0])) {
+        if (is_array($subtypes) && !empty($subtypes[0])) {
             $conditionSubtypeParts = [];
             foreach ($subtypes as $subtype) {
                 $conditionSubtypeParts[] = $db->quote($subtype);
@@ -190,7 +201,7 @@ class SearchController extends AdminController
             $conditionParts[] = '( type IN (' . implode(',', $conditionSubtypeParts) . ') )';
         }
 
-        if (is_array($classnames) and !empty($classnames[0])) {
+        if (is_array($classnames) && !empty($classnames[0])) {
             if (in_array('folder', $subtypes)) {
                 $classnames[] = 'folder';
             }
@@ -204,25 +215,29 @@ class SearchController extends AdminController
         //filtering for tags
         if (!empty($allParams['tagIds'])) {
             $tagIds = $allParams['tagIds'];
+
+            $tagsTypeCondition = '';
+            if (is_array($types) && !empty($types[0])) {
+                $tagsTypeCondition = 'ctype IN (\'' . implode('\',\'', $types) . '\') AND';
+            } elseif (!is_array($types)) {
+                $tagsTypeCondition = 'ctype = ' . $db->quote($types) . ' AND ';
+            }
+
             foreach ($tagIds as $tagId) {
-                foreach ($types as $type) {
-                    if (($allParams['considerChildTags'] ?? 'false') === 'true') {
-                        $tag = Element\Tag::getById($tagId);
-                        if ($tag) {
-                            $tagPath = $tag->getFullIdPath();
-                            $conditionParts[] = 'id IN (SELECT cId FROM tags_assignment INNER JOIN tags ON tags.id = tags_assignment.tagid WHERE ctype = ' . $db->quote($type) . ' AND (id = ' . intval($tagId) . ' OR idPath LIKE ' . $db->quote($db->escapeLike($tagPath) . '%') . '))';
-                        }
-                    } else {
-                        $conditionParts[] = 'id IN (SELECT cId FROM tags_assignment WHERE ctype = ' . $db->quote($type) . ' AND tagid = ' . intval($tagId) . ')';
+                if (($allParams['considerChildTags'] ?? 'false') === 'true') {
+                    $tag = Element\Tag::getById($tagId);
+                    if ($tag) {
+                        $tagPath = $tag->getFullIdPath();
+                        $conditionParts[] = 'id IN (SELECT cId FROM tags_assignment INNER JOIN tags ON tags.id = tags_assignment.tagid WHERE '.$tagsTypeCondition.' (id = ' .(int)$tagId. ' OR idPath LIKE ' . $db->quote(Helper::escapeLike($tagPath) . '%') . '))';
                     }
+                } else {
+                    $conditionParts[] = 'id IN (SELECT cId FROM tags_assignment WHERE '.$tagsTypeCondition.' tagid = ' .(int)$tagId. ')';
                 }
             }
         }
 
-        if (count($conditionParts) > 0) {
-            $condition = implode(' AND ', $conditionParts);
-            $searcherList->setCondition($condition);
-        }
+        $condition = implode(' AND ', $conditionParts);
+        $searcherList->setCondition($condition);
 
         $searcherList->setOffset($offset);
         $searcherList->setLimit($limit);
@@ -232,6 +247,13 @@ class SearchController extends AdminController
 
         $sortingSettings = \Pimcore\Bundle\AdminBundle\Helper\QueryParams::extractSortingSettings($allParams);
         if ($sortingSettings['orderKey']) {
+            // Order by key column instead of filename
+            $orderKeyQuote = true;
+            if ($sortingSettings['orderKey'] === 'filename') {
+                $sortingSettings['orderKey'] = 'CAST(`key` AS CHAR CHARACTER SET utf8) COLLATE utf8_general_ci';
+                $orderKeyQuote = false;
+            }
+
             // we need a special mapping for classname as this is stored in subtype column
             $sortMapping = [
                 'classname' => 'subtype',
@@ -241,7 +263,7 @@ class SearchController extends AdminController
             if (array_key_exists($sortingSettings['orderKey'], $sortMapping)) {
                 $sort = $sortMapping[$sortingSettings['orderKey']];
             }
-            $searcherList->setOrderKey($sort);
+            $searcherList->setOrderKey($sort, $orderKeyQuote);
         }
         if ($sortingSettings['order']) {
             $searcherList->setOrder($sortingSettings['order']);
@@ -251,7 +273,7 @@ class SearchController extends AdminController
             'list' => $searcherList,
             'context' => $allParams,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::SEARCH_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+        $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::SEARCH_LIST_BEFORE_LIST_LOAD);
         /** @var Data\Listing $searcherList */
         $searcherList = $beforeListLoadEvent->getArgument('list');
 
@@ -261,7 +283,7 @@ class SearchController extends AdminController
                 'list' => $searcherList,
                 'context' => $allParams,
             ]);
-            $eventDispatcher->dispatch(AdminEvents::ASSET_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+            $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::ASSET_LIST_BEFORE_LIST_LOAD);
             /** @var Data\Listing $searcherList */
             $searcherList = $beforeListLoadEvent->getArgument('list');
         }
@@ -272,7 +294,7 @@ class SearchController extends AdminController
                 'list' => $searcherList,
                 'context' => $allParams,
             ]);
-            $eventDispatcher->dispatch(AdminEvents::DOCUMENT_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+            $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::DOCUMENT_LIST_BEFORE_LIST_LOAD);
             /** @var Data\Listing $searcherList */
             $searcherList = $beforeListLoadEvent->getArgument('list');
         }
@@ -283,7 +305,7 @@ class SearchController extends AdminController
                 'list' => $searcherList,
                 'context' => $allParams,
             ]);
-            $eventDispatcher->dispatch(AdminEvents::OBJECT_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+            $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::OBJECT_LIST_BEFORE_LIST_LOAD);
             /** @var Data\Listing $searcherList */
             $searcherList = $beforeListLoadEvent->getArgument('list');
         }
@@ -325,70 +347,75 @@ class SearchController extends AdminController
             'list' => $result,
             'context' => $allParams,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::SEARCH_LIST_AFTER_LIST_LOAD, $afterListLoadEvent);
+        $eventDispatcher->dispatch($afterListLoadEvent, AdminEvents::SEARCH_LIST_AFTER_LIST_LOAD);
         $result = $afterListLoadEvent->getArgument('list');
 
         return $this->adminJson($result);
     }
 
     /**
+     * @internal
+     *
      * @param array $types
      *
-     * @return array
+     * @return string
      */
-    protected function getForbiddenCondition($types = ['assets', 'documents', 'objects'])
+    protected function getPermittedPaths($types = ['asset', 'document', 'object'])
     {
         $user = $this->getAdminUser();
         $db = \Pimcore\Db::get();
 
-        $forbiddenConditions = [];
+        $allowedTypes = [];
 
-        //exclude forbidden assets
-        if (in_array('asset', $types)) {
-            if (!$user->isAllowed('assets')) {
-                $forbiddenConditions[] = " `type` != 'asset' ";
-            } else {
-                $forbiddenAssetPaths = Element\Service::findForbiddenPaths('asset', $user);
-                if (count($forbiddenAssetPaths) > 0) {
-                    for ($i = 0; $i < count($forbiddenAssetPaths); $i++) {
-                        $forbiddenAssetPaths[$i] = " (maintype = 'asset' AND fullpath not like " . $db->quote($forbiddenAssetPaths[$i] . '%') . ')';
+        foreach ($types as $type) {
+            if ($user->isAllowed($type . 's')) { //the permissions are just plural
+                $elementPaths = Element\Service::findForbiddenPaths($type, $user);
+
+                $forbiddenPathSql = [];
+                $allowedPathSql = [];
+                foreach ($elementPaths['forbidden'] as $forbiddenPath => $allowedPaths) {
+                    $exceptions = '';
+                    $folderSuffix = '';
+                    if ($allowedPaths) {
+                        $exceptionsConcat = implode("%' OR fullpath LIKE '", $allowedPaths);
+                        $exceptions = " OR (fullpath LIKE '" . $exceptionsConcat . "%')";
+                        $folderSuffix = '/'; //if allowed children are found, the current folder is listable but its content is still blocked, can easily done by adding a trailing slash
                     }
-                    $forbiddenConditions[] = implode(' AND ', $forbiddenAssetPaths) ;
+                    $forbiddenPathSql[] = ' (fullpath NOT LIKE ' . $db->quote($forbiddenPath . $folderSuffix . '%') . $exceptions . ') ';
                 }
+                foreach ($elementPaths['allowed'] as $allowedPaths) {
+                    $allowedPathSql[] = ' fullpath LIKE ' . $db->quote($allowedPaths  . '%');
+                }
+
+                // this is to avoid query error when implode is empty.
+                // the result would be like `(maintype = type AND ((path1 OR path2) AND (not_path3 AND not_path4)))`
+                $forbiddenAndAllowedSql = '(maintype = \'' . $type . '\'';
+
+                if ($allowedPathSql || $forbiddenPathSql) {
+                    $forbiddenAndAllowedSql .= ' AND (';
+                    $forbiddenAndAllowedSql .= $allowedPathSql ? '( ' . implode(' OR ', $allowedPathSql) . ' )' : '';
+
+                    if ($forbiddenPathSql) {
+                        //if $allowedPathSql "implosion" is present, we need `AND` in between
+                        $forbiddenAndAllowedSql .= $allowedPathSql ? ' AND ' : '';
+                        $forbiddenAndAllowedSql .= implode(' AND ', $forbiddenPathSql);
+                    }
+                    $forbiddenAndAllowedSql .= ' )';
+                }
+
+                $forbiddenAndAllowedSql.= ' )';
+
+                $allowedTypes[] = $forbiddenAndAllowedSql;
             }
         }
 
-        //exclude forbidden documents
-        if (in_array('document', $types)) {
-            if (!$user->isAllowed('documents')) {
-                $forbiddenConditions[] = " `type` != 'document' ";
-            } else {
-                $forbiddenDocumentPaths = Element\Service::findForbiddenPaths('document', $user);
-                if (count($forbiddenDocumentPaths) > 0) {
-                    for ($i = 0; $i < count($forbiddenDocumentPaths); $i++) {
-                        $forbiddenDocumentPaths[$i] = " (maintype = 'document' AND fullpath not like " . $db->quote($forbiddenDocumentPaths[$i] . '%') . ')';
-                    }
-                    $forbiddenConditions[] = implode(' AND ', $forbiddenDocumentPaths) ;
-                }
-            }
+        //if allowedTypes is still empty after getting the workspaces, it means that there are no any master permissions set
+        // by setting a `false` condition in the query makes sure that nothing would be displayed.
+        if (!$allowedTypes) {
+            $allowedTypes = ['false'];
         }
 
-        //exclude forbidden objects
-        if (in_array('object', $types)) {
-            if (!$user->isAllowed('objects')) {
-                $forbiddenConditions[] = " `type` != 'object' ";
-            } else {
-                $forbiddenObjectPaths = Element\Service::findForbiddenPaths('object', $user);
-                if (count($forbiddenObjectPaths) > 0) {
-                    for ($i = 0; $i < count($forbiddenObjectPaths); $i++) {
-                        $forbiddenObjectPaths[$i] = " (maintype = 'object' AND fullpath not like " . $db->quote($forbiddenObjectPaths[$i] . '%') . ')';
-                    }
-                    $forbiddenConditions[] = implode(' AND ', $forbiddenObjectPaths);
-                }
-            }
-        }
-
-        return $forbiddenConditions;
+        return '('.implode(' OR ', $allowedTypes) .')';
     }
 
     /**
@@ -402,6 +429,7 @@ class SearchController extends AdminController
             $query = '';
         }
 
+        $query = str_replace('&quot;', '"', $query);
         $query = str_replace('%', '*', $query);
         $query = str_replace('@', '#', $query);
         $query = preg_replace("@([^ ])\-@", '$1 ', $query);
@@ -422,13 +450,12 @@ class SearchController extends AdminController
      *
      * @param Request $request
      * @param EventDispatcherInterface $eventDispatcher
-     * @param Config $config
      *
      * @return JsonResponse
      */
-    public function quicksearchAction(Request $request, EventDispatcherInterface $eventDispatcher, Config $config)
+    public function quicksearchAction(Request $request, EventDispatcherInterface $eventDispatcher)
     {
-        $query = $this->filterQueryParam($request->get('query'));
+        $query = $this->filterQueryParam($request->get('query', ''));
         if (!preg_match('/[\+\-\*"]/', $query)) {
             // check for a boolean operator (which was not filtered by filterQueryParam()),
             // if present, do not add asterisk at the end of the query
@@ -440,10 +467,7 @@ class SearchController extends AdminController
 
         $conditionParts = [];
 
-        $forbiddenConditions = $this->getForbiddenCondition();
-        if ($forbiddenConditions) {
-            $conditionParts[] = '(' . implode(' AND ', $forbiddenConditions) . ')';
-        }
+        $conditionParts[] = $this->getPermittedPaths();
 
         $matchCondition = '( MATCH (`data`,`properties`) AGAINST (' . $db->quote($query) . ' IN BOOLEAN MODE) )';
         $conditionParts[] = '(' . $matchCondition . " AND type != 'folder') ";
@@ -459,7 +483,7 @@ class SearchController extends AdminController
             'list' => $searcherList,
             'query' => $query,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::QUICKSEARCH_LIST_BEFORE_LIST_LOAD, $beforeListLoadEvent);
+        $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::QUICKSEARCH_LIST_BEFORE_LIST_LOAD);
         $searcherList = $beforeListLoadEvent->getArgument('list');
 
         $hits = $searcherList->load();
@@ -473,22 +497,10 @@ class SearchController extends AdminController
                     'type' => $hit->getId()->getType(),
                     'subtype' => $element->getType(),
                     'className' => ($element instanceof DataObject\Concrete) ? $element->getClassName() : '',
-                    'fullpath' => htmlspecialchars($element->getFullPath()),
-                    'fullpathList' => htmlspecialchars($this->shortenPath($element->getFullPath())),
-                    'iconCls' => 'pimcore_icon_asset_default',
+                    'fullpathList' => htmlspecialchars($this->shortenPath($element->getRealFullPath())),
                 ];
 
-                if ($element instanceof Asset) {
-                    $data['iconCls'] .= ' pimcore_icon_' . \Pimcore\File::getFileExtension($element->getFilename());
-                } else {
-                    $data['iconCls'] .= ' pimcore_icon_' . $element->getType();
-                }
-
-                $data['preview'] = $this->renderView('PimcoreAdminBundle:SearchAdmin/Search/Quicksearch:' . $hit->getId()->getType() . '.html.php', [
-                    'element' => $element,
-                    'iconCls' => $data['iconCls'],
-                    'config' => $config,
-                ]);
+                $this->addAdminStyle($element, ElementAdminStyleEvent::CONTEXT_SEARCH, $data);
 
                 $elements[] = $data;
             }
@@ -498,12 +510,66 @@ class SearchController extends AdminController
             'list' => $elements,
             'context' => $query,
         ]);
-        $eventDispatcher->dispatch(AdminEvents::QUICKSEARCH_LIST_AFTER_LIST_LOAD, $afterListLoadEvent);
+        $eventDispatcher->dispatch($afterListLoadEvent, AdminEvents::QUICKSEARCH_LIST_AFTER_LIST_LOAD);
         $elements = $afterListLoadEvent->getArgument('list');
 
         $result = ['data' => $elements, 'success' => true];
 
         return $this->adminJson($result);
+    }
+
+    /**
+     * @Route("/quicksearch-get-by-id", name="pimcore_admin_searchadmin_search_quicksearch_by_id", methods={"GET"})
+     *
+     * @param Request $request
+     * @param Config $config
+     *
+     * @return JsonResponse
+     */
+    public function quicksearchByIdAction(Request $request, Config $config)
+    {
+        $type = $request->get('type');
+        $id = $request->get('id');
+        $db = \Pimcore\Db::get();
+        $searcherList = new Data\Listing();
+
+        $searcherList->addConditionParam('id = :id', ['id' => $id]);
+        $searcherList->addConditionParam('maintype = :type', ['type' => $type]);
+        $searcherList->setLimit(1);
+
+        $hits = $searcherList->load();
+
+        //There will always be one result in hits but load returns array.
+        $data = [];
+        foreach ($hits as $hit) {
+            $element = Element\Service::getElementById($hit->getId()->getType(), $hit->getId()->getId());
+            if ($element->isAllowed('list')) {
+                $data = [
+                    'id' => $element->getId(),
+                    'type' => $hit->getId()->getType(),
+                    'subtype' => $element->getType(),
+                    'className' => ($element instanceof DataObject\Concrete) ? $element->getClassName() : '',
+                    'fullpath' => htmlspecialchars($element->getRealFullPath()),
+                    'fullpathList' => htmlspecialchars($this->shortenPath($element->getRealFullPath())),
+                    'iconCls' => 'pimcore_icon_asset_default',
+                ];
+
+                $this->addAdminStyle($element, ElementAdminStyleEvent::CONTEXT_SEARCH, $data);
+
+                $validLanguages = \Pimcore\Tool::getValidLanguages();
+
+                $data['preview'] = $this->renderView(
+                    '@PimcoreAdmin/SearchAdmin/Search/Quicksearch/' . $hit->getId()->getType() . '.html.twig', [
+                        'element' => $element,
+                        'iconCls' => $data['iconCls'],
+                        'config' => $config,
+                        'validLanguages' => $validLanguages,
+                    ]
+                );
+            }
+        }
+
+        return $this->adminJson($data);
     }
 
     /**
@@ -515,11 +581,10 @@ class SearchController extends AdminController
     {
         $parts = explode('/', trim($path, '/'));
         $count = count($parts) - 1;
-        $shortPath = '';
 
-        for ($i = $count; $i >= 0; $i--) {
+        for ($i = $count; ; $i--) {
             $shortPath = '/' . implode('/', array_unique($parts));
-            if (strlen($shortPath) <= 50 || $i === 0) {
+            if ($i === 0 || strlen($shortPath) <= 50) {
                 break;
             }
             array_splice($parts, $i - 1, 1, '…');

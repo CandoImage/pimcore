@@ -17,13 +17,19 @@ namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
 use Carbon\Carbon;
 
-class DateFormatter extends AbstractOperator
+/**
+ * @internal
+ */
+final class DateFormatter extends AbstractOperator
 {
     /**
      * @var string|null
      */
     private $format;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -31,6 +37,9 @@ class DateFormatter extends AbstractOperator
         $this->format = ($config->format ? $config->format : null);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();
@@ -83,6 +92,11 @@ class DateFormatter extends AbstractOperator
         return $result;
     }
 
+    /**
+     * @param mixed $theValue
+     *
+     * @return string
+     */
     public function format($theValue)
     {
         $timestamp = null;

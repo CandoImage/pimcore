@@ -119,7 +119,15 @@ pimcore.element.dependencies = Class.create({
                             + '" name="' + t(record.data.subtype) + '">&nbsp;</div>';
                     }
                 },
-                {text: t("path"), sortable: true, dataIndex: 'path', flex: 1, renderer: Ext.util.Format.htmlEncode}
+                {text: t("path"), sortable: true, dataIndex: 'path', flex: 1,
+                    renderer:
+                        function (value, metaData, record, rowIndex, colIndex, store) {
+                            if(record.data.published === false) {
+                                metaData.tdStyle = 'text-decoration: line-through;color: #777;';
+                            }
+                            return Ext.util.Format.htmlEncode(value);
+                        }
+                }
             ],
             flex: 1,
             columnLines: true,
@@ -133,7 +141,7 @@ pimcore.element.dependencies = Class.create({
             callback : function(records, operation, success) {
                 if (success) {
                     var response = operation.getResponse();
-                    this.requiresData = Ext.decode(response.responseText);
+                    this.requiresData = response.responseJson;
 
                     if (this.requiresData.hasHidden) {
                         this.requiresNote.show();
@@ -219,7 +227,15 @@ pimcore.element.dependencies = Class.create({
                             + '" name="' + t(record.data.subtype) + '">&nbsp;</div>';
                     }
                 },
-                {text: t("path"), sortable: true, dataIndex: 'path', flex: 1, renderer: Ext.util.Format.htmlEncode}
+                {text: t("path"), sortable: true, dataIndex: 'path', flex: 1,
+                    renderer:
+                        function (value, metaData, record, rowIndex, colIndex, store) {
+                            if(record.data.published === false) {
+                                metaData.tdStyle = 'text-decoration: line-through;color: #777;';
+                            }
+                            return Ext.util.Format.htmlEncode(value);
+                        }
+                }
             ],
             columnLines: true,
             stripeRows: true,
@@ -233,7 +249,7 @@ pimcore.element.dependencies = Class.create({
             callback : function(records, operation, success) {
                 if (success) {
                     var response = operation.getResponse();
-                    this.requiredByData = Ext.decode(response.responseText);
+                    this.requiredByData = response.responseJson;
 
                     if (this.requiredByData.hasHidden) {
                         this.requiredByNote.show();

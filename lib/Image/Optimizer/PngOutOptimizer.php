@@ -15,21 +15,11 @@
 
 namespace Pimcore\Image\Optimizer;
 
-use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesser;
-use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesserInterface;
-
+/**
+ * @deprecated
+ */
 final class PngOutOptimizer extends AbstractCommandOptimizer
 {
-    /**
-     * @var MimeTypeGuesserInterface
-     */
-    private $mimeTypeGuesser;
-
-    public function __construct()
-    {
-        $this->mimeTypeGuesser = MimeTypeGuesser::getInstance();
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -47,19 +37,10 @@ final class PngOutOptimizer extends AbstractCommandOptimizer
     }
 
     /**
-     * @deprecated
      * {@inheritdoc}
      */
-    protected function getCommand(string $executable, string $input, string $output): string
+    public function supports(string $mimeType): bool
     {
-        return implode(' ', $this->getCommandArray($executable, $input, $output));
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function supports(string $input): bool
-    {
-        return $this->mimeTypeGuesser->guess($input) === 'image/png';
+        return $mimeType === 'image/png';
     }
 }

@@ -105,6 +105,16 @@ final class DocumentEvents
     const POST_DELETE_FAILURE = 'pimcore.document.postDeleteFailure';
 
     /**
+     * Arguments:
+     *  - params | array | contains the values that were passed to getById() as the second parameter
+     *
+     * @Event("Pimcore\Event\Model\DocumentEvent")
+     *
+     * @var string
+     */
+    const POST_LOAD = 'pimcore.document.postLoad';
+
+    /**
      * Processor contains the processor object used to generate the PDF
      *
      * Arguments:
@@ -157,11 +167,25 @@ final class DocumentEvents
      *  - reactorConfig | configuration which is passed to PDFReactor
      *  - document | Pimcore document that is converted
      *
+     * HeadlessChrome:
+     *  - params | puppeteer PDF options (see also https://pptr.dev/api/puppeteer.pdfoptions/)
+     *  - html | HTML passed to puppeteer
+     *
      * @Event("Pimcore\Event\Model\PrintConfigEvent")
      *
      * @var string
      */
     const PRINT_MODIFY_PROCESSING_CONFIG = 'pimcore.document.print.processor.modifyConfig';
+
+    /**
+     * Arguments:
+     *  - target_element | Pimcore\Model\Document | contains the target document used in copying process
+     *
+     * @Event("Pimcore\Event\Model\DocumentEvent")
+     *
+     * @var string
+     */
+    const PRE_COPY = 'pimcore.document.preCopy';
 
     /**
      * Arguments:
@@ -174,22 +198,12 @@ final class DocumentEvents
     const POST_COPY = 'pimcore.document.postCopy';
 
     /**
-     * The TAG_NAME event is triggered when a document tag name is built.
-     *
-     * @Event("Pimcore\Event\Model\Document\TagNameEvent")
-     *
-     * @deprecated since 6.8 and will be removed in Pimcore 10. use EDITABLE_NAME instead.
-     */
-    const TAG_NAME = 'pimcore.document.tag.name';
-
-    /**
      * The EDITABLE_NAME event is triggered when a document editable name is built.
      *
-     * @Event("Pimcore\Event\Model\Document\TagNameEvent")
+     * @Event("Pimcore\Event\Model\Document\EditableNameEvent")
      *
-     * @TODO: change value to 'pimcore.document.editable.name' in Pimcore 10
      */
-    const EDITABLE_NAME = 'pimcore.document.tag.name';
+    const EDITABLE_NAME = 'pimcore.document.editable.name';
 
     /**
      * The RENDERER_PRE_RENDER event is triggered before the DocumentRenderer renders a document
@@ -214,9 +228,9 @@ final class DocumentEvents
      *  - mail | \Pimcore\Mail | the pimcore mail instance
      *  - document | \Pimcore\Model\Document\Newsletter | the newsletter document
      *  - sendingContainer | \Pimcore\Document\Newsletter | sending param container of newsletter helper
-     *  - mailer | Swift_Mailer|null | newsletter specific swift mailer if enabled in system settings
+     *  - mailer | \Pimcore\Mail\Mailer|null | newsletter specific mailer if enabled in system settings
      *
-     * @Event("Symfony\Component\EventDispatcher\GenericEvent\GenericEvent")
+     * @Event("Symfony\Component\EventDispatcher\GenericEvent")
      *
      * @var string
      */
@@ -227,9 +241,9 @@ final class DocumentEvents
      *  - mail | \Pimcore\Mail | the pimcore mail instance
      *  - document | \Pimcore\Model\Document\Newsletter | the newsletter document
      *  - sendingContainer | \Pimcore\Document\Newsletter | sending param container of newsletter helper
-     *  - mailer | Swift_Mailer|null | newsletter specific swift mailer if enabled in system settings
+     *  - mailer | \Pimcore\Mail\Mailer|null | newsletter specific swift mailer if enabled in system settings
      *
-     * @Event("Symfony\Component\EventDispatcher\GenericEvent\GenericEvent")
+     * @Event("Symfony\Component\EventDispatcher\GenericEvent")
      *
      * @var string
      */

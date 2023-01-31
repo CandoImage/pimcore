@@ -22,7 +22,9 @@ use Pimcore\Marshaller\MarshallerInterface;
  */
 class QuantityValue implements MarshallerInterface
 {
-    /** { @inheritDoc } */
+    /**
+     * {@inheritdoc}
+     */
     public function marshal($value, $params = [])
     {
         if (is_array($value)) {
@@ -35,7 +37,9 @@ class QuantityValue implements MarshallerInterface
         return null;
     }
 
-    /** { @inheritDoc } */
+    /**
+     * {@inheritdoc}
+     */
     public function unmarshal($value, $params = [])
     {
         if (is_array($value) && ($value['value'] !== null || $value['value2'] !== null)) {

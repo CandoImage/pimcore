@@ -21,6 +21,9 @@ use Pimcore\Model\User;
 
 class AbstractNotificationService
 {
+    /**
+     * @param int $id
+     */
     protected function getNoteInfo($id): string
     {
         $noteList = new Note\Listing();
@@ -44,6 +47,7 @@ class AbstractNotificationService
      *
      * @param array $users
      * @param array $roles
+     * @param bool $includeAllUsers
      *
      * @return User[][]
      */
@@ -80,9 +84,6 @@ class AbstractNotificationService
             }
 
             foreach ($userList->load() as $user) {
-                /**
-                 * @var User $user
-                 */
                 if ($includeAllUsers || $user->getEmail()) {
                     $notifyUsers[$user->getLanguage()][$user->getId()] = $user;
                 }

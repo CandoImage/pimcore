@@ -15,13 +15,19 @@
 
 namespace Pimcore\DataObject\GridColumnConfig\Operator;
 
-class Anonymizer extends AbstractOperator
+/**
+ * @internal
+ */
+final class Anonymizer extends AbstractOperator
 {
     /**
      * @var string
      */
     private $mode;
 
+    /**
+     * {@inheritdoc}
+     */
     public function __construct(\stdClass $config, $context = null)
     {
         parent::__construct($config, $context);
@@ -29,6 +35,9 @@ class Anonymizer extends AbstractOperator
         $this->mode = $config->mode ?? '';
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getLabeledValue($element)
     {
         $result = new \stdClass();

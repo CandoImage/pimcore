@@ -15,82 +15,94 @@
 
 namespace Pimcore\Model;
 
-use Pimcore\Db;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
  * @method \Pimcore\Model\GridConfig\Dao getDao()
+ *
+ * @internal
  */
 class GridConfig extends AbstractModel
 {
     /**
-     * @var int
+     * @var int|null
      */
-    public $id;
+    protected $id;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $ownerId;
-
-    /**
-     * @var string
-     */
-    public $classId;
+    protected $ownerId;
 
     /**
      * @var string
      */
-    public $name;
+    protected $classId;
 
     /**
      * @var string
      */
-    public $searchType;
+    protected $name;
 
     /**
      * @var string
      */
-    public $config;
+    protected $searchType;
 
     /**
      * @var string
      */
-    public $description;
+    protected $config;
 
     /**
-     * @var int
+     * @var string|null
      */
-    public $creationDate;
+    protected $description;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $modificationDate;
+    protected $creationDate;
+
+    /**
+     * @var int|null
+     */
+    protected $modificationDate;
 
     /**
      * @var bool
      */
-    public $shareGlobally;
+    protected $shareGlobally;
+
+    /**
+     * @var bool
+     */
+    protected $setAsFavourite;
 
     /**
      * @var string
      */
-    public $type = 'object';
+    protected $type = 'object';
 
     /**
      * @param int $id
      *
-     * @return GridConfig
+     * @return GridConfig|null
      */
     public static function getById($id)
     {
         if (!$id) {
-            throw new \Exception('config not found');
+            return null;
         }
-        $config = new self();
-        $config->getDao()->getById($id);
 
-        return $config;
+        try {
+            $config = new self();
+            $config->getDao()->getById($id);
+
+            return $config;
+        } catch (NotFoundException) {
+            return null;
+        }
     }
 
     /**
@@ -113,15 +125,10 @@ class GridConfig extends AbstractModel
     public function delete()
     {
         $this->getDao()->delete();
-
-        // also delete the favourite
-        $db = Db::get();
-        $db->query('DELETE from gridconfig_favourites where gridConfigId = ' . $db->quote($this->getId()));
-        $db->query('DELETE from gridconfig_shares where gridConfigId = ' . $db->quote($this->getId()));
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {
@@ -137,7 +144,7 @@ class GridConfig extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getOwnerId()
     {
@@ -217,7 +224,7 @@ class GridConfig extends AbstractModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getDescription()
     {
@@ -225,7 +232,7 @@ class GridConfig extends AbstractModel
     }
 
     /**
-     * @param string $description
+     * @param string|null $description
      */
     public function setDescription($description)
     {
@@ -233,7 +240,7 @@ class GridConfig extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -249,7 +256,7 @@ class GridConfig extends AbstractModel
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
@@ -281,6 +288,24 @@ class GridConfig extends AbstractModel
     }
 
     /**
+     * @return bool
+     */
+    public function isSetAsFavourite()
+    {
+        return $this->setAsFavourite;
+    }
+
+    /**
+     * @param bool $setAsFavourite
+     */
+    public function setSetAsFavourite($setAsFavourite)
+    {
+        $this->setAsFavourite = $setAsFavourite;
+    }
+
+    /**
+     * enum('asset','object')
+     *
      * @return string
      */
     public function getType()
@@ -289,6 +314,8 @@ class GridConfig extends AbstractModel
     }
 
     /**
+     * enum('asset','object')
+     *
      * @param string $type
      */
     public function setType(string $type)

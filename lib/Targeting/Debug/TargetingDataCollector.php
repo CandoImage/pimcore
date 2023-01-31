@@ -26,7 +26,6 @@ use Pimcore\Targeting\DataProvider\VisitedPagesCounter;
 use Pimcore\Targeting\Document\DocumentTargetingConfigurator;
 use Pimcore\Targeting\Model\VisitorInfo;
 use Pimcore\Targeting\Storage\TargetingStorageInterface;
-use Symfony\Component\Stopwatch\Stopwatch;
 
 class TargetingDataCollector
 {
@@ -41,11 +40,6 @@ class TargetingDataCollector
      * @var DocumentTargetingConfigurator
      */
     private $targetingConfigurator;
-
-    /**
-     * @var Stopwatch|null
-     */
-    private $stopwatch;
 
     /**
      * @var array

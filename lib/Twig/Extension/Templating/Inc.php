@@ -62,5 +62,3 @@ class Inc implements RuntimeExtensionInterface
         return $this->includeRenderer->render($include, $params, $editmode, $cacheEnabled);
     }
 }
-
-class_alias(Inc::class, 'Pimcore\Templating\Helper\Inc');

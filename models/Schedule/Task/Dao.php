@@ -18,6 +18,8 @@ namespace Pimcore\Model\Schedule\Task;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Schedule\Task $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -25,13 +27,13 @@ class Dao extends Model\Dao\AbstractDao
     /**
      * @param int $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id)
     {
-        $data = $this->db->fetchRow('SELECT * FROM schedule_tasks WHERE id = ?', $id);
-        if (!$data['id']) {
-            throw new \Exception('there is no task for the requested id');
+        $data = $this->db->fetchAssociative('SELECT * FROM schedule_tasks WHERE id = ?', [$id]);
+        if (!$data) {
+            throw new Model\Exception\NotFoundException('there is no task for the requested id');
         }
         $this->assignVariablesToModel($data);
     }
@@ -51,7 +53,7 @@ class Dao extends Model\Dao\AbstractDao
     public function create()
     {
         $this->db->insert('schedule_tasks', []);
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 
     /**

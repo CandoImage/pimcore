@@ -42,7 +42,7 @@ class SelectClassificationStoreAttributes extends AbstractFilterType
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function sortResult(AbstractFilterDefinitionType $filterDefinition, array $keyCollection)
     {
@@ -64,7 +64,7 @@ class SelectClassificationStoreAttributes extends AbstractFilterType
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function prepareGroupByValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList)
     {
@@ -86,10 +86,7 @@ class SelectClassificationStoreAttributes extends AbstractFilterType
         }
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getFilterFrontend(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter)
+    public function getFilterValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, array $currentFilter): array
     {
         $field = $this->getField($filterDefinition);
         $keysField = $field . '.keys';
@@ -119,17 +116,17 @@ class SelectClassificationStoreAttributes extends AbstractFilterType
 
         $keyCollection = $this->sortResult($filterDefinition, $keyCollection);
 
-        return $this->render($this->getTemplate($filterDefinition), [
+        return [
             'label' => $filterDefinition->getLabel(),
             'fieldname' => $field,
-            'currentValue' => $currentFilter[$field],
+            'currentValue' => $currentFilter[$field] ?? null,
             'values' => $keyCollection,
             'metaData' => $filterDefinition->getMetaData(),
-        ]);
+        ];
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function addCondition(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter, $params, $isPrecondition = false)
     {

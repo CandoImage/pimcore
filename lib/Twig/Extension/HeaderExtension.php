@@ -27,6 +27,9 @@ use Pimcore\Twig\Extension\Templating\Placeholder;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
+/**
+ * @internal
+ */
 class HeaderExtension extends AbstractExtension
 {
     /**

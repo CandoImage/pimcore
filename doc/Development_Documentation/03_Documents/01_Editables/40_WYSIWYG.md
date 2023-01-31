@@ -31,16 +31,6 @@ Similar to Textarea and Input you can use the WYSIWYG editable in the templates 
 `wysiwyg` helper doesn't require any additional configuration options.
 The following code specifies the height for the rendered WYSIWYG editable (has no effect in frontend).
 
-<div class="code-section">
-
-```php
-<section id="marked-content">
-    <?= $this->wysiwyg("specialContent", [
-        "height" => 200
-    ]); ?>
-</section>
-```
-
 ```twig
 <section id="marked-content">
     {{  pimcore_wysiwyg("specialContent", {
@@ -49,8 +39,6 @@ The following code specifies the height for the rendered WYSIWYG editable (has n
     }}
 </section>
 ```
-
-</div>
 
 If you have a look at the editmode, you will see that our WYSIWYG is rendered with the full toolbar.
 
@@ -66,22 +54,6 @@ If you have to limit styling options (for example only basic styles like `<b>` t
 There is also the option to disable the pimcore generated default toolbar by setting the option `toolbarGroups` explicitly to `false`. In this case,
 either the configuration from the customConfig-file or if absent the ckeditor default will be loaded.
 
-<div class="code-section">
-
-```php
-<section id="marked-content">
-    <?= $this->wysiwyg("specialContent", [
-        "height" => 200,
-        "toolbarGroups" => [
-            [
-                "name" => 'basicstyles',
-                "groups" => [ 'basicstyles', 'list', "links"]
-            ]
-        ]
-    ]); ?>
-</section>
-```
-
 ```twig
 <section id="marked-content">
     {{  pimcore_wysiwyg("specialContent", {
@@ -96,25 +68,12 @@ either the configuration from the customConfig-file or if absent the ckeditor de
 </section>
 ```
 
-</div>
-
 Now the user can use only the limited toolbar.
 
 ![Wysiwyg with limited toolbar - editmode](../../img/editables_wysiwyg_toolbar_editmode.png)
 
 
 There is also an additional way to specify the configuration by adding `customConfig`. 
-
-<div class="code-section">
-
-```php
-<section id="marked-content">
-    <?= $this->wysiwyg("specialContent", [
-        "height" => 200,
-        "customConfig" => "/custom/ckeditor_config.js"
-    ]); ?>
-</section>
-```
 
 ```twig
 <section id="marked-content">
@@ -125,8 +84,6 @@ There is also an additional way to specify the configuration by adding `customCo
     }}
 </section>
 ```
-
-</div>
 
 The `custom_config.js` file could look like the following (please refer to the [CKEditor documentation](https://docs.ckeditor.com/ckeditor4/docs/#!/guide/dev_configuration-section-using-a-custom-configuration-file) for further details):
 
@@ -140,7 +97,7 @@ CKEDITOR.editorConfig = function (config) {
 
 You can add a Global Configuration for all WYSIWYG Editors for all documents by setting `pimcore.document.editables.wysiwyg.defaultEditorConfig`.
 
-For this purpose, you can create a [Pimcore Bundle](../../20_Extending_Pimcore/13_Bundle_Developers_Guide) and add the
+For this purpose, you can create a [Pimcore Bundle](../../20_Extending_Pimcore/13_Bundle_Developers_Guide/README.md) and add the
 configuration in a file in the `Resources/public` directory  of your bundle (e.g. `Resources/public/js/editmode.js`).
 
 ```
@@ -173,15 +130,15 @@ class AppAdminBundle extends AbstractPimcoreBundle
 ###### Registering global configuration via events
 
 You can also add the file which should be loaded in editmode through an event listener to avoid having to implement a 
-`PimcoreBundle` just for the sake of adding a file. Given you already have an `AppBundle` and put the JS config from above
-to `src/AppBundle/Resources/public/js/editmode.js` you can create an event listener to add the path to the list of loaded
+`PimcoreBundle` just for the sake of adding a file. Given you already have an `App` bundle and put the JS config from above
+to `public/js/editmode.js` you can create an event listener to add the path to the list of loaded
 files in editmode (please see [Events](../../20_Extending_Pimcore/11_Event_API_and_Event_Manager.md) for details on how
 to implement and register event listeners):
 
 ```php
 <?php
 
-namespace AppBundle\EventListener;
+namespace App\EventListener;
 
 use Pimcore\Event\BundleManager\PathsEvent;
 use Pimcore\Event\BundleManagerEvents;
@@ -189,7 +146,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 class EditmodeListener implements EventSubscriberInterface
 {
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             BundleManagerEvents::EDITMODE_JS_PATHS => 'onEditmodeJsPaths'
@@ -210,18 +167,6 @@ class EditmodeListener implements EventSubscriberInterface
 
 With the following code you can get the text even in editmode:
 
-<div class="code-section">
-
-```php
-<?= $this->wysiwyg("specialContent"); ?>
-<?php if($this->editmode): ?>
-    <h4>Preview</h4>
-    <div style="border: 1px solid #000;" class="preview">
-        <?= $this->wysiwyg("specialContent")->getData(); ?>
-    </div>
-<?php endif; ?>
-```
-
 ```twig
 {{ pimcore_wysiwyg('specialContent') }}
 
@@ -230,7 +175,5 @@ With the following code you can get the text even in editmode:
     {{ pimcore_wysiwyg('specialContent').getData() }}
 </div>
 ```
-
-</div>
 
 ![WYSIWYG with preview - editmode](../../img/editables_wysiwyg_with_preview_editmode.png)

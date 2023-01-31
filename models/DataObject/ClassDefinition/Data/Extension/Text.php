@@ -20,14 +20,9 @@ use Pimcore\Model;
 trait Text
 {
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param string $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
         if (!$omitMandatoryCheck && $this->getMandatory() && $this->isEmpty($data)) {
             throw new Model\Element\ValidationException('Empty mandatory field [ ' . $this->getName() . ' ]');
@@ -41,16 +36,11 @@ trait Text
      */
     public function isEmpty($data)
     {
-        return strlen($data) < 1;
+        return strlen((string) $data) < 1;
     }
 
     /**
-     * True if change is allowed in edit mode.
-     *
-     * @param Model\DataObject\AbstractObject $object
-     * @param array $params
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
@@ -60,7 +50,7 @@ trait Text
     /**
      * @see Data::getVersionPreview
      *
-     * @param string $data
+     * @param string|null $data
      * @param null|Model\DataObject\AbstractObject $object
      * @param array $params
      *
@@ -68,10 +58,6 @@ trait Text
      */
     public function getVersionPreview($data, $object = null, $params = [])
     {
-        // remove all <script> tags, to prevent XSS in the version preview
-        // this should normally be filtered in the project specific controllers/action (/website folder) but just to be sure
-        $data = preg_replace('#<script(.*?)>(.*?)</script>#is', '', $data);
-
-        return $data;
+        return htmlspecialchars((string)$data, ENT_QUOTES, 'UTF-8');
     }
 }

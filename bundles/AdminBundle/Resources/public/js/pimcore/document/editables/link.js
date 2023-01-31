@@ -14,14 +14,10 @@
 pimcore.registerNS("pimcore.document.editables.link");
 pimcore.document.editables.link = Class.create(pimcore.document.editable, {
 
-    initialize: function(id, name, config, data, inherited) {
-
-        if (!data) {
-            data = {};
-        }
+    initialize: function($super, id, name, config, data, inherited) {
+        $super(id, name, config, data, inherited);
 
         this.defaultData = {
-            type: "internal",
             path: "",
             parameters: "",
             anchor: "",
@@ -33,20 +29,24 @@ pimcore.document.editables.link = Class.create(pimcore.document.editable, {
             attributes: ""
         };
 
-        this.data = mergeObject(this.defaultData, data);
-
-        this.id = id;
-        this.name = name;
-        this.config = this.parseConfig(config);
+        this.data = mergeObject(this.defaultData, data ?? {});
     },
 
     render: function() {
         this.setupWrapper();
 
+        this.element = Ext.get(this.id);
+
+        if (this.config["required"]) {
+            this.required = this.config["required"];
+        }
+
+        this.checkValue();
+
         Ext.get(this.id).setStyle({
             display:"inline"
         });
-        Ext.get(this.id).insertHtml("beforeEnd",'<span class="pimcore_tag_link_text pimcore_editable_link_text">' + this.getLinkContent() + '</span>');
+        Ext.get(this.id).insertHtml("beforeEnd",'<span class="pimcore_editable_link_text">' + this.getLinkContent() + '</span>');
 
         var editButton = new Ext.Button({
             iconCls: "pimcore_icon_link pimcore_icon_overlay_edit",
@@ -91,14 +91,24 @@ pimcore.document.editables.link = Class.create(pimcore.document.editable, {
 
     getLinkContent: function () {
 
-        var text = "[" + t("not_set") + "]";
+        let text = "[" + t("not_set") + "]";
         if (this.data.text) {
             text = this.data.text;
         } else if (this.data.path) {
             text = this.data.path;
         }
-        if (this.data.path) {
-            return '<a href="' + this.data.path + '" class="' + this.config["class"] + ' ' + this.data["class"] + '">' + text + '</a>';
+        if (this.data.path || this.data.anchor || this.data.parameters) {
+            let fullpath = this.data.path + (this.data.parameters ? '?' + this.data.parameters : '') + (this.data.anchor ? '#' + this.data.anchor : '');
+            let displayHtml = Ext.util.Format.htmlEncode(text);
+            
+            if (this.config.textPrefix !== undefined) {
+                displayHtml = this.config.textPrefix + displayHtml;
+            }
+            if (this.config.textSuffix !== undefined) {
+                displayHtml += this.config.textSuffix;
+            }
+
+            return '<a href="' + fullpath + '" class="' + this.config["class"] + ' ' + this.data["class"] + '">' + displayHtml + '</a>';
         }
         return text;
     },
@@ -110,6 +120,7 @@ pimcore.document.editables.link = Class.create(pimcore.document.editable, {
 
         var values = this.window.getComponent("form").getForm().getFieldValues();
         this.data = values;
+        this.checkValue(true);
 
         // close window
         this.window.close();
@@ -123,6 +134,7 @@ pimcore.document.editables.link = Class.create(pimcore.document.editable, {
     reload : function () {
         if (this.config.reload) {
             this.reloadDocument();
+            this.checkValue(true);
         }
     },
 
@@ -135,6 +147,7 @@ pimcore.document.editables.link = Class.create(pimcore.document.editable, {
         this.window.close();
 
         this.data = this.defaultData;
+        this.checkValue(true);
 
         // set text
         Ext.get(this.id).query(".pimcore_editable_link_text")[0].innerHTML = this.getLinkContent();
@@ -146,6 +159,25 @@ pimcore.document.editables.link = Class.create(pimcore.document.editable, {
         window.dndManager.enable();
 
         this.window.close();
+    },
+
+    checkValue: function (mark) {
+        var data = this.getValue();
+        var text = '';
+
+        if (this.required) {
+            if (this.required === "linkonly") {
+                if (this.data.path) {
+                    text = this.data.path;
+                }
+            } else {
+                if (this.data.text && this.data.path) {
+                    text = this.data.text + this.data.path;
+                }
+            }
+
+            this.validateRequiredValue(text, this.element, this, mark);
+        }
     },
 
     getValue: function () {

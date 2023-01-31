@@ -17,11 +17,10 @@ pimcore.registerNS("pimcore.object.helpers.layout");
 pimcore.object.helpers.layout = {
 
     /**
-     * specify which childs a layout can have
+     * specify which children a layout can have
      * @param source
     */
     getAllowedTypes : function (source) {
-        // specify which childs a layout can have
         var allowedTypes = {
             accordion: ["panel","region","tabpanel","text","iframe"],
             fieldset: ["data","text","iframe"],
@@ -31,12 +30,20 @@ pimcore.object.helpers.layout = {
             tabpanel: ["panel", "region", "accordion","text","localizedfields","iframe", "tabpabel"],
             button: [],
             text: [],
-            root: ["panel","region","tabpanel","accordion","text","iframe"],
+            root: ["panel","region","tabpanel","accordion","text","iframe", "button","fieldcontainer", "fieldset"],
             localizedfields: ["panel","tabpanel","accordion","fieldset", "fieldcontainer", "text","region","button","iframe"],
             block: ["panel","tabpanel","accordion","fieldset", "fieldcontainer", "text","region","button","iframe"]
         };
 
-        pimcore.plugin.broker.fireEvent("prepareClassLayoutContextMenu", allowedTypes, source);
+        const prepareClassLayoutContextMenu = new CustomEvent(pimcore.events.prepareClassLayoutContextMenu, {
+            detail: {
+                allowedTypes: allowedTypes,
+                source: source
+            }
+        });
+
+        document.dispatchEvent(prepareClassLayoutContextMenu);
+
         return allowedTypes;
     }
 };

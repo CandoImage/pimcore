@@ -36,7 +36,7 @@ See following examples for details.
 If additional information needs to be stored into the order, the OrderManager has to be extended. For more Information
 concerning the [OrderManager](../17_Order_Manager/README.md) see the [documentation](../17_Order_Manager/README.md). 
  
-A simple implementation of `AppBundle\Ecommerce\Order\OrderManager` could look like:
+A simple implementation of `App\Ecommerce\Order\OrderManager` could look like:
 
 ```php
 <?php
@@ -50,11 +50,10 @@ class OrderManager extends \Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager
      */
     protected function applyCustomCheckoutDataToOrder(CartInterface $cart, AbstractOrder $order)
     {
+        /** @var AbstractOrder $order */
         $order = parent::applyCustomCheckoutDataToOrder($cart, $order);
 
-        /* @var AbstractOrder $order*/
-
-        $checkout = Factory::getInstance()->getCheckoutManager( $cart );
+        $checkout = Factory::getInstance()->getCheckoutManager($cart);
         $deliveryAddress = $checkout->getCheckoutStep('deliveryaddress') ? $checkout->getCheckoutStep('deliveryaddress')->getData() : null;
         $confirm = $checkout->getCheckoutStep('confirm') ? $checkout->getCheckoutStep('confirm')->getData() : null;
 
@@ -93,7 +92,7 @@ class OrderManager extends \Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager
 ```
 
 ### Commit Order Processor
-A simple implementation of `\AppBundle\Checkout\Processor` could look like: 
+A simple implementation of `\App\Checkout\Processor` could look like: 
 
 ```php
 <?php

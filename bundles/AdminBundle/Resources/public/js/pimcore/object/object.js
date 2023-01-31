@@ -13,12 +13,20 @@
 
 pimcore.registerNS("pimcore.object.object");
 pimcore.object.object = Class.create(pimcore.object.abstract, {
-
+    willClose: false,
     initialize: function (id, options) {
         this.id = intval(id);
         this.options = options;
 
-        pimcore.plugin.broker.fireEvent("preOpenObject", this, "object");
+        const preOpenObject = new CustomEvent(pimcore.events.preOpenObject, {
+            detail: {
+                object: this,
+                type: "object"
+            }
+        });
+
+        document.dispatchEvent(preOpenObject);
+
 
         this.addLoadingPanel();
 
@@ -52,7 +60,7 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
 
     getData: function () {
         var params = {id: this.id};
-        if (this.options !== undefined) {
+        if (this.options !== undefined && this.options.layoutId !== undefined) {
             params.layoutId = this.options.layoutId;
         }
 
@@ -212,7 +220,14 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
 
         this.tab.on("afterrender", function (tabId) {
             this.tabPanel.setActiveItem(tabId);
-            pimcore.plugin.broker.fireEvent("postOpenObject", this, "object");
+            const postOpenObject = new CustomEvent(pimcore.events.postOpenObject, {
+                detail: {
+                    object: this,
+                    type: "object"
+                }
+            });
+
+            document.dispatchEvent(postOpenObject);
 
             if(this.options && this.options['uiState']) {
                 this.setUiState(this.tabbar, this.options['uiState']);
@@ -369,10 +384,7 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
                     {
                         text: t('save_close'),
                         iconCls: "pimcore_icon_save",
-                        handler: function() {
-                            this.save("version");
-                            this.close();
-                        }.bind(this)
+                        handler: this.saveClose.bind(this)
                     },
                     {
                         text: t('save_only_scheduled_tasks'),
@@ -391,12 +403,12 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
                 scale: "medium",
                 handler: this.publish.bind(this),
                 menu: [{
-                        text: t('save_pubish_close'),
-                        iconCls: "pimcore_icon_save",
-                        handler: this.publishClose.bind(this)
-                    },
+                    text: t('save_pubish_close'),
+                    iconCls: "pimcore_icon_save",
+                    handler: this.publishClose.bind(this)
+                },
                     {
-                        text: t('save_only_new_version'),
+                        text: t('save_draft'),
                         iconCls: "pimcore_icon_save",
                         handler: this.save.bind(this, "version"),
                         hidden: !this.isAllowed("save") || !this.data.general.o_published
@@ -459,7 +471,7 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
                 })
             };
 
-            if (this.data["validLayouts"] && this.data.validLayouts.length > 1) {
+            if (this.data["validLayouts"] && this.data.validLayouts.length >= 1) {
                 reloadConfig.xtype = "splitbutton";
 
                 var menu = [];
@@ -560,25 +572,21 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
                 scale: "medium"
             });
 
-            // version notification
-            this.newerVersionNotification = new Ext.Toolbar.TextItem({
-                xtype: 'tbtext',
-                text: '&nbsp;&nbsp;<img src="/bundles/pimcoreadmin/img/flat-color-icons/medium_priority.svg" style="height: 16px;" align="absbottom" />&nbsp;&nbsp;'
-                + t("this_is_a_newer_not_published_version"),
+            this.draftVersionNotification = new Ext.Button({
+                text: t('draft'),
+                iconCls: "pimcore_icon_delete pimcore_material_icon",
                 scale: "medium",
-                hidden: true
+                hidden: true,
+                handler: this.deleteDraft.bind(this)
             });
 
-            buttons.push(this.newerVersionNotification);
+            buttons.push(this.draftVersionNotification);
 
             //workflow management
             pimcore.elementservice.integrateWorkflowManagement('object', this.id, this, buttons);
 
-            // check for newer version than the published
-            if (this.data.versions.length > 0) {
-                if (this.data.general.objectFromVersion) {
-                    this.newerVersionNotification.show();
-                }
+            if (this.data.draft && (this.data.draft.isAutoSave || this.isAllowed("save"))) {
+                this.draftVersionNotification.show();
             }
 
             this.toolbar = new Ext.Toolbar({
@@ -610,7 +618,6 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
         var data = {};
 
         data.id = this.id;
-        data.modificationDate = this.data.general.o_modificationDate;
 
         // get only scheduled tasks
         if (only == "scheduler") {
@@ -648,6 +655,7 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
             delete data.general["o_key"];
             delete data.general["o_locked"];
             delete data.general["o_classId"];
+            delete data.general["o_modificationDate"];
 
             data.general = Ext.encode(data.general);
         }
@@ -668,20 +676,17 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
     },
 
     close: function() {
-        var tabPanel = Ext.getCmp("pimcore_panel_tabs");
-        tabPanel.remove(this.tab);
+        pimcore.helpers.closeObject(this.id);
     },
 
     saveClose: function (only) {
-        this.save(null, only, function () {
-            this.close();
-        }.bind(this))
+        this.willClose = true;
+        this.save(null, only);
     },
 
     publishClose: function () {
-        this.publish(null, function () {
-            this.close();
-        }.bind(this))
+        this.willClose = true;
+        this.publish(null)
     },
 
     publish: function (only, callback) {
@@ -721,9 +726,8 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
     },
 
     unpublishClose: function () {
-        this.unpublish(null, function () {
-            this.close();
-        }.bind(this));
+        this.willClose = true;
+        this.unpublish(null);
     },
 
     saveToSession: function (callback) {
@@ -735,33 +739,35 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
         var omitMandatoryCheck = false;
 
         // unpublish and save version is possible without checking mandatory fields
-        if (task == "version" || task == "unpublish") {
+        if (task == "version" || task == "unpublish" || task == "autoSave") {
             omitMandatoryCheck = true;
         }
 
-        if (this.tab.disabled || this.tab.isMasked()) {
+        if (this.tab.disabled || (this.tab.isMasked() && task != 'autoSave')) {
             return;
         }
 
-        this.tab.mask();
+        if(task != 'autoSave'){
+            this.tab.mask();
+        }
 
         var saveData = this.getSaveData(only, omitMandatoryCheck);
 
         if (saveData && saveData.data != false && saveData.data != "false") {
-            try {
-                pimcore.plugin.broker.fireEvent('preSaveObject', this, 'object');
-            } catch (e) {
-                if (e instanceof pimcore.error.ValidationException) {
-                    this.tab.unmask();
-                    pimcore.helpers.showPrettyError('object', t("error"), t("saving_failed"), e.message);
-                    return false;
-                }
 
-                if (e instanceof pimcore.error.ActionCancelledException) {
-                    this.tab.unmask();
-                    pimcore.helpers.showNotification(t("Info"), 'Object not saved: ' + e.message, 'info');
-                    return false;
-                }
+            const preSaveObject = new CustomEvent(pimcore.events.preSaveObject, {
+                detail: {
+                    object: this,
+                    type: "object",
+                    task: task
+                },
+                cancelable: true
+            });
+
+            const isAllowed = document.dispatchEvent(preSaveObject);
+            if (!isAllowed) {
+                this.tab.unmask();
+                return false;
             }
 
             Ext.Ajax.request({
@@ -776,31 +782,46 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
                                 // the successCallback function retrieves response data information
                                 successCallback(rdata);
                             }
-                            if (rdata && rdata.success) {
-                                // check for version notification
-                                if (this.newerVersionNotification) {
-                                    if (task == "publish" || task == "unpublish") {
-                                        this.newerVersionNotification.hide();
-                                    } else {
-                                        this.newerVersionNotification.show();
+                            if (rdata) {
+                                if (rdata.success) {
+                                    // check for version notification
+                                    if (this.draftVersionNotification) {
+                                        if (task == "publish" || task == "unpublish") {
+                                            this.draftVersionNotification.hide();
+                                        } else if (task === 'version' || task === 'autoSave') {
+                                            this.draftVersionNotification.show();
+                                        }
                                     }
+
+                                    if (task != "autoSave") {
+                                        pimcore.helpers.showNotification(t("success"), t("saved_successfully"), "success");
+                                    }
+
+                                    this.resetChanges(task);
+                                    Ext.apply(this.data.general, rdata.general);
+
+                                    if (rdata['draft']) {
+                                        this.data['draft'] = rdata['draft'];
+                                    }
+
+                                    pimcore.helpers.updateTreeElementStyle('object', this.id, rdata.treeData);
+                                    const postSaveObject = new CustomEvent(pimcore.events.postSaveObject, {
+                                        detail: {
+                                            object: this,
+                                            task: task
+                                        }
+                                    });
+
+                                    document.dispatchEvent(postSaveObject);
+                                } else {
+                                    pimcore.helpers.showPrettyError("error", t("saving_failed"), rdata.message);
                                 }
-
-                                pimcore.helpers.showNotification(t("success"), t("saved_successfully"), "success");
-                                this.resetChanges();
-                                Ext.apply(this.data.general, rdata.general);
-
-                                pimcore.helpers.updateTreeElementStyle('object', this.id, rdata.treeData);
-                                pimcore.plugin.broker.fireEvent("postSaveObject", this);
-
-                                // for internal use ID.
-                                pimcore.eventDispatcher.fireEvent("postSaveObject", this, task);
                             }
                         } catch (e) {
                             pimcore.helpers.showNotification(t("error"), t("saving_failed"), "error");
                         }
                         // reload versions
-                        if (this.isAllowed("versions")) {
+                        if (task != "autoSave" && this.isAllowed("versions")) {
                             if (typeof this.versions.reload == "function") {
                                 try {
                                     //TODO remove this as soon as it works
@@ -812,11 +833,18 @@ pimcore.object.object = Class.create(pimcore.object.abstract, {
                         }
                     }
 
-                    this.tab.unmask();
+                    if (this.tab && (this.tab.getMaskTarget() || this.tab.el).getData()) {
+                        this.tab.unmask();
+                    }
 
                     if (typeof callback == "function") {
                         callback();
                     }
+
+                    if (this.willClose) {
+                        this.close();
+                    }
+
                 }.bind(this),
                 failure: function (response) {
                     this.tab.unmask();

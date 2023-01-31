@@ -141,7 +141,7 @@ pimcore.asset.tree = Class.create({
                 handler: pimcore.layout.treepanelmanager.toLeft.bind(this),
                 hidden: this.position == "left"
             }],
-            root: rootNodeConfig,
+            // root: rootNodeConfig,
             listeners: this.getTreeNodeListeners()
         });
 
@@ -218,7 +218,7 @@ pimcore.asset.tree = Class.create({
 
         var file;
         this.activeUploads = 0;
-
+        var overwriteConfirmMessageBoxes = [];
 
         var win = new Ext.Window({
             items: [],
@@ -264,23 +264,67 @@ pimcore.asset.tree = Class.create({
                 finishedErrorHandler();
             }.bind(this);
 
-            pimcore.helpers.uploadAssetFromFileObject(file,
-                Routing.generate('pimcore_admin_asset_addasset', {parentId: parentNode.id, dir: path}),
-                finishedErrorHandler,
-                function (evt) {
-                    //progress
-                    if (evt.lengthComputable) {
-                        var percentComplete = evt.loaded / evt.total;
-                        var progressText = file.name + " ( " + Math.floor(percentComplete*100) + "% )";
-                        if(percentComplete == 1) {
-                            progressText = file.name + " " + t("please_wait");
-                        }
-
-                        pbar.updateProgress(percentComplete, progressText);
-                    }
+            Ext.Ajax.request({
+                url: Routing.generate('pimcore_admin_asset_exists'),
+                params: {
+                    parentId: parentNode.id,
+                    filename: file.name
                 },
-                errorHandler
-            );
+                async: false,
+                success: function (response) {
+                    var res = Ext.decode(response.responseText);
+
+                    var uploadFunction = function(allowOverwrite) {
+                        pimcore.helpers.uploadAssetFromFileObject(file,
+                            Routing.generate('pimcore_admin_asset_addasset', { parentId: parentNode.id, dir: path, allowOverwrite: allowOverwrite ? 1 : 0 }),
+                            finishedErrorHandler,
+                            function (evt) {
+                                //progress
+                                if (evt.lengthComputable) {
+                                    var percentComplete = evt.loaded / evt.total;
+                                    var progressText = file.name + " ( " + Math.floor(percentComplete * 100) + "% )";
+                                    if (percentComplete == 1) {
+                                        progressText = file.name + " " + t("please_wait");
+                                    }
+
+                                    pbar.updateProgress(percentComplete, progressText);
+                                }
+                            },
+                            errorHandler
+                        );
+                    };
+
+                    if (res.exists) {
+                        var messageBox = new Ext.window.MessageBox();
+                        overwriteConfirmMessageBoxes.push(messageBox);
+                        messageBox.show({
+                            title: t('file_exists'),
+                            msg: t('asset_upload_want_to_overwrite').replace('%s', file.name),
+                            buttons: Ext.Msg.OK & Ext.Msg.YES & Ext.Msg.NO,
+                            buttonText: { ok: t('asset_upload_overwrite'), yes: t('asset_upload_keep_both'), no: t('asset_upload_overwrite_all') },
+                            prompt: false,
+                            icon: Ext.MessageBox.QUESTION,
+                            fn: function (action) {
+                                if (action === 'ok') {
+                                    uploadFunction(true);
+                                } else if (action === 'yes') {
+                                    uploadFunction(false);
+                                } else if (action === 'no') {
+                                    Ext.each(overwriteConfirmMessageBoxes, function(messageBox) {
+                                        if (messageBox) {
+                                            messageBox.down('button[itemId=ok]').fireHandler();
+                                        }
+                                    });
+                                } else if (action === 'cancel') {
+                                    finishedErrorHandler();
+                                }
+                            }
+                        });
+                    } else {
+                        uploadFunction();
+                    }
+                }
+            });
         }.bind(this);
 
         if(dataTransfer["items"] && dataTransfer.items[0] && dataTransfer.items[0].webkitGetAsEntry) {
@@ -770,6 +814,27 @@ pimcore.asset.tree = Class.create({
                 }
             }
 
+            // expand and collapse complete tree
+            if (!record.data.leaf) {
+                if (record.data.expanded) {
+                    advancedMenuItems.push({
+                        text: t('collapse_children'),
+                        iconCls: "pimcore_icon_collapse_children",
+                        handler: function () {
+                            record.collapse(true);
+                        }.bind(this, record)
+                    });
+                } else {
+                    advancedMenuItems.push({
+                        text: t('expand_children'),
+                        iconCls: "pimcore_icon_expand_children",
+                        handler: function () {
+                            record.expand(true);
+                        }.bind(this, record)
+                    });
+                }
+            }
+
             menu.add("-");
 
             if (advancedMenuItems.length) {
@@ -791,7 +856,16 @@ pimcore.asset.tree = Class.create({
         }
 
         pimcore.helpers.hideRedundantSeparators(menu);
-        pimcore.plugin.broker.fireEvent("prepareAssetTreeContextMenu", menu, this, record);
+
+        const prepareAssetTreeContextMenu = new CustomEvent(pimcore.events.prepareAssetTreeContextMenu, {
+            detail: {
+                menu: menu,
+                tree: this,
+                asset: record
+            }
+        });
+
+        document.dispatchEvent(prepareAssetTreeContextMenu);
 
         menu.showAt(e.pageX+1, e.pageY+1);
     },

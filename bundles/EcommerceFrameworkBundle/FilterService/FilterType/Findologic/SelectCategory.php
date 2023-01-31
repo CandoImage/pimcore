@@ -25,6 +25,7 @@ class SelectCategory extends \Pimcore\Bundle\EcommerceFrameworkBundle\FilterServ
 {
     const FIELDNAME = 'cat';
 
+    /** @inheritDoc */
     public function prepareGroupByValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList)
     {
         //$productList->prepareGroupBySystemValues($filterDefinition->getField(), true);
@@ -35,11 +36,11 @@ class SelectCategory extends \Pimcore\Bundle\EcommerceFrameworkBundle\FilterServ
      * @param ProductListInterface $productList
      * @param array $currentFilter
      *
-     * @return string
+     * @return array
      *
      * @throws \Exception
      */
-    public function getFilterFrontend(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, $currentFilter)
+    public function getFilterValues(AbstractFilterDefinitionType $filterDefinition, ProductListInterface $productList, array $currentFilter): array
     {
         $rawValues = $productList->getGroupByValues(self::FIELDNAME, true);
         $values = [];
@@ -48,15 +49,15 @@ class SelectCategory extends \Pimcore\Bundle\EcommerceFrameworkBundle\FilterServ
             $values[$v['label']] = ['value' => $v['label'], 'count' => $v['count']];
         }
 
-        return $this->render($this->getTemplate($filterDefinition), [
+        return [
             'hideFilter' => $filterDefinition->getRequiredFilterField() && empty($currentFilter[$filterDefinition->getRequiredFilterField()]),
             'label' => $filterDefinition->getLabel(),
             'currentValue' => $currentFilter[$filterDefinition->getField()],
             'values' => array_values($values),
             'fieldname' => self::FIELDNAME,
-            'rootCategory' => $filterDefinition->getRootCategory(),
+            'rootCategory' => method_exists($filterDefinition, 'getRootCategory') ? $filterDefinition->getRootCategory() : null,
             'resultCount' => $productList->count(),
-        ]);
+        ];
     }
 
     /**
@@ -86,8 +87,8 @@ class SelectCategory extends \Pimcore\Bundle\EcommerceFrameworkBundle\FilterServ
 
         if (!empty($value)) {
             $value = trim($value);
-            if (AbstractCategory::getById($value)) {
-                $productList->setCategory(AbstractCategory::getById($value));
+            if ($category = AbstractCategory::getById((int) $value)) {
+                $productList->setCategory($category);
             }
         }
 

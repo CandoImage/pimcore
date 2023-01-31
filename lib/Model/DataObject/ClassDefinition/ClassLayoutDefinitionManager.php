@@ -17,6 +17,9 @@ namespace Pimcore\Model\DataObject\ClassDefinition;
 
 use Pimcore\Db;
 
+/**
+ * @deprecated Will be removed in Pimcore 11
+ */
 class ClassLayoutDefinitionManager
 {
     public const SAVED = 'saved';
@@ -31,7 +34,7 @@ class ClassLayoutDefinitionManager
     public function cleanUpDeletedLayoutDefinitions(): array
     {
         $db = \Pimcore\Db::get();
-        $layouts = $db->fetchAll('SELECT * FROM custom_layouts');
+        $layouts = $db->fetchAllAssociative('SELECT * FROM custom_layouts');
         $deleted = [];
 
         foreach ($layouts as $layout) {

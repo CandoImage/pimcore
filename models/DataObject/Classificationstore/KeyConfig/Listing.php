@@ -20,25 +20,13 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\DataObject\Classificationstore\KeyConfig\Listing\Dao getDao()
  * @method Model\DataObject\Classificationstore\KeyConfig[] load()
- * @method Model\DataObject\Classificationstore\KeyConfig current()
+ * @method Model\DataObject\Classificationstore\KeyConfig|false current()
  * @method int getTotalCount()
  */
 class Listing extends Model\Listing\AbstractListing
 {
-    /**
-     * @var Model\DataObject\Classificationstore\KeyConfig[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $list = null;
-
     /** @var bool */
-    public $includeDisabled;
-
-    public function __construct()
-    {
-        $this->list = & $this->data;
-    }
+    protected $includeDisabled;
 
     /**
      * @return Model\DataObject\Classificationstore\KeyConfig[]
@@ -51,7 +39,7 @@ class Listing extends Model\Listing\AbstractListing
     /**
      * @param Model\DataObject\Classificationstore\KeyConfig[]|null $theList
      *
-     * @return static
+     * @return $this
      */
     public function setList($theList)
     {
@@ -71,6 +59,6 @@ class Listing extends Model\Listing\AbstractListing
      */
     public function setIncludeDisabled($includeDisabled)
     {
-        $this->includeDisabled = $includeDisabled;
+        $this->includeDisabled = (bool) $includeDisabled;
     }
 }

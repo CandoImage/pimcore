@@ -26,7 +26,7 @@ pimcore.object.classes.layout.layout = Class.create({
             if (d.datatype && d.fieldtype && d.name) {
                 var keys = Object.keys(d);
                 for (var i = 0; i < keys.length; i++) {
-                    if (keys[i] != "childs") {
+                    if (keys[i] !== 'childs' && keys[i] !== 'children') {
                         this.datax[keys[i]] = d[keys[i]];
                     }
                 }
@@ -92,16 +92,26 @@ pimcore.object.classes.layout.layout = Class.create({
 
         items = items.concat([
             {
-                xtype: "numberfield",
+                xtype: "textfield",
                 fieldLabel: t("width"),
                 name: "width",
                 value: this.datax.width
             },
             {
-                xtype: "numberfield",
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('width_explanation')
+            },
+            {
+                xtype: "textfield",
                 fieldLabel: t("height"),
                 name: "height",
                 value: this.datax.height
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('height_explanation')
             },
             {
                 xtype: "checkbox",
@@ -143,6 +153,7 @@ pimcore.object.classes.layout.layout = Class.create({
         this.layout = new Ext.Panel({
             title: '<b>' + this.getTypeName() + '</b>',
             bodyStyle: 'padding: 10px;',
+            autoScroll: true,
             items: [
                 {
                     xtype: "form",
@@ -181,7 +192,7 @@ pimcore.object.classes.layout.layout = Class.create({
 
         for (var i = 0; i < items.length; i++) {
             if (items[i].name == "name") {
-                this.treeNode.set('text', items[i].getValue());
+                this.treeNode.set('text', htmlspecialchars(items[i].getValue()));
                 break;
             }
         }

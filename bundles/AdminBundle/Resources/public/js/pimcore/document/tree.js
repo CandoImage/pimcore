@@ -152,7 +152,7 @@ pimcore.document.tree = Class.create({
                 handler: pimcore.layout.treepanelmanager.toLeft.bind(this),
                 hidden: this.position == "left"
             }],
-            root: rootNodeConfig,
+            // root: rootNodeConfig,
             store: store,
             listeners: this.getTreeNodeListeners()
         });
@@ -718,42 +718,65 @@ pimcore.document.tree = Class.create({
             var user = pimcore.globalmanager.get("user");
 
             if (record.data.id != 1 && record.data.permissions.publish && !record.data.locked && perspectiveCfg.inTreeContextMenu("document.convert")) {
-                advancedMenuItems.push(new Ext.menu.Item({
-                    text: t('convert_to'),
-                    iconCls: "pimcore_icon_convert",
-                    hideOnClick: false,
-                    menu: [{
+
+                let conversionTargets = [];
+                if(addDocuments) {
+                    conversionTargets.push({
                         text: t("page"),
                         iconCls: "pimcore_icon_page",
                         handler: this.convert.bind(this, tree, record, "page"),
                         hidden: record.data.type == "page"
-                    }, {
+                    });
+                }
+                if(addSnippet) {
+                    conversionTargets.push({
                         text: t("snippet"),
                         iconCls: "pimcore_icon_snippet",
                         handler: this.convert.bind(this, tree, record, "snippet"),
                         hidden: record.data.type == "snippet" || !addSnippet
-                    }, {
+                    });
+                }
+                if(addEmail) {
+                    conversionTargets.push({
                         text: t("email"),
                         iconCls: "pimcore_icon_email",
                         handler: this.convert.bind(this, tree, record, "email"),
                         hidden: record.data.type == "email" || !addEmail
-                    }, {
+                    });
+                }
+                if(addNewsletter) {
+                    conversionTargets.push({
                         text: t("newsletter"),
                         iconCls: "pimcore_icon_newsletter",
                         handler: this.convert.bind(this, tree, record, "newsletter"),
                         hidden: record.data.type == "newsletter" || !addNewsletter
-                    }, {
+                    });
+                }
+                if(addLink) {
+                    conversionTargets.push({
                         text: t("link"),
                         iconCls: "pimcore_icon_link",
                         handler: this.convert.bind(this, tree, record, "link"),
                         hidden: record.data.type == "link" || !addLink
-                    }, {
+                    });
+                }
+                if(addHardlink) {
+                    conversionTargets.push({
                         text: t("hardlink"),
                         iconCls: "pimcore_icon_hardlink",
                         handler: this.convert.bind(this, tree, record, "hardlink"),
                         hidden: record.data.type == "hardlink" || !addHardlink
-                    }]
-                }));
+                    });
+                }
+
+                if(conversionTargets.length > 0) {
+                    advancedMenuItems.push(new Ext.menu.Item({
+                        text: t('convert_to'),
+                        iconCls: "pimcore_icon_convert",
+                        hideOnClick: false,
+                        menu: conversionTargets
+                    }));
+                }
             }
 
             if (childSupportedDocument && record.data.permissions.create && perspectiveCfg.inTreeContextMenu("document.searchAndMove")) {
@@ -764,7 +787,7 @@ pimcore.document.tree = Class.create({
                 });
             }
 
-            if (record.data.id != 1 && user.admin && record.data.type == "page") {
+            if (record.data.id != 1 && record.data.type == "page" && (user.admin || user.isAllowed("sites"))) {
                 if (!record.data.site) {
                     if (perspectiveCfg.inTreeContextMenu("document.useAsSite")) {
                         advancedMenuItems.push({
@@ -865,6 +888,27 @@ pimcore.document.tree = Class.create({
                 }
             }
 
+            // expand and collapse complete tree
+            if (!record.data.leaf) {
+                if (record.data.expanded) {
+                    advancedMenuItems.push({
+                        text: t('collapse_children'),
+                        iconCls: "pimcore_icon_collapse_children",
+                        handler: function () {
+                            record.collapse(true);
+                        }.bind(this, record)
+                    });
+                } else {
+                    advancedMenuItems.push({
+                        text: t('expand_children'),
+                        iconCls: "pimcore_icon_expand_children",
+                        handler: function () {
+                            record.expand(true);
+                        }.bind(this, record)
+                    });
+                }
+            }
+
             menu.add("-");
 
             if (advancedMenuItems.length) {
@@ -886,8 +930,16 @@ pimcore.document.tree = Class.create({
         }
 
         pimcore.helpers.hideRedundantSeparators(menu);
+        
+        const prepareDocumentTreeContextMenu = new CustomEvent(pimcore.events.prepareDocumentTreeContextMenu, {
+            detail: {
+                menu: menu,
+                tree: this,
+                document: record
+            }
+        });
 
-        pimcore.plugin.broker.fireEvent("prepareDocumentTreeContextMenu", menu, this, record);
+        document.dispatchEvent(prepareDocumentTreeContextMenu);
 
         menu.showAt(e.pageX+1, e.pageY+1);
     },
@@ -1221,6 +1273,7 @@ pimcore.document.tree = Class.create({
             "domains": [],
             "mainDomain": "",
             "errorDocument": "",
+            "localizedErrorDocuments": [],
             "redirectToMainDomain": false
         };
 
@@ -1233,9 +1286,11 @@ pimcore.document.tree = Class.create({
 
         var windowCfg = {
             width: 600,
+            height: 600,
             layout: "fit",
             closeAction: "close",
             items: [{
+                autoScroll: true,
                 xtype: "form",
                 bodyStyle: "padding: 10px;",
                 defaults: {
@@ -1259,7 +1314,7 @@ pimcore.document.tree = Class.create({
                     xtype: "textfield",
                     name: "errorDocument",
                     fieldCls: "input_drop_target",
-                    fieldLabel: t("error_page"),
+                    fieldLabel: t("error_page") + " (" + t("default") + ")",
                     value: data["errorDocument"],
                     listeners: {
                         "render": function (el) {
@@ -1293,6 +1348,10 @@ pimcore.document.tree = Class.create({
                         }
                     }
                 }, {
+                    xtype: "fieldset",
+                    style: "margin-top: 20px;",
+                    items: this.renderErrorDocuments(data["localizedErrorDocuments"]),
+                },{
                     xtype: "checkbox",
                     name: "redirectToMainDomain",
                     fieldLabel: t("redirect_to_main_domain"),
@@ -1316,7 +1375,7 @@ pimcore.document.tree = Class.create({
                         url: Routing.generate('pimcore_admin_document_document_updatesite'),
                         method: 'PUT',
                         params: data,
-                        success: function (response) {
+                        success: function (tree, record, response) {
                             var site = Ext.decode(response.responseText);
                             record.data.site = site;
                             tree.getStore().load({
@@ -1343,10 +1402,6 @@ pimcore.document.tree = Class.create({
     addDocument : function (tree, record, type, docTypeId) {
         var textKeyTitle;
         var textKeyMessage;
-
-        if(!is_numeric(docTypeId)) {
-            docTypeId = null; // avoid sending objects or functions to the controller
-        }
 
         if(type == "page") {
 
@@ -1470,7 +1525,7 @@ pimcore.document.tree = Class.create({
                     if (rdata && rdata.success) {
                         var options = {
                             elementType: "document",
-                                id: record.data.id,
+                            id: record.data.id,
                             published: task != "unpublish"
                         };
                         pimcore.elementservice.setElementPublishedState(options);
@@ -1594,5 +1649,61 @@ pimcore.document.tree = Class.create({
         } catch (e) {
             console.log(e);
         }
+    },
+
+    renderErrorDocuments: function(localizedErrorDocumentsData) {
+        var localizedErrorDocumentFields = []
+        var availableLanguages = pimcore.available_languages
+
+        var websiteLanguages = pimcore.settings.websiteLanguages;
+        if (websiteLanguages && websiteLanguages.length > 0) {
+            Ext.each(websiteLanguages, function (language) {
+                if (empty(language)) {
+                    return;
+                }
+
+                localizedErrorDocumentFields.push({
+                    fieldLabel: t("error_page") + " (" + availableLanguages[language] + ")",
+                    name: "errorDocument.localized." + language,
+                    fieldCls: "input_drop_target",
+                    value: (localizedErrorDocumentsData && localizedErrorDocumentsData[language]) ? localizedErrorDocumentsData[language] : '',
+                    labelWidth: 200,
+                    width: 500,
+                    xtype: "textfield",
+                    listeners: {
+                        "render": function (el) {
+                            new Ext.dd.DropZone(el.getEl(), {
+                                reference: this,
+                                ddGroup: "element",
+                                getTargetFromEvent: function (e) {
+                                    return this.getEl();
+                                }.bind(el),
+
+                                onNodeOver: function (target, dd, e, data) {
+                                    if (data.records.length == 1 && data.records[0].data.elementType == "document") {
+                                        return Ext.dd.DropZone.prototype.dropAllowed;
+                                    }
+                                },
+
+                                onNodeDrop: function (target, dd, e, data) {
+                                    if (pimcore.helpers.dragAndDropValidateSingleItem(data)) {
+                                        var record = data.records[0];
+                                        var data = record.data;
+
+                                        if (data.elementType == "document") {
+                                            this.setValue(data.path);
+                                            return true;
+                                        }
+                                    }
+                                    return false;
+                                }.bind(el)
+                            });
+                        }
+                    }
+                });
+            });
+        }
+
+        return localizedErrorDocumentFields;
     }
 });

@@ -39,5 +39,3 @@ class InvalidRendererException extends \LogicException
         ));
     }
 }
-
-class_alias(InvalidRendererException::class, 'Pimcore\Templating\Helper\Navigation\Exception\InvalidRendererException');

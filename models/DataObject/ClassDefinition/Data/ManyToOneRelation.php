@@ -24,38 +24,49 @@ use Pimcore\Model\Document;
 use Pimcore\Model\Element;
 use Pimcore\Normalizer\NormalizerInterface;
 
-class ManyToOneRelation extends AbstractRelations implements QueryResourcePersistenceAwareInterface, TypeDeclarationSupportInterface, VarExporterInterface, NormalizerInterface
+class ManyToOneRelation extends AbstractRelations implements QueryResourcePersistenceAwareInterface, TypeDeclarationSupportInterface, VarExporterInterface, NormalizerInterface, IdRewriterInterface, PreGetDataInterface, PreSetDataInterface
 {
     use Model\DataObject\ClassDefinition\Data\Extension\Relation;
     use Extension\QueryColumnType;
     use DataObject\ClassDefinition\Data\Relations\AllowObjectRelationTrait;
     use DataObject\ClassDefinition\Data\Relations\AllowAssetRelationTrait;
     use DataObject\ClassDefinition\Data\Relations\AllowDocumentRelationTrait;
+    use DataObject\ClassDefinition\Data\Extension\RelationFilterConditionParser;
 
     /**
      * Static type of this element
+     *
+     * @internal
      *
      * @var string
      */
     public $fieldtype = 'manyToOneRelation';
 
     /**
-     * @var int
+     * @internal
+     *
+     * @var string|int
      */
-    public $width;
+    public $width = 0;
 
     /**
+     * @internal
+     *
      * @var string
      */
     public $assetUploadPath;
 
     /**
+     * @internal
+     *
      * @var bool
      */
     public $relationType = true;
 
     /**
      * Type for the column to query
+     *
+     * @internal
      *
      * @var array
      */
@@ -65,19 +76,14 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     ];
 
     /**
-     * Type for the generated phpdoc
-     *
-     * @var string
-     */
-    public $phpdocType = '\\Pimcore\\Model\\Document\\Page | \\Pimcore\\Model\\Document\\Snippet | \\Pimcore\\Model\\Document | \\Pimcore\\Model\\Asset | \\Pimcore\\Model\\DataObject\\AbstractObject';
-
-    /**
+     * @internal
      *
      * @var bool
      */
     public $objectsAllowed = false;
 
     /**
+     * @internal
      *
      * @var bool
      */
@@ -86,11 +92,14 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     /**
      * Allowed asset types
      *
+     * @internal
+     *
      * @var array
      */
     public $assetTypes = [];
 
     /**
+     * @internal
      *
      * @var bool
      */
@@ -98,6 +107,8 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
 
     /**
      * Allowed document types
+     *
+     * @internal
      *
      * @var array
      */
@@ -206,12 +217,12 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
-    public function prepareDataForPersistence($data, $object = null, $params = [])
+    protected function prepareDataForPersistence($data, $object = null, $params = [])
     {
         if ($data instanceof Element\ElementInterface) {
-            $type = Element\Service::getType($data);
+            $type = Element\Service::getElementType($data);
             $id = $data->getId();
 
             return [[
@@ -225,12 +236,11 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
-    public function loadData($data, $object = null, $params = [])
+    protected function loadData(array $data, $object = null, $params = [])
     {
         // data from relation table
-        $data = is_array($data) ? $data : [];
         $data = current($data);
 
         $result = [
@@ -273,7 +283,7 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     /**
      * @see Data::getDataForEditmode
      *
-     * @param Element\AbstractElement|null $data
+     * @param Element\ElementInterface|null $data
      * @param null|DataObject\Concrete $object
      * @param array|null $params
      *
@@ -281,7 +291,7 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
      */
     public function getDataForEditmode($data, $object = null, $params = [])
     {
-        if ($data instanceof Element\AbstractElement) {
+        if ($data instanceof Element\ElementInterface) {
             $r = [
                 'id' => $data->getId(),
                 'path' => $data->getRealFullPath(),
@@ -327,7 +337,7 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * @param Element\AbstractElement|null $data
+     * @param Element\ElementInterface|null $data
      * @param DataObject\Concrete $object
      * @param array $params
      *
@@ -341,7 +351,7 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     /**
      * @see Data::getVersionPreview
      *
-     * @param Element\AbstractElement|null $data
+     * @param Element\ElementInterface|null $data
      * @param null|DataObject\Concrete $object
      * @param mixed $params
      *
@@ -349,7 +359,7 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
      */
     public function getVersionPreview($data, $object = null, $params = [])
     {
-        if ($data instanceof Element\AbstractElement) {
+        if ($data instanceof Element\ElementInterface) {
             return Element\Service::getElementType($data).' '.$data->getRealFullPath();
         }
 
@@ -357,7 +367,7 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * @return int
+     * @return string|int
      */
     public function getWidth()
     {
@@ -365,28 +375,26 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * @param int $width
+     * @param string|int $width
      *
      * @return $this
      */
     public function setWidth($width)
     {
-        $this->width = $this->getAsIntegerCast($width);
+        if (is_numeric($width)) {
+            $width = (int)$width;
+        }
+        $this->width = $width;
 
         return $this;
     }
 
     /**
-     * Checks if data is valid for current data field
-     *
-     * @param mixed $data
-     * @param bool $omitMandatoryCheck
-     *
-     * @throws \Exception
+     * {@inheritdoc}
      */
-    public function checkValidity($data, $omitMandatoryCheck = false)
+    public function checkValidity($data, $omitMandatoryCheck = false, $params = [])
     {
-        if (!$omitMandatoryCheck and $this->getMandatory() and empty($data)) {
+        if (!$omitMandatoryCheck && $this->getMandatory() && empty($data)) {
             throw new Element\ValidationException('Empty mandatory field [ '.$this->getName().' ]');
         }
 
@@ -404,64 +412,25 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
         }
 
         if (!$allow) {
-            throw new Element\ValidationException(sprintf('Invalid data in field `%s` [type: %s]', $this->getName(), $this->getFieldtype()), null, null);
+            throw new Element\ValidationException(sprintf('Invalid data in field `%s` [type: %s]', $this->getName(), $this->getFieldtype()));
         }
     }
 
     /**
-     * converts object data to a simple string value or CSV Export
-     *
-     * @abstract
-     *
-     * @param DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getForCsvExport($object, $params = [])
     {
         $data = $this->getDataFromObjectParam($object, $params);
         if ($data instanceof Element\ElementInterface) {
-            return Element\Service::getType($data).':'.$data->getRealFullPath();
+            return Element\Service::getElementType($data).':'.$data->getRealFullPath();
         }
 
         return '';
     }
 
     /**
-     * @deprecated
-     *
-     * @param string $importValue
-     * @param null|DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return mixed|null|Asset|Document|Element\ElementInterface
-     */
-    public function getFromCsvImport($importValue, $object = null, $params = [])
-    {
-        $value = null;
-
-        $values = explode(':', $importValue);
-        if (count($values) == 2) {
-            $type = $values[0];
-            $path = $values[1];
-            $value = Element\Service::getElementByPath($type, $path);
-        } else {
-            //fallback for old export files
-            if ($el = Asset::getByPath($importValue)) {
-                $value = $el;
-            } elseif ($el = Document::getByPath($importValue)) {
-                $value = $el;
-            } elseif ($el = DataObject::getByPath($importValue)) {
-                $value = $el;
-            }
-        }
-
-        return $value;
-    }
-
-    /**
-     * @param Element\AbstractElement|null $data
+     * @param Element\ElementInterface|null $data
      *
      * @return array
      */
@@ -481,101 +450,31 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * converts data to be exposed via webservices
-     *
-     * @deprecated
-     *
-     * @param DataObject\Concrete $object
-     * @param array $params
-     *
-     * @return array|null
-     */
-    public function getForWebserviceExport($object, $params = [])
-    {
-        $data = $this->getDataFromObjectParam($object, $params);
-        if ($data instanceof Element\ElementInterface) {
-            return [
-                'type' => Element\Service::getType($data),
-                'subtype' => $data->getType(),
-                'id' => $data->getId(),
-            ];
-        }
-
-        return null;
-    }
-
-    /**
-     * @deprecated
-     *
-     * @param mixed $value
-     * @param Element\AbstractElement $relatedObject
-     * @param mixed $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @return mixed|void
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($value, $relatedObject = null, $params = [], $idMapper = null)
-    {
-        if (empty($value)) {
-            return null;
-        }
-
-        $value = (array) $value;
-        if (array_key_exists('id', $value) and array_key_exists('type', $value)) {
-            $type = $value['type'];
-            $id = $value['id'];
-            $el = null;
-
-            if ($idMapper) {
-                $id = $idMapper->getMappedId($type, $id);
-            }
-
-            if ($id) {
-                $el = Element\Service::getElementById($type, $id);
-            }
-
-            if ($el instanceof Element\ElementInterface) {
-                return $el;
-            } else {
-                if ($idMapper && $idMapper->ignoreMappingFailures()) {
-                    $idMapper->recordMappingFailure('object', $relatedObject->getId(), $type, $value['id']);
-                } else {
-                    throw new \Exception('cannot get values from web service import - invalid ' . $this->getFieldtype() . ' relation');
-                }
-            }
-        } else {
-            throw new \Exception('cannot get values from web service import - invalid data');
-        }
-    }
-
-    /**
-     * @param DataObject\Concrete|DataObject\Localizedfield|DataObject\Objectbrick\Data\AbstractData|DataObject\Fieldcollection\Data\AbstractData $object
+     * @param DataObject\Concrete|DataObject\Localizedfield|DataObject\Objectbrick\Data\AbstractData|DataObject\Fieldcollection\Data\AbstractData $container
      * @param array $params
      *
      * @return null|Element\ElementInterface
      */
-    public function preGetData($object, $params = [])
+    public function preGetData(/** mixed */ $container, /** array */ $params = []) // : mixed
     {
         $data = null;
-        if ($object instanceof DataObject\Concrete) {
-            $data = $object->getObjectVar($this->getName());
+        if ($container instanceof DataObject\Concrete) {
+            $data = $container->getObjectVar($this->getName());
 
-            if (!$object->isLazyKeyLoaded($this->getName())) {
-                $data = $this->load($object);
+            if (!$container->isLazyKeyLoaded($this->getName())) {
+                $data = $this->load($container);
 
-                $object->setObjectVar($this->getName(), $data);
-                $this->markLazyloadedFieldAsLoaded($object);
+                $container->setObjectVar($this->getName(), $data);
+                $this->markLazyloadedFieldAsLoaded($container);
             }
-        } elseif ($object instanceof DataObject\Localizedfield) {
+        } elseif ($container instanceof DataObject\Localizedfield) {
             $data = $params['data'];
-        } elseif ($object instanceof DataObject\Fieldcollection\Data\AbstractData) {
-            parent::loadLazyFieldcollectionField($object);
-            $data = $object->getObjectVar($this->getName());
-        } elseif ($object instanceof DataObject\Objectbrick\Data\AbstractData) {
-            parent::loadLazyBrickField($object);
-            $data = $object->getObjectVar($this->getName());
+        } elseif ($container instanceof DataObject\Fieldcollection\Data\AbstractData) {
+            parent::loadLazyFieldcollectionField($container);
+            $data = $container->getObjectVar($this->getName());
+        } elseif ($container instanceof DataObject\Objectbrick\Data\AbstractData) {
+            parent::loadLazyBrickField($container);
+            $data = $container->getObjectVar($this->getName());
         }
 
         if (DataObject::doHideUnpublished() && ($data instanceof Element\ElementInterface)) {
@@ -588,15 +487,11 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * @param DataObject\Concrete|DataObject\Localizedfield|DataObject\Objectbrick\Data\AbstractData|DataObject\Fieldcollection\Data\AbstractData $object
-     * @param array|null $data
-     * @param array $params
-     *
-     * @return mixed
+     * { @inheritdoc }
      */
-    public function preSetData($object, $data, $params = [])
+    public function preSetData(/** mixed */ $container, /**  mixed */ $data, /** array */ $params = []) // : mixed
     {
-        $this->markLazyloadedFieldAsLoaded($object);
+        $this->markLazyloadedFieldAsLoaded($container);
 
         return $data;
     }
@@ -621,11 +516,8 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
         return $this->assetUploadPath;
     }
 
-    /** True if change is allowed in edit mode.
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return bool
+    /**
+     * {@inheritdoc}
      */
     public function isDiffChangeAllowed($object, $params = [])
     {
@@ -633,25 +525,11 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * Rewrites id from source to target, $idMapping contains
-     * array(
-     *  "document" => array(
-     *      SOURCE_ID => TARGET_ID,
-     *      SOURCE_ID => TARGET_ID
-     *  ),
-     *  "object" => array(...),
-     *  "asset" => array(...)
-     * )
-     *
-     * @param mixed $object
-     * @param array $idMapping
-     * @param array $params
-     *
-     * @return Element\ElementInterface
+     * { @inheritdoc }
      */
-    public function rewriteIds($object, $idMapping, $params = [])
+    public function rewriteIds(/** mixed */ $container, /** array */ $idMapping, /** array */ $params = []) /** :mixed */
     {
-        $data = $this->getDataFromObjectParam($object, $params);
+        $data = $this->getDataFromObjectParam($container, $params);
         if ($data) {
             $data = $this->rewriteIdsService([$data], $idMapping);
             $data = $data[0]; //get the first element
@@ -670,35 +548,20 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
-    public function getPhpdocType()
+    protected function getPhpdocType()
     {
         return implode(' | ', $this->getPhpDocClassString(false));
     }
 
-    /** Encode value for packing it into a single column.
-     *
-     * @deprecated marshal is deprecated and will be removed in Pimcore 10. Use normalize instead.
-     *
-     * @param mixed $value
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return mixed
-     */
-    public function marshal($value, $object = null, $params = [])
-    {
-        return $this->normalize($value, $params);
-    }
-
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function normalize($value, $params = [])
     {
         if ($value) {
-            $type = Element\Service::getType($value);
+            $type = Element\Service::getElementType($value);
             $id = $value->getId();
 
             return [
@@ -711,7 +574,7 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function denormalize($value, $params = [])
     {
@@ -725,24 +588,9 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
         return null;
     }
 
-    /** See marshal
-     *
-     * @deprecated unmarshal is deprecated and will be removed in Pimcore 10. Use denormalize instead.
-     *
-     * @param mixed $value
-     * @param DataObject\Concrete $object
-     * @param mixed $params
-     *
-     * @return mixed
-     */
-    public function unmarshal($value, $object = null, $params = [])
-    {
-        return $this->denormalize($value, $params);
-    }
-
     /**
-     * @param Element\ElementInterface $value1
-     * @param Element\ElementInterface $value2
+     * @param Element\ElementInterface|null $value1
+     * @param Element\ElementInterface|null $value2
      *
      * @return bool
      */
@@ -751,11 +599,11 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
         $value1 = $value1 ? $value1->getType() . $value1->getId() : null;
         $value2 = $value2 ? $value2->getType() . $value2->getId() : null;
 
-        return $value1 == $value2;
+        return $value1 === $value2;
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isFilterable(): bool
     {
@@ -763,27 +611,23 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function getParameterTypeDeclaration(): ?string
     {
-        return '?\Pimcore\Model\Element\AbstractElement';
+        return '?\\' . Element\AbstractElement::class;
     }
 
     /**
-     * { @inheritdoc }
+     * {@inheritdoc}
      */
     public function getReturnTypeDeclaration(): ?string
     {
-        return '?\Pimcore\Model\Element\AbstractElement';
+        return '?\\' . Element\AbstractElement::class;
     }
 
     /**
-     * @param DataObject\Listing      $listing
-     * @param Element\ElementInterface|array $data  comparison element or ['id' => <element ID>, 'type' => <element type>]
-     * @param string                  $operator SQL comparison operator, currently only "=" possible
-     *
-     * @return DataObject\Listing
+     * {@inheritdoc}
      */
     public function addListingFilter(DataObject\Listing $listing, $data, $operator = '=')
     {
@@ -808,16 +652,49 @@ class ManyToOneRelation extends AbstractRelations implements QueryResourcePersis
     }
 
     /**
-     * @return string|null
+     * {@inheritdoc}
      */
-    public function getPhpdocReturnType(): ?string
+    public function getPhpdocInputType(): ?string
     {
-        if ($this->getPhpdocType()) {
-            return $this->getPhpdocType() . '|null';
+        if ($phpdocType = $this->getPhpdocType()) {
+            return $phpdocType . '|null';
         }
 
         return null;
     }
-}
 
-class_alias(ManyToOneRelation::class, 'Pimcore\Model\DataObject\ClassDefinition\Data\Href');
+    /**
+     * {@inheritdoc}
+     */
+    public function getPhpdocReturnType(): ?string
+    {
+        if ($phpdocType = $this->getPhpdocType()) {
+            return $phpdocType . '|null';
+        }
+
+        return null;
+    }
+
+    /**
+     * Filter by relation feature
+     *
+     * @param array|string|null $value
+     * @param string            $operator
+     * @param array             $params
+     *
+     * @return string
+     */
+    public function getFilterConditionExt($value, $operator, $params = [])
+    {
+        $name = $params['name'] . '__id';
+        if (preg_match('/^(asset|object|document)\|(\d+)/', $value, $matches)) {
+            $typeField = $params['name'] . '__type';
+            $typeCondition = '`' . $typeField . '` = ' . "'" . $matches[1] . "'";
+            $value = $matches[2];
+
+            return '(' . $typeCondition . ' AND ' . $this->getRelationFilterCondition($value, $operator, $name) . ')';
+        }
+
+        return $this->getRelationFilterCondition($value, $operator, $name);
+    }
+}

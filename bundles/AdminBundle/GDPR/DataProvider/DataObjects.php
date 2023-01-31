@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace Pimcore\Bundle\AdminBundle\GDPR\DataProvider;
 
+use Pimcore\Model\Asset;
 use Pimcore\Model\DataObject\AbstractObject;
 use Pimcore\Model\DataObject\Concrete;
 use Pimcore\Model\DataObject\Data\ElementMetadata;
@@ -25,13 +26,11 @@ use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Element\Service;
 use Pimcore\Model\Search\Backend\Data;
 
+/**
+ * @internal
+ */
 class DataObjects extends Elements implements DataProviderInterface
 {
-    /**
-     * @var \Pimcore\Model\Webservice\Service
-     */
-    protected $service;
-
     /**
      * @var array
      */
@@ -42,14 +41,13 @@ class DataObjects extends Elements implements DataProviderInterface
      */
     protected $config = [];
 
-    public function __construct(\Pimcore\Model\Webservice\Service $service, array $config)
+    public function __construct(array $config)
     {
-        $this->service = $service;
         $this->config = $config;
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getName(): string
     {
@@ -57,7 +55,7 @@ class DataObjects extends Elements implements DataProviderInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getJsClassName(): string
     {
@@ -79,12 +77,16 @@ class DataObjects extends Elements implements DataProviderInterface
 
         $exportResult = [];
 
-        foreach (array_keys($this->exportIds['object']) as $id) {
-            $exportResult[] = $this->service->getObjectConcreteById($id);
+        if (!empty($this->exportIds['object'])) {
+            foreach (array_keys($this->exportIds['object']) as $id) {
+                $object = AbstractObject::getById($id);
+                $exportResult[] = Exporter::exportObject($object);
+            }
         }
-        if ($this->exportIds['image']) {
+        if (!empty($this->exportIds['image'])) {
             foreach (array_keys($this->exportIds['image']) as $id) {
-                $exportResult[] = $this->service->getAssetFileById($id);
+                $theAsset = Asset::getById($id);
+                $exportResult[] = Exporter::exportAsset($theAsset);
             }
         }
 
@@ -96,7 +98,7 @@ class DataObjects extends Elements implements DataProviderInterface
         $this->exportIds[$element->getType()][$element->getId()] = true;
 
         if ($element instanceof Concrete) {
-            $subFields = $this->config['classes'][$element->getClass()->getName()]['includedRelations'];
+            $subFields = $this->config['classes'][$element->getClass()->getName()]['includedRelations'] ?? [];
             if ($subFields) {
                 foreach ($subFields as $field) {
                     $getter = 'get' . ucfirst($field);
@@ -130,7 +132,7 @@ class DataObjects extends Elements implements DataProviderInterface
      * @param string $email
      * @param int $start
      * @param int $limit
-     * @param string $sort
+     * @param string|null $sort
      *
      * @return array
      */
@@ -141,8 +143,8 @@ class DataObjects extends Elements implements DataProviderInterface
         }
 
         $offset = $start;
-        $offset = $offset ? $offset : 0;
-        $limit = $limit ? $limit : 50;
+        $offset = $offset ?: 0;
+        $limit = $limit ?: 50;
 
         $searcherList = new Data\Listing();
         $conditionParts = [];
@@ -174,7 +176,7 @@ class DataObjects extends Elements implements DataProviderInterface
             }
         }
 
-        if (is_array($classnames) and !empty($classnames[0])) {
+        if (is_array($classnames) && !empty($classnames[0])) {
             $conditionClassnameParts = [];
             foreach ($classnames as $classname) {
                 $conditionClassnameParts[] = $db->quote($classname);
@@ -182,10 +184,8 @@ class DataObjects extends Elements implements DataProviderInterface
             $conditionParts[] = '( subtype IN (' . implode(',', $conditionClassnameParts) . ') )';
         }
 
-        if (count($conditionParts) > 0) {
-            $condition = implode(' AND ', $conditionParts);
-            $searcherList->setCondition($condition);
-        }
+        $condition = implode(' AND ', $conditionParts);
+        $searcherList->setCondition($condition);
 
         $searcherList->setOffset($offset);
         $searcherList->setLimit($limit);
@@ -214,23 +214,18 @@ class DataObjects extends Elements implements DataProviderInterface
             $element = Service::getElementById($hit->getId()->getType(), $hit->getId()->getId());
             if ($element instanceof Concrete) {
                 $data = \Pimcore\Model\DataObject\Service::gridObjectData($element);
-                $data['__gdprIsDeletable'] = $this->config['classes'][$element->getClassName()]['allowDelete'];
+                $data['__gdprIsDeletable'] = $this->config['classes'][$element->getClassName()]['allowDelete'] ?? false;
                 $elements[] = $data;
             }
         }
 
-        // only get the real total-count when the limit parameter is given otherwise use the default limit
-        if ($limit) {
-            $totalMatches = $searcherList->getTotalCount();
-        } else {
-            $totalMatches = count($elements);
-        }
+        $totalMatches = $searcherList->getTotalCount();
 
         return ['data' => $elements, 'success' => true, 'total' => $totalMatches];
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getSortPriority(): int
     {

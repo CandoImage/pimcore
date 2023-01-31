@@ -15,12 +15,14 @@
 
 namespace Pimcore\Helper;
 
-use Pimcore\Config;
 use Pimcore\File;
 use Pimcore\Model\User;
 use Pimcore\Tool\Serialize;
 
-class Dashboard
+/**
+ * @internal
+ */
+final class Dashboard
 {
     /**
      * @var User
@@ -28,7 +30,7 @@ class Dashboard
     protected $user;
 
     /**
-     * @var array
+     * @var array|null
      */
     protected $dashboards;
 
@@ -65,7 +67,7 @@ class Dashboard
     }
 
     /**
-     * @return array|mixed
+     * @return array
      */
     protected function loadFile()
     {
@@ -81,10 +83,18 @@ class Dashboard
                 }
             }
 
+            $perspectiveCfg = \Pimcore\Perspective\Config::getRuntimePerspective();
+            $dashboardCfg = $perspectiveCfg['dashboards'] ?? [];
+            $dashboardsPerspective = $dashboardCfg['predefined'] ?? [];
+
             if (empty($this->dashboards)) {
-                $perspectiveCfg = Config::getRuntimePerspective();
-                $dasboardCfg = $perspectiveCfg['dashboards'] ?? [];
-                $this->dashboards = $dasboardCfg['predefined'] ?? [];
+                $this->dashboards = $dashboardsPerspective;
+            } else {
+                foreach ($dashboardsPerspective as $key => $dashboard) {
+                    if (!isset($this->dashboards[$key])) {
+                        $this->dashboards[$key] = $dashboard;
+                    }
+                }
             }
         }
 
@@ -92,7 +102,7 @@ class Dashboard
     }
 
     /**
-     * @return array|mixed
+     * @return array
      */
     public function getAllDashboards()
     {
@@ -102,7 +112,7 @@ class Dashboard
     /**
      * @param string $key
      *
-     * @return mixed
+     * @return array
      */
     public function getDashboard($key = 'welcome')
     {
@@ -160,9 +170,9 @@ class Dashboard
      */
     public function getDisabledPortlets()
     {
-        $perspectiveCfg = Config::getRuntimePerspective($this->user);
-        $dasboardCfg = $perspectiveCfg['dashboards'] ?? [];
+        $perspectiveCfg = \Pimcore\Perspective\Config::getRuntimePerspective($this->user);
+        $dashboardCfg = $perspectiveCfg['dashboards'] ?? [];
 
-        return $dasboardCfg['disabledPortlets'] ?? [];
+        return $dashboardCfg['disabledPortlets'] ?? [];
     }
 }

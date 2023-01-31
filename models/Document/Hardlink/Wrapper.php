@@ -18,6 +18,8 @@ namespace Pimcore\Model\Document\Hardlink;
 use Pimcore\Model\Document;
 
 /**
+ * @internal
+ *
  * @method Document\Dao getDao()
  */
 trait Wrapper
@@ -28,9 +30,9 @@ trait Wrapper
     protected $hardLinkSource;
 
     /**
-     * @var Document
+     * @var Document|null
      */
-    protected $sourceDocument;
+    protected ?Document $sourceDocument = null;
 
     /**
      * OVERWRITTEN METHODS
@@ -61,7 +63,7 @@ trait Wrapper
     }
 
     /**
-     * @return mixed
+     * @return array|null
      */
     public function getProperties()
     {
@@ -204,9 +206,9 @@ trait Wrapper
     }
 
     /**
-     * @return Document
+     * @return Document|null
      */
-    public function getSourceDocument()
+    public function getSourceDocument(): ?Document
     {
         return $this->sourceDocument;
     }
@@ -214,7 +216,7 @@ trait Wrapper
     /**
      * @param Document $sourceDocument
      */
-    public function setSourceDocument($sourceDocument)
+    public function setSourceDocument(Document $sourceDocument): void
     {
         $this->sourceDocument = $sourceDocument;
     }

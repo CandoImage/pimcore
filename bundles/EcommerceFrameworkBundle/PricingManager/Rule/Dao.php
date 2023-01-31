@@ -17,8 +17,11 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Rule;
 
 use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Rule;
 use Pimcore\Model\Dao\AbstractDao;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
+ * @internal
+ *
  * @property Rule $model
  */
 class Dao extends AbstractDao
@@ -55,13 +58,13 @@ class Dao extends AbstractDao
     /**
      * @param int $id
      *
-     * @throws \Exception
+     * @throws NotFoundException
      */
     public function getById($id)
     {
-        $classRaw = $this->db->fetchRow('SELECT * FROM ' . self::TABLE_NAME . ' WHERE id=' . $this->db->quote($id));
+        $classRaw = $this->db->fetchAssociative('SELECT * FROM ' . self::TABLE_NAME . ' WHERE id=' . $this->db->quote($id));
         if (empty($classRaw)) {
-            throw new \Exception('pricing rule ' . $id . ' not found.');
+            throw new NotFoundException('pricing rule ' . $id . ' not found.');
         }
         $this->assignVariablesToModel($classRaw);
     }
@@ -72,7 +75,7 @@ class Dao extends AbstractDao
     public function create()
     {
         $this->db->insert(self::TABLE_NAME, []);
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 
     /**
@@ -121,7 +124,7 @@ class Dao extends AbstractDao
             }
         }
 
-        $this->db->updateWhere(self::TABLE_NAME, $data, 'id=' . $this->db->quote($this->model->getId()));
+        $this->db->update(self::TABLE_NAME, $data, ['id' => $this->model->getId()]);
     }
 
     /**
@@ -131,7 +134,7 @@ class Dao extends AbstractDao
      */
     public function delete()
     {
-        $this->db->deleteWhere(self::TABLE_NAME, 'id=' . $this->db->quote($this->model->getId()));
+        $this->db->delete(self::TABLE_NAME, ['id' => $this->model->getId()]);
     }
 
     /**

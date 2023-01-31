@@ -19,6 +19,7 @@ pimcore.object.tags.quantityValue = Class.create(pimcore.object.tags.abstract, {
     initialize: function (data, fieldConfig) {
         this.data = data;
         this.fieldConfig = fieldConfig;
+        this.applyDefaultValue();
     },
 
     applyDefaultValue: function() {
@@ -114,7 +115,7 @@ pimcore.object.tags.quantityValue = Class.create(pimcore.object.tags.abstract, {
             updateCompatibleUnitsToolTipContent();
         });
 
-        var input = {};
+        var input = {mouseWheelEnabled: false};
 
         if (this.data && !isNaN(this.data.value)) {
             input.value = this.data.value;
@@ -129,8 +130,24 @@ pimcore.object.tags.quantityValue = Class.create(pimcore.object.tags.abstract, {
             input.width = this.fieldConfig.width;
         }
 
-        if (this.fieldConfig["decimalPrecision"] !== null) {
+        if (this.fieldConfig["unsigned"]) {
+            input.minValue = 0;
+        }
+
+        if (is_numeric(this.fieldConfig["minValue"])) {
+            input.minValue = this.fieldConfig.minValue;
+        }
+
+        if (is_numeric(this.fieldConfig["maxValue"])) {
+            input.maxValue = this.fieldConfig.maxValue;
+        }
+
+        if (this.fieldConfig["integer"]) {
+            input.decimalPrecision = 0;
+        } else if (this.fieldConfig["decimalPrecision"]) {
             input.decimalPrecision = this.fieldConfig["decimalPrecision"];
+        } else {
+            input.decimalPrecision = 20;
         }
 
         input.listeners = {
@@ -203,7 +220,7 @@ pimcore.object.tags.quantityValue = Class.create(pimcore.object.tags.abstract, {
             labelWidth: labelWidth,
             combineErrors: false,
             items: [this.inputField, this.unitField, compatibleUnitsButton],
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             isDirty: function() {
                 return this.defaultValue || this.inputField.isDirty() || this.unitField.isDirty()
             }.bind(this)
@@ -225,7 +242,7 @@ pimcore.object.tags.quantityValue = Class.create(pimcore.object.tags.abstract, {
             }
 
             if (value) {
-                return (value.value ? value.value : "") + " " + value.unitAbbr;
+                return (value.value ? value.value : "") + " " + t(value.unitAbbr);
             } else {
                 return "";
             }
@@ -345,6 +362,7 @@ pimcore.object.tags.quantityValue = Class.create(pimcore.object.tags.abstract, {
 
     getLayoutShow: function () {
         this.getLayoutEdit();
+        this.component.setDisabled(true);
         this.unitField.setReadOnly(true);
         this.inputField.setReadOnly(true);
 

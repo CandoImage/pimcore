@@ -253,7 +253,7 @@ class Breadcrumbs extends AbstractRenderer
      *
      * @throws \Exception
      */
-    public function renderTemplate(Container $container, string $partial = null)
+    public function renderTemplate(Container $container, ?string $partial = null)
     {
         if (null === $partial) {
             $partial = $this->getTemplate();
@@ -276,15 +276,13 @@ class Breadcrumbs extends AbstractRenderer
      *
      * @return string
      */
-    public function renderPartial(Container $container, string $partial = null)
+    public function renderPartial(Container $container, ?string $partial = null)
     {
         return $this->renderTemplate($container, $partial);
     }
 
     /**
-     * @param Container $container
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function render(Container $container)
     {

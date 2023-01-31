@@ -76,6 +76,8 @@ pimcore.object.search = Class.create(pimcore.object.helpers.gridTabAbstract, {
                     editable: true,
                     typeAhead: true,
                     forceSelection: true,
+                    matchFieldWidth: false,
+                    anyMatch: true,
                     value: this.object.data["selectedClass"],
                     listeners: {
                         "select": this.changeClassSelect.bind(this)
@@ -221,10 +223,20 @@ pimcore.object.search = Class.create(pimcore.object.helpers.gridTabAbstract, {
             language: this.gridLanguage,
         });
 
+        var eventData =  {requestParams: {classId: this.classId, folderId: this.object.id}};
+
+        const preCreateObjectGrid = new CustomEvent(pimcore.events.preCreateObjectGrid, {
+            detail: {
+                eventData: eventData
+            }
+        });
+
+        document.dispatchEvent(preCreateObjectGrid);
+
         var gridHelper = new pimcore.object.helpers.grid(
             klass.data.text,
             fields,
-            Routing.generate('pimcore_admin_dataobject_dataobject_gridproxy', {classId: this.classId, folderId: this.object.id}),
+            Routing.generate('pimcore_admin_dataobject_dataobject_gridproxy', eventData.requestParams),
             baseParams,
             false
         );
@@ -289,7 +301,16 @@ pimcore.object.search = Class.create(pimcore.object.helpers.gridTabAbstract, {
             viewConfig: {
                 forceFit: false,
                 xtype: 'patchedgridview',
-                enableTextSelection: true
+                enableTextSelection: true,
+                listeners: {
+                    refresh: function (dataview) {
+                        Ext.each(dataview.panel.columns, function (column) {
+                            if (column.autoSizeColumn === true) {
+                                column.autoSize();
+                            }
+                        })
+                    }
+                },
             },
             listeners: {
                 celldblclick: function(grid, td, cellIndex, record, tr, rowIndex, e, eOpts) {
@@ -455,9 +476,10 @@ pimcore.object.search = Class.create(pimcore.object.helpers.gridTabAbstract, {
                         "id": ids,
                         "success": function () {
                             this.getStore().reload();
-                            var tree = pimcore.globalmanager.get("layout_object_tree");
-                            var treePanel = tree.tree;
-                            tree.refresh(treePanel.getRootNode());
+                            var tree = pimcore.globalmanager.get("layout_object_tree").tree;
+                            tree.getStore().load({
+                                node: tree.getRootNode()
+                            });
                         }.bind(this)
                     };
                     pimcore.elementservice.deleteElement(options);
@@ -465,7 +487,15 @@ pimcore.object.search = Class.create(pimcore.object.helpers.gridTabAbstract, {
             }));
         }
 
-        pimcore.plugin.broker.fireEvent("prepareOnRowContextmenu", menu, this, selectedRows);
+        const prepareOnRowContextmenu = new CustomEvent(pimcore.events.prepareOnRowContextmenu, {
+            detail: {
+                menu: menu,
+                grid: this,
+                selectedRows: selectedRows
+            }
+        });
+
+        document.dispatchEvent(prepareOnRowContextmenu);
 
         e.stopEvent();
         menu.showAt(e.pageX, e.pageY);

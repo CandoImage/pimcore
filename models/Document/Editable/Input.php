@@ -20,19 +20,19 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\Document\Editable\Dao getDao()
  */
-class Input extends Model\Document\Editable
+class Input extends Model\Document\Editable implements EditmodeDataInterface
 {
     /**
      * Contains the text for this element
      *
+     * @internal
+     *
      * @var string
      */
-    public $text = '';
+    protected $text = '';
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -40,9 +40,7 @@ class Input extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -50,9 +48,15 @@ class Input extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::frontend
-     *
      * @return string
+     */
+    public function getText()
+    {
+        return $this->getData();
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -66,17 +70,16 @@ class Input extends Model\Document\Editable
         return $text;
     }
 
-    public function getDataEditmode()
+    /**
+     * {@inheritdoc}
+     */
+    public function getDataEditmode() /** : mixed */
     {
         return htmlentities($this->text);
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -86,11 +89,7 @@ class Input extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -101,32 +100,10 @@ class Input extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
         return !(bool) strlen($this->text);
     }
-
-    /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-        if ($data->text === null or is_string($data->text)) {
-            $this->text = $data->text;
-        } else {
-            throw new \Exception('cannot get values from web service import - invalid data');
-        }
-    }
 }
-
-class_alias(Input::class, 'Pimcore\Model\Document\Tag\Input');

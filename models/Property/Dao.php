@@ -15,9 +15,12 @@
 
 namespace Pimcore\Model\Property;
 
+use Pimcore\Db\Helper;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Property $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -51,6 +54,6 @@ class Dao extends Model\Dao\AbstractDao
             'data' => $data,
         ];
 
-        $this->db->insertOrUpdate('properties', $saveData);
+        Helper::insertOrUpdate($this->db, 'properties', $saveData);
     }
 }

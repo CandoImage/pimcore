@@ -18,6 +18,8 @@ namespace Pimcore\Model\Redirect\Listing;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Redirect\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -29,7 +31,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
      */
     public function load()
     {
-        $redirectsData = $this->db->fetchCol('SELECT id FROM redirects' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $redirectsData = $this->db->fetchFirstColumn('SELECT id FROM redirects' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
 
         $redirects = [];
         foreach ($redirectsData as $redirectData) {

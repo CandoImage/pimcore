@@ -32,7 +32,7 @@ class ClassDefinitionManager
     public function cleanUpDeletedClassDefinitions(): array
     {
         $db = \Pimcore\Db::get();
-        $classes = $db->fetchAll('SELECT * FROM classes');
+        $classes = $db->fetchAllAssociative('SELECT * FROM classes');
         $deleted = [];
 
         foreach ($classes as $class) {
@@ -41,10 +41,11 @@ class ClassDefinitionManager
 
             $cls = new ClassDefinition();
             $cls->setId($id);
-            $definitionFile = $cls->getDefinitionFile($name);
+            $cls->setName($name);
+            $definitionFile = $cls->getDefinitionFile();
 
             if (!file_exists($definitionFile)) {
-                $deleted[] = [$name, $id];
+                $deleted[] = [$name, $id, self::DELETED];
 
                 //ClassDefinition doesn't exist anymore, therefore we delete it
                 $cls->delete();
@@ -55,27 +56,30 @@ class ClassDefinitionManager
     }
 
     /**
-     * Updates all classes from PIMCORE_CLASS_DIRECTORY
+     * Updates all classes from PIMCORE_CLASS_DEFINITION_DIRECTORY
      */
     public function createOrUpdateClassDefinitions(): array
     {
-        $objectClassesFolder = PIMCORE_CLASS_DIRECTORY;
-        $files = glob($objectClassesFolder.'/*.php');
+        $objectClassesFolders = array_unique([PIMCORE_CLASS_DEFINITION_DIRECTORY, PIMCORE_CUSTOM_CONFIGURATION_CLASS_DEFINITION_DIRECTORY]);
 
-        $changes = [];
+        foreach ($objectClassesFolders as $objectClassesFolder) {
+            $files = glob($objectClassesFolder.'/*.php');
 
-        foreach ($files as $file) {
-            $class = include $file;
+            $changes = [];
 
-            if ($class instanceof ClassDefinition) {
-                $existingClass = ClassDefinition::getByName($class->getName());
+            foreach ($files as $file) {
+                $class = include $file;
 
-                if ($existingClass instanceof ClassDefinition) {
-                    $changes[] = [$class->getName(), $class->getId(), self::SAVED];
-                    $existingClass->save(false);
-                } else {
-                    $changes[] = [$class->getName(), $class->getId(), self::CREATED];
-                    $class->save(false);
+                if ($class instanceof ClassDefinition) {
+                    $existingClass = ClassDefinition::getByName($class->getName());
+
+                    if ($existingClass instanceof ClassDefinition) {
+                        $changes[] = [$class->getName(), $class->getId(), self::SAVED];
+                        $existingClass->save(false);
+                    } else {
+                        $changes[] = [$class->getName(), $class->getId(), self::CREATED];
+                        $class->save(false);
+                    }
                 }
             }
         }

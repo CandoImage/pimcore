@@ -19,6 +19,9 @@ use Pimcore\Model\AbstractModel;
 use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Service;
 
+/**
+ * @internal
+ */
 class ClassCommand extends AbstractStructureImportCommand
 {
     /**
@@ -85,6 +88,10 @@ class ClassCommand extends AbstractStructureImportCommand
      */
     protected function import(AbstractModel $definition, $json)
     {
+        if (!$definition instanceof ClassDefinition) {
+            return false;
+        }
+
         return Service::importClassDefinitionFromJson($definition, $json);
     }
 }

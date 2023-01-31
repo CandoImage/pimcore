@@ -18,6 +18,8 @@ namespace Pimcore\Model\DataObject\Classificationstore\StoreConfig;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Classificationstore\StoreConfig $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -29,7 +31,7 @@ class Dao extends Model\Dao\AbstractDao
      *
      * @param int $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id = null)
     {
@@ -37,19 +39,19 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow('SELECT * FROM ' . self::TABLE_NAME_STORES . ' WHERE id = ?', $this->model->getId());
+        $data = $this->db->fetchAssociative('SELECT * FROM ' . self::TABLE_NAME_STORES . ' WHERE id = ?', [$this->model->getId()]);
 
         if (!empty($data['id'])) {
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('StoreConfig with id: ' . $this->model->getId() . ' does not exist');
+            throw new Model\Exception\NotFoundException('StoreConfig with id: ' . $this->model->getId() . ' does not exist');
         }
     }
 
     /**
      * @param string|null $name
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getByName($name = null)
     {
@@ -59,12 +61,12 @@ class Dao extends Model\Dao\AbstractDao
 
         $name = $this->model->getName();
 
-        $data = $this->db->fetchRow('SELECT * FROM ' . self::TABLE_NAME_STORES . ' WHERE name = ?', $name);
+        $data = $this->db->fetchAssociative('SELECT * FROM ' . self::TABLE_NAME_STORES . ' WHERE name = ?', [$name]);
 
         if (!empty($data['id'])) {
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('StoreConfig with name: ' . $this->model->getName() . ' does not exist');
+            throw new Model\Exception\NotFoundException(sprintf('Classification store config with name "%s" does not exist.', $name));
         }
     }
 
@@ -115,6 +117,6 @@ class Dao extends Model\Dao\AbstractDao
     public function create()
     {
         $this->db->insert(self::TABLE_NAME_STORES, []);
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 }

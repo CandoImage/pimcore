@@ -18,7 +18,10 @@ namespace Pimcore\Model\Tool\CustomReport;
 use Pimcore\Model;
 
 /**
- * @method \Pimcore\Model\Tool\CustomReport\Config\Dao getDao()
+ * @internal
+ *
+ * @method bool isWriteable()
+ * @method string getWriteTarget()
  * @method void delete()
  * @method void save()
  */
@@ -27,116 +30,121 @@ class Config extends Model\AbstractModel implements \JsonSerializable
     /**
      * @var string
      */
-    public $name = '';
+    protected $name = '';
 
     /**
      * @var string
      */
-    public $sql = '';
+    protected $sql = '';
 
     /**
      * @var array
      */
-    public $dataSourceConfig = [];
+    protected $dataSourceConfig = [];
 
     /**
      * @var array
      */
-    public $columnConfiguration = [];
+    protected $columnConfiguration = [];
 
     /**
      * @var string
      */
-    public $niceName = '';
+    protected $niceName = '';
 
     /**
      * @var string
      */
-    public $group = '';
+    protected $group = '';
 
     /**
      * @var string
      */
-    public $groupIconClass = '';
+    protected $groupIconClass = '';
 
     /**
      * @var string
      */
-    public $iconClass = '';
+    protected $iconClass = '';
 
     /**
      * @var bool
      */
-    public $menuShortcut;
+    protected $menuShortcut = true;
 
     /**
      * @var string
      */
-    public $reportClass;
+    protected $reportClass = '';
 
     /**
      * @var string
      */
-    public $chartType;
+    protected $chartType = '';
 
     /**
      * @var string
      */
-    public $pieColumn;
+    protected $pieColumn = '';
 
     /**
      * @var string
      */
-    public $pieLabelColumn;
+    protected $pieLabelColumn = '';
 
     /**
      * @var string
      */
-    public $xAxis;
+    protected $xAxis = '';
 
     /**
      * @var string|array
      */
-    public $yAxis;
+    protected $yAxis = [];
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $modificationDate;
+    protected $modificationDate;
 
     /**
-     * @var int
+     * @var int|null
      */
-    public $creationDate;
+    protected $creationDate;
 
     /**
      * @var bool
      */
-    public $shareGlobally;
+    protected $shareGlobally = true;
 
     /**
      * @var string[]
      */
-    public $sharedUserNames;
+    protected $sharedUserNames = [];
 
     /**
      * @var string[]
      */
-    public $sharedRoleNames;
+    protected $sharedRoleNames = [];
 
     /**
      * @param string $name
      *
      * @return null|Config
+     *
+     * @throws \Exception
      */
     public static function getByName($name)
     {
         try {
             $report = new self();
-            $report->getDao()->getByName($name);
+
+            /** @var Model\Tool\CustomReport\Config\Dao $dao */
+            $dao = $report->getDao();
+            $dao->getByName($name);
 
             return $report;
-        } catch (\Exception $e) {
+        } catch (Model\Exception\NotFoundException $e) {
             return null;
         }
     }
@@ -154,13 +162,15 @@ class Config extends Model\AbstractModel implements \JsonSerializable
         if ($user) {
             $items = $list->getDao()->loadForGivenUser($user);
         } else {
-            $items = $list->getDao()->load();
+            $items = $list->getDao()->loadList();
         }
 
         foreach ($items as $item) {
             $reports[] = [
                 'id' => $item->getName(),
                 'text' => $item->getName(),
+                'cls' => 'pimcore_treenode_disabled',
+                'writeable' => $item->isWriteable(),
             ];
         }
 
@@ -426,7 +436,7 @@ class Config extends Model\AbstractModel implements \JsonSerializable
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getModificationDate()
     {
@@ -442,7 +452,7 @@ class Config extends Model\AbstractModel implements \JsonSerializable
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getCreationDate()
     {
@@ -508,23 +518,6 @@ class Config extends Model\AbstractModel implements \JsonSerializable
     }
 
     /**
-     * @param int[] $sharedUserIds
-     */
-    public function setSharedUserIds($sharedUserIds): void
-    {
-        $userNames = [];
-        if ($sharedUserIds) {
-            foreach ($sharedUserIds as $id) {
-                $user = Model\User::getById($id);
-                if ($user) {
-                    $userNames[] = $user->getName();
-                }
-            }
-        }
-        $this->sharedUserNames = $userNames;
-    }
-
-    /**
      * @return int[]
      */
     public function getSharedRoleIds()
@@ -540,23 +533,6 @@ class Config extends Model\AbstractModel implements \JsonSerializable
         }
 
         return $sharedRoleIds;
-    }
-
-    /**
-     * @param int[] $sharedRoleIds
-     */
-    public function setSharedRoleIds($sharedRoleIds): void
-    {
-        $roleNames = [];
-        if ($sharedRoleIds) {
-            foreach ($sharedRoleIds as $id) {
-                $role = Model\User\Role::getById($id);
-                if ($role) {
-                    $roleNames[] = $role->getName();
-                }
-            }
-        }
-        $this->sharedRoleNames = $roleNames;
     }
 
     /**
@@ -591,12 +567,20 @@ class Config extends Model\AbstractModel implements \JsonSerializable
         $this->sharedRoleNames = $sharedRoleNames;
     }
 
-    public function jsonSerialize()
+    public function jsonSerialize(): array
     {
         $data = $this->getObjectVars();
         $data['sharedUserIds'] = $this->getSharedUserIds();
         $data['sharedRoleIds'] = $this->getSharedRoleIds();
 
         return $data;
+    }
+
+    public function __clone()
+    {
+        if ($this->dao) {
+            $this->dao = clone $this->dao;
+            $this->dao->setModel($this);
+        }
     }
 }

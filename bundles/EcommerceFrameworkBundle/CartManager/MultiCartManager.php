@@ -15,7 +15,7 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\CartManager;
 
-use Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\CheckoutManager;
+use Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\V7\CheckoutManager;
 use Pimcore\Bundle\EcommerceFrameworkBundle\EnvironmentInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\CheckoutableInterface;
@@ -98,7 +98,6 @@ class MultiCartManager implements CartManagerInterface
 
     protected function initSavedCarts()
     {
-        // @var CartInterface[] $carts
         $carts = $this->getAllCartsForCurrentUser();
 
         if (empty($carts)) {
@@ -109,10 +108,6 @@ class MultiCartManager implements CartManagerInterface
                 $order = $this->orderManagers->getOrderManager()->getOrderFromCart($cart);
                 if (empty($order) || $order->getOrderState() !== $order::ORDER_STATE_COMMITTED) {
                     $this->carts[$cart->getId()] = $cart;
-
-                    if ($cart instanceof AbstractCart) {
-                        $cart->setCurrentReadonlyMode($this->cartFactory->getCartReadOnlyMode());
-                    }
                 } else {
                     // cart is already committed - cleanup cart and environment
                     $this->logger->warning('Deleting cart with id {cartId} because linked order {orderId} is already committed.', [
@@ -141,7 +136,7 @@ class MultiCartManager implements CartManagerInterface
 
     /**
      * @param CheckoutableInterface $product
-     * @param float $count
+     * @param int $count
      * @param string|null $key
      * @param string|null $itemKey
      * @param bool $replace

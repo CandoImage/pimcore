@@ -20,6 +20,9 @@ use Pimcore\Model\Element\ElementInterface;
 use Pimcore\Model\Schedule\Task;
 use Symfony\Component\HttpFoundation\Request;
 
+/**
+ * @internal
+ */
 trait ApplySchedulerDataTrait
 {
     /**

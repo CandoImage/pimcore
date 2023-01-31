@@ -16,25 +16,40 @@
 namespace Pimcore\Model\Translation;
 
 use Pimcore\Model;
+use Pimcore\Model\Exception\NotFoundException;
 
 /**
- * @method \Pimcore\Model\Translation\AbstractTranslation\Listing\Dao getDao()
+ * @method \Pimcore\Model\Translation\Listing\Dao getDao()
  * @method Model\Translation[] load()
- * @method Model\Translation current()
+ * @method array loadRaw()
+ * @method Model\Translation|false current()
  * @method int getTotalCount()
- * @method void onCreateQuery(callable $callback)
  * @method void onCreateQueryBuilder(?callable $callback)
+ * @method void cleanup()
  *
  */
 class Listing extends Model\Listing\AbstractListing
 {
-    /** @var int maximum number of cacheable items */
+    /**
+     * @internal
+     *
+     * @var int maximum number of cacheable items
+     */
     protected static $cacheLimit = 5000;
 
     /**
+     * @internal
+     *
      * @var string
      */
     protected $domain = Model\Translation::DOMAIN_DEFAULT;
+
+    /**
+     * @internal
+     *
+     * @var string[]|null
+     */
+    protected ?array $languages = null;
 
     /**
      * @return string
@@ -49,11 +64,31 @@ class Listing extends Model\Listing\AbstractListing
      */
     public function setDomain(string $domain): void
     {
+        if (!Model\Translation::isAValidDomain($domain)) {
+            throw new NotFoundException(sprintf('Translation domain table "translations_%s" does not exist', $domain));
+        }
+
         $this->domain = $domain;
     }
 
     /**
-     * @return \Pimcore\Model\Translation\AbstractTranslation[]
+     * @return string[]|null
+     */
+    public function getLanguages(): ?array
+    {
+        return $this->languages;
+    }
+
+    /**
+     * @param string[]|null $languages
+     */
+    public function setLanguages(?array $languages): void
+    {
+        $this->languages = $languages;
+    }
+
+    /**
+     * @return \Pimcore\Model\Translation[]
      */
     public function getTranslations()
     {

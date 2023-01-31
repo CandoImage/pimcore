@@ -21,6 +21,9 @@ use Pimcore\Model\Element;
 use Pimcore\Tool\Admin as AdminTool;
 use Sabre\DAV;
 
+/**
+ * @internal
+ */
 class File extends DAV\File
 {
     /**
@@ -47,7 +50,7 @@ class File extends DAV\File
     /**
      * @param string $name
      *
-     * @return $this|void
+     * @return $this
      *
      * @throws DAV\Exception\Forbidden
      * @throws \Exception
@@ -126,7 +129,9 @@ class File extends DAV\File
             $this->asset->setStream($file);
             $this->asset->save();
 
-            fclose($file);
+            if (is_resource($file)) {
+                fclose($file);
+            }
             unlink($tmpFile);
 
             return null;
@@ -136,14 +141,14 @@ class File extends DAV\File
     }
 
     /**
-     * @return mixed|void
+     * @return resource|null
      *
      * @throws DAV\Exception\Forbidden
      */
     public function get()
     {
         if ($this->asset->isAllowed('view')) {
-            return fopen($this->asset->getFileSystemPath(), 'r', false, FileHelper::getContext());
+            return $this->asset->getStream();
         } else {
             throw new DAV\Exception\Forbidden();
         }
@@ -156,7 +161,7 @@ class File extends DAV\File
      */
     public function getETag()
     {
-        return '"' . md5_file($this->asset->getFileSystemPath()) . '"';
+        return '"' . md5($this->asset->getRealFullPath() . $this->asset->getModificationDate()) . '"';
     }
 
     /**
@@ -166,7 +171,7 @@ class File extends DAV\File
      */
     public function getContentType()
     {
-        return $this->asset->getMimetype();
+        return $this->asset->getMimeType();
     }
 
     /**
@@ -176,6 +181,6 @@ class File extends DAV\File
      */
     public function getSize()
     {
-        return @filesize($this->asset->getFileSystemPath());
+        return $this->asset->getFileSize();
     }
 }

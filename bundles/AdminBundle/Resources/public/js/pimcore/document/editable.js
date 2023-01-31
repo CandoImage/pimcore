@@ -22,6 +22,13 @@ pimcore.document.editable = Class.create({
     required: false,
     requiredError: false,
 
+    initialize: function(id, name, config, data, inherited) {
+        this.id = id;
+        this.name = name;
+        this.config = this.parseConfig(config);
+        this.inherited = inherited;
+    },
+
     setupWrapper: function (styleOptions) {
 
         if (!styleOptions) {
@@ -75,8 +82,6 @@ pimcore.document.editable = Class.create({
             var mask = el.mask();
             new Ext.ToolTip({
                 target: mask,
-                showDelay: 100,
-                trackMouse:true,
                 html: t("click_right_to_overwrite")
             });
             mask.on("contextmenu", function (e) {
@@ -109,23 +114,10 @@ pimcore.document.editable = Class.create({
         return this.id;
     },
 
-    /**
-     * @deprecated use parseConfig()
-     */
-    parseOptions: function (options) {
-        return this.parseConfig(options);
-    },
-
     parseConfig: function (config) {
         if(!config || config instanceof Array || typeof config != "object") {
             config = {};
         }
-
-        /**
-         * @TODO remove in Pimcore 10
-         * @deprecated use this.config()
-         */
-        this.options = config;
 
         return config;
     },

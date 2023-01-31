@@ -59,16 +59,26 @@ pimcore.object.classes.data.structuredTable = Class.create(pimcore.object.classe
         this.specificPanel.removeAll();
         this.specificPanel.add([
             {
-                xtype: "numberfield",
+                xtype: "textfield",
                 fieldLabel: t("width"),
                 name: "width",
                 value: this.datax.width
             },
             {
-                xtype: "numberfield",
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('width_explanation')
+            },
+            {
+                xtype: "textfield",
                 fieldLabel: t("height"),
                 name: "height",
                 value: this.datax.height
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('height_explanation')
             },
             {
                 xtype: "numberfield",
@@ -131,7 +141,7 @@ pimcore.object.classes.data.structuredTable = Class.create(pimcore.object.classe
 
                 if (value.length > 1 && regresult == value && in_array(value.toLowerCase(),
                                     ["id","key","path","type","index","classname","creationdate","userowner",
-                                     "value","class","list","fullpath","childs","values","cachetag","cachetags",
+                                     "value","class","list","fullpath","childs","children","values","cachetag","cachetags",
                                      "parent","published","valuefromparent","userpermissions","dependencies",
                                      "modificationdate","usermodification","byid","bypath","data","versions",
                                      "properties","permissions","permissionsforuser","childamount","apipluginbroker",
@@ -272,6 +282,7 @@ pimcore.object.classes.data.structuredTable = Class.create(pimcore.object.classe
         if(this.grids) {
             var rows = [];
             this.stores.rows.each(function(rec) {
+                delete rec.data.id;
                 rows.push(rec.data);
                 rec.commit();
             });
@@ -279,6 +290,7 @@ pimcore.object.classes.data.structuredTable = Class.create(pimcore.object.classe
 
             var cols = [];
             this.stores.cols.each(function(rec) {
+                delete rec.data.id;
                 cols.push(rec.data);
                 rec.commit();
             });
@@ -286,6 +298,11 @@ pimcore.object.classes.data.structuredTable = Class.create(pimcore.object.classe
         }
 
         return this.datax;
+    },
+
+    applyData: function ($super){
+        $super();
+        return this.getData();
     },
 
     applySpecialData: function(source) {

@@ -22,12 +22,15 @@ use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 use Twig\TwigTest;
 
-final class DataObjectHelperExtensions extends AbstractExtension
+/**
+ * @internal
+ */
+class DataObjectHelperExtensions extends AbstractExtension
 {
     /**
      * {@inheritdoc}
      */
-    public function getTests()
+    public function getTests(): array
     {
         return [
             new TwigTest('pimcore_data_object', static function ($object) {

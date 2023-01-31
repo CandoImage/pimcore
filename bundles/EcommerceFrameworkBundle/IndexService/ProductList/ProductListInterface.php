@@ -66,7 +66,7 @@ interface ProductListInterface extends PaginateListingInterface
      * Fieldname is optional but highly recommended - needed for resetting condition based on fieldname
      * and exclude functionality in group by results
      *
-     * @param string $condition
+     * @param array|string $condition
      * @param string $fieldname
      */
     public function addCondition($condition, $fieldname = '');
@@ -152,7 +152,7 @@ interface ProductListInterface extends PaginateListingInterface
     public function setOrderKey($orderKey);
 
     /**
-     * @return string | array
+     * @return string|array
      */
     public function getOrderKey();
 
@@ -182,7 +182,7 @@ interface ProductListInterface extends PaginateListingInterface
     public function setCategory(AbstractCategory $category);
 
     /**
-     * @return AbstractCategory
+     * @return AbstractCategory|null
      */
     public function getCategory();
 
@@ -285,5 +285,3 @@ interface ProductListInterface extends PaginateListingInterface
      */
     public function getGroupBySystemValues($fieldname, $countValues = false, $fieldnameShouldBeExcluded = true);
 }
-
-class_alias(ProductListInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\ProductList\IProductList');

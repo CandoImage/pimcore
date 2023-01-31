@@ -20,12 +20,13 @@ use Pimcore\Model;
 use Pimcore\Model\DataObject;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\ClassDefinition $model
  */
 class Dao extends Model\Dao\AbstractDao
 {
     use DataObject\ClassDefinition\Helper\Dao;
-
     use DataObject\Traits\CompositeIndexTrait;
 
     /**
@@ -45,22 +46,24 @@ class Dao extends Model\Dao\AbstractDao
      */
     public function getNameById($id)
     {
-        $name = null;
-
         try {
             if (!empty($id)) {
-                $name = $this->db->fetchOne('SELECT name FROM classes WHERE id = ?', [$id]);
+                if ($name = $this->db->fetchOne('SELECT name FROM classes WHERE id = ?', [$id])) {
+                    return $name;
+                }
             }
         } catch (\Exception $e) {
         }
 
-        return $name;
+        return null;
     }
 
     /**
      * @param string $name
      *
-     * @return string|null
+     * @return string
+     *
+     * @throws Model\Exception\NotFoundException
      */
     public function getIdByName($name)
     {
@@ -71,6 +74,12 @@ class Dao extends Model\Dao\AbstractDao
                 $id = $this->db->fetchOne('SELECT id FROM classes WHERE name = ?', [$name]);
             }
         } catch (\Exception $e) {
+        }
+
+        if (empty($id)) {
+            throw new Model\Exception\NotFoundException(sprintf(
+                'Data object class definition with name "%s" does not exist.', $name
+            ), 0, $e ?? null);
         }
 
         return $id;
@@ -116,34 +125,37 @@ class Dao extends Model\Dao\AbstractDao
         $protectedColumns = ['oo_id', 'oo_classId', 'oo_className'];
         $protectedDatastoreColumns = ['oo_id'];
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $objectTable . "` (
-			  `oo_id` int(11) NOT NULL default '0',
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $objectTable . "` (
+			  `oo_id` int(11) UNSIGNED NOT NULL default '0',
 			  `oo_classId` varchar(50) default '" . $this->model->getId() . "',
 			  `oo_className` varchar(255) default '" . $this->model->getName() . "',
-			  PRIMARY KEY  (`oo_id`)
-			) DEFAULT CHARSET=utf8mb4;");
+			  PRIMARY KEY  (`oo_id`),
+			  CONSTRAINT `".self::getForeignKeyName($objectTable, 'oo_id').'` FOREIGN KEY (`oo_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
+			) DEFAULT CHARSET=utf8mb4;');
 
         // update default value of classname columns
-        $this->db->query('ALTER TABLE `' . $objectTable . "` ALTER COLUMN `oo_className` SET DEFAULT '" . $this->model->getName() . "';");
+        $this->db->executeQuery('ALTER TABLE `' . $objectTable . "` ALTER COLUMN `oo_className` SET DEFAULT '" . $this->model->getName() . "';");
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $objectDatastoreTable . "` (
-			  `oo_id` int(11) NOT NULL default '0',
-			  PRIMARY KEY  (`oo_id`)
-			) DEFAULT CHARSET=utf8mb4;");
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $objectDatastoreTable . "` (
+			  `oo_id` int(11) UNSIGNED NOT NULL default '0',
+			  PRIMARY KEY  (`oo_id`),
+			  CONSTRAINT `".self::getForeignKeyName($objectDatastoreTable, 'oo_id').'` FOREIGN KEY (`oo_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
+			) DEFAULT CHARSET=utf8mb4;');
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $objectDatastoreTableRelation . "` (
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $objectDatastoreTableRelation . "` (
               `id` BIGINT(20) NOT NULL PRIMARY KEY  AUTO_INCREMENT,
-              `src_id` int(11) NOT NULL DEFAULT '0',
-              `dest_id` int(11) NOT NULL DEFAULT '0',
-              `type` varchar(50) NOT NULL DEFAULT '',
+              `src_id` int(11) UNSIGNED NOT NULL DEFAULT '0',
+              `dest_id` int(11) UNSIGNED NOT NULL DEFAULT '0',
+              `type` enum('object', 'asset','document') NOT NULL,
               `fieldname` varchar(70) NOT NULL DEFAULT '0',
               `index` int(11) unsigned NOT NULL DEFAULT '0',
               `ownertype` enum('object','fieldcollection','localizedfield','objectbrick') NOT NULL DEFAULT 'object',
               `ownername` varchar(70) NOT NULL DEFAULT '',
               `position` varchar(70) NOT NULL DEFAULT '0',
               INDEX `forward_lookup` (`src_id`, `ownertype`, `ownername`, `position`),
-              INDEX `reverse_lookup` (`dest_id`, `type`)
-        ) DEFAULT CHARSET=utf8mb4;");
+              INDEX `reverse_lookup` (`dest_id`, `type`),
+			  CONSTRAINT `".self::getForeignKeyName($objectDatastoreTableRelation, 'src_id').'` FOREIGN KEY (`src_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
+        ) DEFAULT CHARSET=utf8mb4;');
 
         $this->handleEncryption($this->model, [$objectTable, $objectDatastoreTable, $objectDatastoreTableRelation]);
 
@@ -158,9 +170,8 @@ class Dao extends Model\Dao\AbstractDao
         // add non existing columns in the table
         if (is_array($this->model->getFieldDefinitions()) && count($this->model->getFieldDefinitions())) {
             foreach ($this->model->getFieldDefinitions() as $key => $value) {
-                if ($value instanceof DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface || method_exists($value, 'getDataForResource')) {
+                if ($value instanceof DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface) {
                     // if a datafield requires more than one column in the datastore table => only for non-relation types
-                    /** @var Data&DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface $value */
                     if (!$value->isRelationType()) {
                         if (is_array($value->getColumnType())) {
                             foreach ($value->getColumnType() as $fkey => $fvalue) {
@@ -210,10 +221,10 @@ class Dao extends Model\Dao\AbstractDao
 
         // create view
         try {
-            //$this->db->query('CREATE OR REPLACE VIEW `' . $objectView . '` AS SELECT * FROM `objects` left JOIN `' . $objectTable . '` ON `objects`.`o_id` = `' . $objectTable . '`.`oo_id` WHERE `objects`.`o_classId` = ' . $this->model->getId() . ';');
-            $this->db->query('CREATE OR REPLACE VIEW `' . $objectView . '` AS SELECT * FROM `' . $objectTable . '` JOIN `objects` ON `objects`.`o_id` = `' . $objectTable . '`.`oo_id`;');
+            //$this->db->executeQuery('CREATE OR REPLACE VIEW `' . $objectView . '` AS SELECT * FROM `objects` left JOIN `' . $objectTable . '` ON `objects`.`o_id` = `' . $objectTable . '`.`oo_id` WHERE `objects`.`o_classId` = ' . $this->model->getId() . ';');
+            $this->db->executeQuery('CREATE OR REPLACE VIEW `' . $objectView . '` AS SELECT * FROM `' . $objectTable . '` JOIN `objects` ON `objects`.`o_id` = `' . $objectTable . '`.`oo_id`;');
         } catch (\Exception $e) {
-            Logger::debug($e);
+            Logger::debug((string) $e);
         }
 
         $this->updateCompositeIndices($objectDatastoreTable, 'store', $this->model->getCompositeIndices());
@@ -244,43 +255,43 @@ class Dao extends Model\Dao\AbstractDao
         $objectDatastoreTableRelation = 'object_relations_' . $this->model->getId();
         $objectMetadataTable = 'object_metadata_' . $this->model->getId();
 
-        $this->db->query('DROP TABLE `' . $objectTable . '`');
-        $this->db->query('DROP TABLE `' . $objectDatastoreTable . '`');
-        $this->db->query('DROP TABLE `' . $objectDatastoreTableRelation . '`');
-        $this->db->query('DROP TABLE IF EXISTS `' . $objectMetadataTable . '`');
+        $this->db->executeQuery('DROP TABLE `' . $objectTable . '`');
+        $this->db->executeQuery('DROP TABLE `' . $objectDatastoreTable . '`');
+        $this->db->executeQuery('DROP TABLE `' . $objectDatastoreTableRelation . '`');
+        $this->db->executeQuery('DROP TABLE IF EXISTS `' . $objectMetadataTable . '`');
 
-        $this->db->query('DROP VIEW `object_' . $this->model->getId() . '`');
+        $this->db->executeQuery('DROP VIEW `object_' . $this->model->getId() . '`');
 
         // delete data
         $this->db->delete('objects', ['o_classId' => $this->model->getId()]);
 
         // remove fieldcollection tables
-        $allTables = $this->db->fetchAll("SHOW TABLES LIKE 'object\_collection\_%\_" . $this->model->getId() . "'");
+        $allTables = $this->db->fetchAllAssociative("SHOW TABLES LIKE 'object\_collection\_%\_" . $this->model->getId() . "'");
         foreach ($allTables as $table) {
             $collectionTable = current($table);
-            $this->db->query('DROP TABLE IF EXISTS `'.$collectionTable.'`');
+            $this->db->executeQuery('DROP TABLE IF EXISTS `'.$collectionTable.'`');
         }
 
         // remove localized fields tables and views
-        $allViews = $this->db->fetchAll("SHOW TABLES LIKE 'object\_localized\_" . $this->model->getId() . "\_%'");
+        $allViews = $this->db->fetchAllAssociative("SHOW TABLES LIKE 'object\_localized\_" . $this->model->getId() . "\_%'");
         foreach ($allViews as $view) {
             $localizedView = current($view);
-            $this->db->query('DROP VIEW IF EXISTS `'.$localizedView.'`');
+            $this->db->executeQuery('DROP VIEW IF EXISTS `'.$localizedView.'`');
         }
 
-        $allTables = $this->db->fetchAll("SHOW TABLES LIKE 'object\_localized\_query\_" . $this->model->getId() . "\_%'");
+        $allTables = $this->db->fetchAllAssociative("SHOW TABLES LIKE 'object\_localized\_query\_" . $this->model->getId() . "\_%'");
         foreach ($allTables as $table) {
             $queryTable = current($table);
-            $this->db->query('DROP TABLE IF EXISTS `'.$queryTable.'`');
+            $this->db->executeQuery('DROP TABLE IF EXISTS `'.$queryTable.'`');
         }
 
-        $this->db->query('DROP TABLE IF EXISTS object_localized_data_' . $this->model->getId());
+        $this->db->executeQuery('DROP TABLE IF EXISTS object_localized_data_' . $this->model->getId());
 
         // objectbrick tables
-        $allTables = $this->db->fetchAll("SHOW TABLES LIKE 'object\_brick\_%\_" . $this->model->getId() . "'");
+        $allTables = $this->db->fetchAllAssociative("SHOW TABLES LIKE 'object\_brick\_%\_" . $this->model->getId() . "'");
         foreach ($allTables as $table) {
             $brickTable = current($table);
-            $this->db->query('DROP TABLE `'.$brickTable.'`');
+            $this->db->executeQuery('DROP TABLE `'.$brickTable.'`');
         }
 
         // clean slug table
@@ -296,8 +307,21 @@ class Dao extends Model\Dao\AbstractDao
     {
         $this->db->update('objects', ['o_className' => $newName], ['o_classId' => $this->model->getId()]);
 
-        $this->db->updateWhere('object_query_' . $this->model->getId(), [
-            'oo_className' => $newName,
-        ]);
+        $this->db->executeStatement('update ' . $this->db->quoteIdentifier('object_query_' . $this->model->getId()) .
+        ' set oo_classname = :className', ['className' => $newName]);
+    }
+
+    public function getNameByIdIgnoreCase(string $id): string|null
+    {
+        $name = null;
+
+        try {
+            if (!empty($id)) {
+                $name = $this->db->fetchOne('SELECT name FROM classes WHERE LOWER(id) = ?', [strtolower($id)]);
+            }
+        } catch (\Exception $e) {
+        }
+
+        return $name;
     }
 }

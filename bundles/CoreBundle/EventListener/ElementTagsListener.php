@@ -23,12 +23,15 @@ use Pimcore\Event\Model\ElementEventInterface;
 use Pimcore\Model\Element\Service;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
+/**
+ * @internal
+ */
 class ElementTagsListener implements EventSubscriberInterface
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             DataObjectEvents::POST_COPY => 'onPostCopy',
@@ -45,9 +48,8 @@ class ElementTagsListener implements EventSubscriberInterface
     public function onPostCopy(ElementEventInterface $e)
     {
         $elementType = Service::getElementType($e->getElement());
-        /** @var \Pimcore\Model\Element\AbstractElement $copiedElement */
         $copiedElement = $e->getElement();
-        /** @var \Pimcore\Model\Element\AbstractElement $baseElement */
+        /** @var \Pimcore\Model\Element\ElementInterface $baseElement */
         $baseElement = $e->getArgument('base_element');
         \Pimcore\Model\Element\Tag::setTagsForElement(
             $elementType,

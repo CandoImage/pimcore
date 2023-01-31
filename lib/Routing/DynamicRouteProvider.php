@@ -21,9 +21,13 @@ use Pimcore\Routing\Dynamic\DynamicRouteHandlerInterface;
 use Symfony\Cmf\Component\Routing\RouteProviderInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
+use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
-class DynamicRouteProvider implements RouteProviderInterface
+/**
+ * @internal
+ */
+final class DynamicRouteProvider implements RouteProviderInterface
 {
     /**
      * @var SiteResolver
@@ -59,11 +63,16 @@ class DynamicRouteProvider implements RouteProviderInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
-    public function getRouteCollectionForRequest(Request $request)
+    public function getRouteCollectionForRequest(Request $request): RouteCollection
     {
         $collection = new RouteCollection();
+
+        if ($request->attributes->has('_controller')) {
+            return $collection;
+        }
+
         $path = $originalPath = urldecode($request->getPathInfo());
 
         // site path handled by FrontendRoutingListener which runs before routing is started
@@ -79,9 +88,9 @@ class DynamicRouteProvider implements RouteProviderInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
-    public function getRouteByName($name)
+    public function getRouteByName($name): Route
     {
         foreach ($this->handlers as $handler) {
             try {
@@ -95,9 +104,9 @@ class DynamicRouteProvider implements RouteProviderInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
-    public function getRoutesByNames($names)
+    public function getRoutesByNames($names): array
     {
         // TODO needs performance optimizations
         // TODO really return all routes here as documentation states? where is this used?
@@ -107,9 +116,7 @@ class DynamicRouteProvider implements RouteProviderInterface
             foreach ($names as $name) {
                 try {
                     $route = $this->getRouteByName($name);
-                    if ($route) {
-                        $routes[] = $route;
-                    }
+                    $routes[] = $route;
                 } catch (RouteNotFoundException $e) {
                     // noop
                 }

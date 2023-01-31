@@ -28,89 +28,55 @@ class ImageGallery implements \Iterator, OwnerAwareFieldInterface
     protected $items;
 
     /**
-     * ImageGallery constructor.
-     *
      * @param Hotspotimage[] $items
      */
-    public function __construct($items)
+    public function __construct($items = [])
     {
         $this->setItems($items);
         $this->markMeDirty();
     }
 
     /**
-     * Return the current element
-     *
-     * @link http://php.net/manual/en/iterator.current.php
-     *
-     * @return mixed Can return any type.
-     *
-     * @since 5.0.0
+     * @return Hotspotimage|false
      */
-    public function current()
+    #[\ReturnTypeWillChange]
+    public function current()// : Hotspotimage|false
     {
-        $var = current($this->items);
-
-        return $var;
+        return current($this->items);
     }
 
     /**
-     * Move forward to next element
-     *
-     * @link http://php.net/manual/en/iterator.next.php
-     *
-     * @return void Any returned value is ignored.
-     *
-     * @since 5.0.0
+     * @return void
      */
-    public function next()
+    #[\ReturnTypeWillChange]
+    public function next()// : void
     {
         next($this->items);
     }
 
     /**
-     * Return the key of the current element
-     *
-     * @link http://php.net/manual/en/iterator.key.php
-     *
-     * @return mixed scalar on success, or null on failure.
-     *
-     * @since 5.0.0
+     * @return int|string|null
      */
-    public function key()
+    #[\ReturnTypeWillChange]
+    public function key()// : mixed
     {
-        $var = key($this->items);
-
-        return $var;
+        return key($this->items);
     }
 
     /**
-     * Checks if current position is valid
-     *
-     * @link http://php.net/manual/en/iterator.valid.php
-     *
-     * @return bool The return value will be casted to boolean and then evaluated.
-     * Returns true on success or false on failure.
-     *
-     * @since 5.0.0
+     * @return bool
      */
-    public function valid()
+    #[\ReturnTypeWillChange]
+    public function valid()// : bool
     {
-        $var = $this->current() !== false;
-
-        return $var;
+        return $this->current() !== false;
     }
 
     /**
-     * Rewind the Iterator to the first element
-     *
-     * @link http://php.net/manual/en/iterator.rewind.php
-     *
-     * @return void Any returned value is ignored.
-     *
-     * @since 5.0.0
+     * @return void
      */
-    public function rewind()
+    #[\ReturnTypeWillChange]
+    public function rewind()// : void
     {
         reset($this->items);
     }
@@ -134,5 +100,19 @@ class ImageGallery implements \Iterator, OwnerAwareFieldInterface
         $this->items = $items;
         $this->rewind();
         $this->markMeDirty();
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasValidImages(): bool
+    {
+        foreach ($this->getItems() as $item) {
+            if ($item instanceof \Pimcore\Model\DataObject\Data\Hotspotimage) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

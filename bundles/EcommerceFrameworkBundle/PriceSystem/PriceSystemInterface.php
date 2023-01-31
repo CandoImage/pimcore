@@ -39,13 +39,13 @@ interface PriceSystemInterface
      * Filters and orders given product IDs based on price information
      *
      * @param array $productIds
-     * @param float $fromPrice
-     * @param float $toPrice
+     * @param float|null $fromPrice
+     * @param float|null $toPrice
      * @param string $order
      * @param int $offset
      * @param int $limit
      *
-     * @return mixed
+     * @return array
      */
     public function filterProductIds($productIds, $fromPrice, $toPrice, $order, $offset, $limit);
 
@@ -71,5 +71,3 @@ interface PriceSystemInterface
      */
     public function getTaxClassForPriceModification(CartPriceModificatorInterface $modificator);
 }
-
-class_alias(PriceSystemInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\IPriceSystem');

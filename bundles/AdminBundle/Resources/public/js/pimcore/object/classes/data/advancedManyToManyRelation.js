@@ -153,17 +153,28 @@ pimcore.object.classes.data.advancedManyToManyRelation = Class.create(pimcore.ob
 
         this.specificPanel.add([
             {
-                xtype: "numberfield",
+                xtype: "textfield",
                 fieldLabel: t("width"),
                 name: "width",
                 value: this.datax.width
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('width_explanation')
             },
             {
                 xtype: "numberfield",
                 fieldLabel: t("height"),
                 name: "height",
                 value: this.datax.height
-            },{
+            },
+            {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: t('height_explanation')
+            },
+            {
                 xtype: "numberfield",
                 fieldLabel: t("maximum_items"),
                 name: "maxItems",
@@ -346,6 +357,13 @@ pimcore.object.classes.data.advancedManyToManyRelation = Class.create(pimcore.ob
 
         this.specificPanel.add({
             xtype: "checkbox",
+            boxLabel: t("enable_text_selection"),
+            name: "enableTextSelection",
+            value: this.datax.enableTextSelection
+        });
+
+        this.specificPanel.add({
+            xtype: "checkbox",
             boxLabel: t("enable_batch_edit_columns"),
             name: "enableBatchEdit",
             value: this.datax.enableBatchEdit
@@ -415,7 +433,7 @@ pimcore.object.classes.data.advancedManyToManyRelation = Class.create(pimcore.ob
 
                 if (value.length > 1 && regresult == value
                     && in_array(value.toLowerCase(), ["id","key","path","type","index","classname",
-                    "creationdate","userowner","value","class","list","fullpath","childs","values","cachetag",
+                    "creationdate","userowner","value","class","list","fullpath","childs","children","values","cachetag",
                     "cachetags","parent","published","valuefromparent","userpermissions","dependencies",
                     "modificationdate","usermodification","byid","bypath","data","versions","properties",
                     "permissions","permissionsforuser","childamount","apipluginbroker","resource",
@@ -547,6 +565,7 @@ pimcore.object.classes.data.advancedManyToManyRelation = Class.create(pimcore.ob
         if(this.grids) {
             var cols = [];
             this.stores.cols.each(function(rec) {
+                delete rec.data.id;
                 cols.push(rec.data);
                 rec.commit();
             });
@@ -554,6 +573,11 @@ pimcore.object.classes.data.advancedManyToManyRelation = Class.create(pimcore.ob
         }
 
         return this.datax;
+    },
+
+    applyData: function ($super){
+        $super();
+        return this.getData();
     },
 
     applySpecialData: function(source) {
@@ -585,6 +609,3 @@ pimcore.object.classes.data.advancedManyToManyRelation = Class.create(pimcore.ob
     }
 
 });
-
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.classes.data.multihrefMetadata = pimcore.object.classes.data.advancedManyToManyRelation;

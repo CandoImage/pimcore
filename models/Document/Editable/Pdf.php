@@ -22,17 +22,17 @@ use Pimcore\Model\Asset;
 /**
  * @method \Pimcore\Model\Document\Editable\Dao getDao()
  */
-class Pdf extends Model\Document\Editable
+class Pdf extends Model\Document\Editable implements EditmodeDataInterface
 {
     /**
+     * @internal
+     *
      * @var int|null
      */
-    public $id;
+    protected $id;
 
     /**
-     * @see EditableInterface::getType
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getType()
     {
@@ -40,9 +40,7 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::getData
-     *
-     * @return mixed
+     * {@inheritdoc}
      */
     public function getData()
     {
@@ -52,7 +50,7 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function getDataForResource()
     {
@@ -62,9 +60,9 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
-    public function getDataEditmode()
+    public function getDataEditmode() /** : mixed */
     {
         $pages = 0;
 
@@ -79,15 +77,10 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @param Model\Document\PageSnippet $ownerDocument
-     * @param array $tags
-     *
-     * @return array|mixed
+     * {@inheritdoc}
      */
-    public function getCacheTags($ownerDocument, $tags = [])
+    public function getCacheTags(Model\Document\PageSnippet $ownerDocument, array $tags = []): array
     {
-        $tags = is_array($tags) ? $tags : [];
-
         $asset = Asset::getById($this->id);
         if ($asset instanceof Asset) {
             if (!array_key_exists($asset->getCacheTag(), $tags)) {
@@ -99,7 +92,7 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @return array
+     * {@inheritdoc}
      */
     public function resolveDependencies()
     {
@@ -118,7 +111,7 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function checkValidity()
     {
@@ -136,11 +129,7 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @see EditableInterface::setDataFromResource
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromResource($data)
     {
@@ -154,19 +143,7 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @return bool
-     */
-    public function getEditmode()
-    {
-        return parent::getEditmode();
-    }
-
-    /**
-     * @see EditableInterface::setDataFromEditmode
-     *
-     * @param mixed $data
-     *
-     * @return $this
+     * {@inheritdoc}
      */
     public function setDataFromEditmode($data)
     {
@@ -179,7 +156,7 @@ class Pdf extends Model\Document\Editable
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function frontend()
     {
@@ -213,7 +190,7 @@ HTML;
      *
      * @return string
      */
-    public function getErrorCode($message = '')
+    private function getErrorCode($message = '')
     {
         // only display error message in debug mode
         if (!\Pimcore::inDebugMode()) {
@@ -221,8 +198,8 @@ HTML;
         }
 
         $code = '
-        <div id="pimcore_pdf_' . $this->getName() . '" class="pimcore_tag_pdf pimcore_editable_pdf">
-            <div class="pimcore_tag_video_error pimcore_editable_video_error" style="line-height: 50px; text-align:center; width: 100%; min-height: 50px; background: #ececec;">
+        <div id="pimcore_pdf_' . $this->getName() . '" class="pimcore_editable_pdf">
+            <div class="pimcore_editable_video_error" style="line-height: 50px; text-align:center; width: 100%; min-height: 50px; background: #ececec;">
                 ' . $message . '
             </div>
         </div>';
@@ -231,7 +208,7 @@ HTML;
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEmpty()
     {
@@ -243,30 +220,7 @@ HTML;
     }
 
     /**
-     * @deprecated
-     *
-     * @param Model\Webservice\Data\Document\Element $wsElement
-     * @param Model\Document\PageSnippet $document
-     * @param array $params
-     * @param Model\Webservice\IdMapperInterface|null $idMapper
-     *
-     * @throws \Exception
-     */
-    public function getFromWebserviceImport($wsElement, $document = null, $params = [], $idMapper = null)
-    {
-        $data = $this->sanitizeWebserviceData($wsElement->value);
-        if ($data->id) {
-            $asset = Asset::getById($data->id);
-            if (!$asset) {
-                throw new \Exception('Referencing unknown asset with id [ '.$data->id.' ] in webservice import field [ '.$data->name.' ]');
-            } else {
-                $this->id = $data->id;
-            }
-        }
-    }
-
-    /**
-     * @return Asset
+     * @return Asset|null
      */
     public function getElement()
     {
@@ -276,7 +230,7 @@ HTML;
     }
 
     /**
-     * @param int $id
+     * @param int|null $id
      */
     public function setId($id)
     {
@@ -284,12 +238,10 @@ HTML;
     }
 
     /**
-     * @return int
+     * @return int|null
      */
     public function getId()
     {
-        return (int)  $this->id;
+        return $this->id;
     }
 }
-
-class_alias(Pdf::class, 'Pimcore\Model\Document\Tag\Pdf');

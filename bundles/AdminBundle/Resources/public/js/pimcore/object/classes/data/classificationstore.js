@@ -30,6 +30,9 @@ pimcore.object.classes.data.classificationstore = Class.create(pimcore.object.cl
         this.type = "classificationstore";
 
         this.initData(initData);
+
+        this.availableSettingsFields = ["name","title","tooltip","mandatory","index","invisible","style","noteditable"];
+
         this.treeNode = treeNode;
     },
 
@@ -54,10 +57,10 @@ pimcore.object.classes.data.classificationstore = Class.create(pimcore.object.cl
         this.specificPanel.removeAll();
 
         this.specificPanel.add({
-                    xtype: "numberfield",
-                    name: "labelWidth",
-                    fieldLabel: t("label_width"),
-                    value: this.datax.labelWidth
+            xtype: "numberfield",
+            name: "labelWidth",
+            fieldLabel: t("label_width"),
+            value: this.datax.labelWidth
         });
 
         this.specificPanel.add({
@@ -152,7 +155,7 @@ pimcore.object.classes.data.classificationstore = Class.create(pimcore.object.cl
                     allowedGroupIds: source.datax.allowedGroupIds,
                     hideEmptyData: source.datax.hideEmptyData,
                     disallowAddRemove: source.datax.disallowAddRemove,
-                    storeId: source.datax.storeId 
+                    storeId: source.datax.storeId
                 });
         }
     }

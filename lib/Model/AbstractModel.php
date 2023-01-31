@@ -58,9 +58,9 @@ abstract class AbstractModel implements ModelInterface
     }
 
     /**
-     * @param \Pimcore\Model\Dao\AbstractDao $dao
+     * @param \Pimcore\Model\Dao\AbstractDao|null $dao
      *
-     * @return self
+     * @return $this
      */
     public function setDao($dao)
     {
@@ -95,9 +95,9 @@ abstract class AbstractModel implements ModelInterface
             } else {
                 $dao = self::locateDaoClass($myClass);
             }
-        } elseif ($key) {
+        } else {
             $delimiter = '_'; // old prefixed class style
-            if (strpos($key, '\\') !== false) {
+            if (str_contains($key, '\\') !== false) {
                 $delimiter = '\\'; // that's the new with namespaces
             }
 
@@ -217,7 +217,7 @@ abstract class AbstractModel implements ModelInterface
      */
     public function __sleep()
     {
-        $blockedVars = ['dao', 'o_dirtyFields'];
+        $blockedVars = ['dao', 'o_dirtyFields', 'activeDispatchingEvents'];
 
         $vars = get_object_vars($this);
 
@@ -234,7 +234,6 @@ abstract class AbstractModel implements ModelInterface
      */
     public function __call($method, $args)
     {
-
         // protected / private methods shouldn't be delegated to the dao -> this can have dangerous effects
         if (!is_callable([$this, $method])) {
             throw new \Exception("Unable to call private/protected method '" . $method . "' on object " . get_class($this));
@@ -247,7 +246,7 @@ abstract class AbstractModel implements ModelInterface
 
                 return $r;
             } catch (\Exception $e) {
-                Logger::emergency($e);
+                Logger::emergency((string) $e);
 
                 throw $e;
             }
@@ -286,11 +285,13 @@ abstract class AbstractModel implements ModelInterface
      * @internal
      *
      * @param array $data
+     *
+     * @throws \Exception
      */
     protected static function checkCreateData(array $data)
     {
         if (isset($data['id'])) {
-            @trigger_error(sprintf('Calling %s including `id` key in the data-array is deprecated and will throw an exception in Pimcore 10', __METHOD__), E_USER_DEPRECATED);
+            throw new \Exception(sprintf('Calling %s including `id` key in the data-array is not supported, use setId() instead.', __METHOD__));
         }
     }
 }

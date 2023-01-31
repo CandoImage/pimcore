@@ -24,7 +24,10 @@ use Pimcore\Model\User;
 use Pimcore\Model\Version;
 use Psr\Log\LoggerInterface;
 
-final class ScheduledTasksTask implements TaskInterface
+/**
+ * @internal
+ */
+class ScheduledTasksTask implements TaskInterface
 {
     /**
      * @var LoggerInterface
@@ -103,7 +106,7 @@ final class ScheduledTasksTask implements TaskInterface
                         if ($task->getAction() === 'publish-version' && $task->getVersion() && $object->isAllowed('publish', $taskUser) && $object->isAllowed('versions', $taskUser)) {
                             if ($version = Version::getById($task->getVersion())) {
                                 $object = $version->getData();
-                                if ($object instanceof DataObject\AbstractObject) {
+                                if ($object instanceof DataObject\Concrete) {
                                     $object->setPublished(true);
                                     $object->save();
                                 } else {
@@ -128,7 +131,7 @@ final class ScheduledTasksTask implements TaskInterface
                 $task->save();
             } catch (\Exception $e) {
                 $this->logger->error('There was a problem with the scheduled task ID: '.$task->getId());
-                $this->logger->error($e);
+                $this->logger->error((string) $e);
             }
         }
     }

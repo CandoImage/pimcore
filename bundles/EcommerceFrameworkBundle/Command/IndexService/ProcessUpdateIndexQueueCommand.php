@@ -24,12 +24,16 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class ProcessUpdateIndexQueueCommand extends AbstractIndexServiceCommand
 {
     use Timeout;
     use Parallelization
     {
         Parallelization::runBeforeFirstCommand as parentRunBeforeFirstCommand;
+
         Parallelization::runAfterBatch as parentRunAfterBatch;
     }
 
@@ -61,7 +65,7 @@ class ProcessUpdateIndexQueueCommand extends AbstractIndexServiceCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function configure()
     {
@@ -78,7 +82,7 @@ class ProcessUpdateIndexQueueCommand extends AbstractIndexServiceCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function runBeforeFirstCommand(InputInterface $input, OutputInterface $output): void
     {
@@ -87,7 +91,7 @@ class ProcessUpdateIndexQueueCommand extends AbstractIndexServiceCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function fetchItems(InputInterface $input): array
     {
@@ -101,7 +105,7 @@ class ProcessUpdateIndexQueueCommand extends AbstractIndexServiceCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function runSingleCommand(string $serializedRow, InputInterface $input, OutputInterface $output): void
     {
@@ -121,7 +125,7 @@ class ProcessUpdateIndexQueueCommand extends AbstractIndexServiceCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function runAfterBatch(InputInterface $input, OutputInterface $output, array $items): void
     {
@@ -172,7 +176,7 @@ class ProcessUpdateIndexQueueCommand extends AbstractIndexServiceCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function getItemName(int $count): string
     {
@@ -180,7 +184,7 @@ class ProcessUpdateIndexQueueCommand extends AbstractIndexServiceCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function getSegmentSize(): int
     {

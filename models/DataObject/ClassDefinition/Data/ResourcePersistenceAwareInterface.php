@@ -42,7 +42,7 @@ interface ResourcePersistenceAwareInterface
     public function getDataFromResource($data, $object = null, $params = []);
 
     /**
-     * @return string|array
+     * @return string|array|null
      */
     public function getColumnType();
 }

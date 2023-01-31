@@ -17,6 +17,9 @@ namespace Pimcore\Bundle\CoreBundle\EventListener\Traits;
 
 use Symfony\Component\HttpFoundation\Request;
 
+/**
+ * @internal
+ */
 trait PreviewRequestTrait
 {
     /**

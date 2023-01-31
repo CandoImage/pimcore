@@ -22,9 +22,14 @@ use Pimcore\Extension\Document\Areabrick\Exception\BrickNotFoundException;
 use Pimcore\Extension\Document\Areabrick\Exception\ConfigurationException;
 use Psr\Container\ContainerInterface;
 
+/**
+ * @internal
+ */
 class AreabrickManager implements AreabrickManagerInterface
 {
     /**
+     * @deprecated
+     *
      * @var Extension\Config
      */
     protected $config;
@@ -55,7 +60,7 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function register(string $id, AreabrickInterface $brick)
     {
@@ -83,7 +88,7 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function registerService(string $id, string $serviceId)
     {
@@ -109,7 +114,7 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getBrick(string $id): AreabrickInterface
     {
@@ -128,7 +133,7 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getBricks(): array
     {
@@ -140,7 +145,7 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getBrickIds(): array
     {
@@ -204,7 +209,9 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * @deprecated will be removed in Pimcore 11
+     *
+     * {@inheritdoc}
      */
     public function enable(string $id)
     {
@@ -212,7 +219,9 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * @inheritdoc
+     * @deprecated will be removed in Pimcore 11
+     *
+     * {@inheritdoc}
      */
     public function disable(string $id)
     {
@@ -220,10 +229,9 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * Enables/disables an areabrick
+     * @deprecated will be removed in Pimcore 11
      *
-     * @param string $id
-     * @param bool $state
+     * {@inheritdoc}
      */
     public function setState(string $id, bool $state)
     {
@@ -243,12 +251,9 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
-     * Determines if an areabrick is enabled. Bricks are enabled by default an can be switched off by setting
-     * the state explicitely to false in the extension config.
+     * @deprecated will be removed in Pimcore 11
      *
-     * @param string $id
-     *
-     * @return bool
+     * {@inheritdoc}
      */
     public function isEnabled(string $id): bool
     {
@@ -263,6 +268,8 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
+     * @deprecated
+     *
      * @return array
      */
     private function getBrickConfig()
@@ -276,6 +283,8 @@ class AreabrickManager implements AreabrickManagerInterface
     }
 
     /**
+     * @deprecated
+     *
      * @param array $config
      */
     private function setBrickConfig(array $config)

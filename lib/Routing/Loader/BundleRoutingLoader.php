@@ -19,6 +19,9 @@ use Pimcore\Config\BundleConfigLocator;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Routing\RouteCollection;
 
+/**
+ * @internal
+ */
 class BundleRoutingLoader extends Loader
 {
     /**
@@ -35,9 +38,9 @@ class BundleRoutingLoader extends Loader
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function load($resource, $type = null)
+    public function load($resource, $type = null): mixed
     {
         $collection = new RouteCollection();
         $files = $this->locator->locate('routing');
@@ -55,9 +58,9 @@ class BundleRoutingLoader extends Loader
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function supports($resource, $type = null)
+    public function supports($resource, $type = null): bool
     {
         return 'pimcore_bundle' === $type;
     }

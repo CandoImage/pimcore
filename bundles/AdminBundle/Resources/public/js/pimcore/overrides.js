@@ -11,6 +11,9 @@
  * @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
 
+Ext.setVersion("ext", "7.0.0.159");
+Ext.setVersion("core", "7.0.0.159");
+
 if(typeof window['t'] !== 'function') {
     // for compatibility reasons
     window.t = function(v) { return v; };
@@ -18,78 +21,6 @@ if(typeof window['t'] !== 'function') {
 
 
 Ext.form.field.Date.prototype.startDay = 1;
-
-Ext.override(Ext.grid.plugin.CellEditing, {
-
-    // patch for Using TAB-Key within Data Object grid breaks ExtJS https://github.com/pimcore/pimcore/issues/9079
-    // NOTE: already fixed in Ext7, no need to merge this into Pimcore 10!
-
-    activateCell: function(position) {
-        var me = this,
-            record = position.record,
-            column = position.column,
-            context, cell, editor,
-            previousEditor = me.getActiveEditor(),
-            p, editValue;
-
-        context = me.getEditingContext(record, column);
-        if (!context || !column.getEditor(record)) {
-            return;
-        }
-
-        if (previousEditor && previousEditor.editing) {
-            me.view.actionPosition = null;
-            if (previousEditor.completeEdit() === false) {
-                return;
-            }
-        }
-
-        if (me.beforeEdit(context) === false || me.fireEvent('beforeedit', me, context) === false || context.cancel) {
-            return;
-        }
-
-        editor = me.getEditor(record, column);
-
-        if (context.cell !== context.getCell(true)) {
-            context = me.getEditingContext(context.rowIdx, context.colIdx);
-            position.setPosition(context);
-        }
-
-        if (editor) {
-            cell = Ext.get(context.cell);
-            if (!editor.rendered) {
-                editor.hidden = true;
-                editor.render(cell);
-            } else {
-                p = editor.el.dom.parentNode;
-                if (p !== cell.dom) {
-                    p.removeChild(editor.el.dom);
-                    editor.container = cell;
-                    cell.dom.appendChild(editor.el.dom, cell.dom.firstChild);
-                }
-            }
-
-            editValue = context.record.get(context.column.dataIndex);
-            if (editValue !== context.originalValue) {
-                context.value = context.originalValue = editValue;
-            }
-
-            me.setEditingContext(context);
-
-            editor.startEdit(cell, context.value, false);
-
-            if (editor.editing) {
-                me.setActiveEditor(editor);
-                me.setActiveRecord(context.record);
-                me.setActiveColumn(context.column);
-                me.editing = true;
-                me.scroll = position.view.el.getScroll();
-            }
-
-            return editor.editing;
-        }
-    }
-});
 
 Ext.override(Ext.dd.DragDropMgr, {
         startDrag: function (x, y) {
@@ -181,6 +112,7 @@ Ext.define('pimcore.FieldSetTools', {
 Ext.define('pimcore.filters', {
     extend: 'Ext.grid.filters.Filters',
     alias: 'plugin.pimcore.gridfilters',
+    menuFilterText: t('filter'),
 
     createColumnFilter: function(column) {
         this.callSuper(arguments);
@@ -204,6 +136,8 @@ Ext.define('pimcore.filters', {
 });
 
 // See https://www.sencha.com/forum/showthread.php?288385
+// Column renderer will give no metadata parameter after change a value of cell.
+// It happens because column renderer method is invoked with null second parameter here
 Ext.define('Ext.overrides.grid.View', {
         extend: 'Ext.grid.View',
 
@@ -256,19 +190,14 @@ Ext.define('Ext.overrides.grid.View', {
                             Ext.fly(newItemDom).addCls(selectedItemCls);
                         }
 
-                        if (Ext.isIE9m && oldItemDom.mergeAttributes) {
-                            oldItemDom.mergeAttributes(newItemDom, true);
-                        } else {
-                            newAttrs = newItemDom.attributes;
-                            attLen = newAttrs.length;
-                            for (attrIndex = 0; attrIndex < attLen; attrIndex++) {
-                                attName = newAttrs[attrIndex].name;
-                                if (attName !== 'id') {
-                                    oldItemDom.setAttribute(attName, newAttrs[attrIndex].value);
-                                }
+                        newAttrs = newItemDom.attributes;
+                        attLen = newAttrs.length;
+                        for (attrIndex = 0; attrIndex < attLen; attrIndex++) {
+                            attName = newAttrs[attrIndex].name;
+                            if (attName !== 'id') {
+                                oldItemDom.setAttribute(attName, newAttrs[attrIndex].value);
                             }
                         }
-
 
                         if (columns.length && (oldDataRow = me.getRow(oldItemDom))) {
                             me.updateColumns(oldDataRow, Ext.fly(newItemDom).down(me.rowSelector, true), columnsToUpdate);
@@ -302,11 +231,6 @@ Ext.define('Ext.overrides.grid.View', {
                 }
             }
         }
-    }, function() {
-        if (!Ext.getVersion().match('6.0.0.640')) {
-            console.warn('This patch has not been tested with this version of ExtJS');
-        }
-
     }
 );
 
@@ -329,7 +253,8 @@ Ext.define('pimcore.tree.View', {
         },
 
         itemupdate: function(record) {
-            if (record.needsPaging && typeof record.ptb == "undefined") {
+            if (record.needsPaging && typeof record.ptb == "undefined" && typeof record.itemUpdated == "undefined") {
+                record.itemUpdated = true;
                 this.doUpdatePaging(record);
             }
         }
@@ -345,7 +270,8 @@ Ext.define('pimcore.tree.View', {
 
         me.superclass.renderRow.call(this, record, rowIdx, out);
 
-        if (record.needsPaging && typeof record.ptb == "undefined") {
+        // do not update paging again, if already done in "itemupdate" event
+        if (record.needsPaging && typeof record.ptb == "undefined" && typeof record.itemUpdated == "undefined") {
             this.doUpdatePaging(record);
         }
 
@@ -436,7 +362,7 @@ Ext.define('pimcore.data.PagingTreeStore', {
 
 
             var response = operation.getResponse();
-            var data = Ext.decode(response.responseText);
+            var data = response.responseJson;
 
             node.fromPaging = data.fromPaging;
             node.filter = data.filter;
@@ -972,72 +898,6 @@ Ext.define('pimcore.toolbar.Paging', {
     }
 });
 
-
-/**
- * Already fixed in 6.0.1
- * Inspired from https://www.sencha.com/forum/showthread.php?302760
- */
-Ext.define('EXTJS-16385.event.publisher.Dom', {
-    override: 'Ext.event.publisher.Dom',
-
-    isEventBlocked: function(e) {
-        var me = this,
-            type = e.type,
-            self = Ext.event.publisher.Dom,
-            now = Ext.now();
-
-        if (Ext.isGecko && e.type === 'click' && e.button === 2) {
-            return true;
-        }
-    }
-});
-
-
-
-/**
- * Addresses FF 52 issues on touch devices (desktop + touch)
- * https://www.sencha.com/forum/showthread.php?336762-Examples-don-t-work-in-Firefox-52-touchscreen&p=1174857&viewfull=1#post1174857
- */
-Ext.define('EXTJS_23846.Element', {
-    override: 'Ext.dom.Element'
-}, function(Element) {
-    var supports = Ext.supports,
-        proto = Element.prototype,
-        eventMap = proto.eventMap,
-        additiveEvents = proto.additiveEvents;
-
-    if (Ext.os.is.Desktop && supports.TouchEvents && !supports.PointerEvents) {
-        eventMap.touchstart = 'mousedown';
-        eventMap.touchmove = 'mousemove';
-        eventMap.touchend = 'mouseup';
-        eventMap.touchcancel = 'mouseup';
-
-        additiveEvents.mousedown = 'mousedown';
-        additiveEvents.mousemove = 'mousemove';
-        additiveEvents.mouseup = 'mouseup';
-        additiveEvents.touchstart = 'touchstart';
-        additiveEvents.touchmove = 'touchmove';
-        additiveEvents.touchend = 'touchend';
-        additiveEvents.touchcancel = 'touchcancel';
-
-        additiveEvents.pointerdown = 'mousedown';
-        additiveEvents.pointermove = 'mousemove';
-        additiveEvents.pointerup = 'mouseup';
-        additiveEvents.pointercancel = 'mouseup';
-    }
-});
-
-Ext.define('EXTJS_23846.Gesture', {
-    override: 'Ext.event.publisher.Gesture'
-}, function(Gesture) {
-    var me = Gesture.instance;
-
-    if (Ext.supports.TouchEvents && !Ext.isWebKit && Ext.os.is.Desktop) {
-        me.handledDomEvents.push('mousedown', 'mousemove', 'mouseup');
-        me.registerEvents();
-    }
-});
-
 /**
  * Fixes ID validation to include more characters as we need the colon for nested editable names
  *
@@ -1053,135 +913,6 @@ Ext.define('EXTJS-17231.ext.dom.Element.validIdRe', {
 
     getObservableId: function () {
         return (this.observableId = this.callParent().replace(/([.:])/g, "\\$1"));
-    }
-});
-
-// use only native scroll bar, the touch-scroller causes issues on hybrid touch devices when using with a mouse
-// this ist fixed in ExtJS 6.2.0 since there's no TouchScroller anymore, see:
-// http://docs.sencha.com/extjs/6.2.0/guides/whats_new/extjs_upgrade_guide.html
-Ext.define('Ext.scroll.TouchScroller', {
-    extend: 'Ext.scroll.DomScroller',
-    alias: 'scroller.touch'
-});
-Ext.supports.touchScroll = 0;
-
-/**
- * Fieldtype date is not able to save the correct value (before 1951) #1329
- *
- * When saving a date before the year 1951 (e.g. 01/01/1950) with the fieldtype "date" inside a object ...
- *
- * Expected behavior
- *
- * ... the timestamp saved into the database should contain the date 01/01/1950.
- *
- * Actual behavior
- *
- * ... but it actually contains the value of 01/01/2050.
- *
- *
- */
-Ext.define('pimcore.Ext.form.field.Date', {
-    override: 'Ext.form.field.Date',
-
-    initValue: function() {
-        var value = this.value;
-
-        if (Ext.isString(value)) {
-            this.value = this.rawToValue(value);
-            this.rawDate = this.value;
-            this.rawDateText = this.parseDate(this.value);
-        }
-        else {
-            this.value = value || null;
-            this.rawDate = this.value;
-            this.rawDateText = this.value ? this.parseDate(this.value) : '';
-        }
-
-        this.callParent();
-    },
-
-    rawToValue: function(rawValue) {
-        if (rawValue === this.rawDateText) {
-            return this.rawDate;
-        }
-        return this.parseDate(rawValue) || rawValue || null;
-    },
-
-    setValue: function(v) {
-        var utilDate = Ext.Date,
-            rawDate;
-
-        this.lastValue = this.rawDateText;
-        this.lastDate = this.rawDate;
-        if (Ext.isDate(v)) {
-            rawDate = this.rawDate  = v;
-            this.rawDateText = this.formatDate(v);
-        }
-        else {
-            rawDate = this.rawDate = this.rawToValue(v);
-            this.rawDateText = this.formatDate(v);
-            if (rawDate === v) {
-                rawDate = this.rawDate = null;
-                this.rawDateText = '';
-            }
-        }
-        if (rawDate && !utilDate.formatContainsHourInfo(this.format)) {
-            this.rawDate = utilDate.clearTime(rawDate, true);
-        }
-        this.callParent(arguments);
-    },
-
-    checkChange: function() {
-        var  newVal, oldVal, lastDate;
-
-        if (!this.suspendCheckChange) {
-            newVal = this.getRawValue();
-            oldVal = this.lastValue;
-            lastDate = this.lastDate;
-
-            if (!this.destroyed && this.didValueChange(newVal, oldVal)) {
-                this.rawDate = this.rawToValue(newVal);
-                this.rawDateText = this.formatDate(newVal);
-                this.lastValue = newVal;
-                this.lastDate = this.rawDate;
-                this.fireEvent('change', this, this.getValue(), lastDate);
-                this.onChange(newVal, oldVal);
-            }
-        }
-    },
-
-    getSubmitValue: function() {
-        var format = this.submitFormat || this.format,
-            value = this.rawDate;
-
-        return value ? Ext.Date.format(value, format) : '';
-    },
-
-    getValue: function() {
-        return this.rawDate || null;
-    },
-
-    setRawValue: function(value) {
-        this.callParent([value]);
-        this.rawDate = Ext.isDate(value) ? value : this.rawToValue(value);
-        this.rawDateText = this.formatDate(value);
-    },
-
-    onSelect: function(m, d) {
-        this.setValue(d);
-        this.rawDate = d;
-        this.fireEvent('select', this, d);
-        this.onTabOut(m);
-    },
-
-    onTabOut: function(picker) {
-        this.inputEl.focus();
-        this.collapse();
-    },
-
-    onExpand: function() {
-        var value = this.rawDate;
-        this.picker.setValue(Ext.isDate(value) ? value : null);
     }
 });
 
@@ -1203,6 +934,29 @@ Ext.override(Ext.picker.Date, {
     }
 });
 
+
+/** workaround for [DataObject] Advanced Image Dropzone only works once #9115
+ * Issue: on node drop the component gets destroyed. On mouse up it then tries to focus an already destroyed element.
+ */
+Ext.override(Ext.dom.Element, {
+    focus: function (defer, dom) {
+
+        var me = this;
+
+        dom = dom || me.dom;
+
+        if (Number(defer)) {
+            Ext.defer(me.focus, defer, me, [null, dom]);
+        } else {
+            Ext.fireEvent('beforefocus', dom);
+            if (dom) {
+                dom.focus();
+            }
+        }
+
+        return me;
+    }
+});
 
 /**
  * A specialized {@link Ext.view.BoundListKeyNav} implementation for navigating in the quicksearch.
@@ -1265,85 +1019,46 @@ Ext.define('Pimcore.view.BoundListKeyNav', {
     }
 });
 
-
 /**
- * EXTJS-17945
- * Ext.menu.Item changes the hash to # when clicking on Windows 10 Touch Screens
- * https://www.sencha.com/forum/showthread.php?309916
+ * Workaround to fix the rowEditing not fully showing the buttons (Update/Cancel) when there are 2 rows.
+ *
+ * See:
+ * - https://forum.sencha.com/forum/showthread.php?305665-RowEditing-Buttons-not-visible&p=1317756&viewfull=1#post1317756
  */
-Ext.define(null, {
-    override: 'Ext.menu.Menu',
+Ext.define('Ext.overrides.grid.RowEditor', {
+    override: 'Ext.grid.RowEditor',
 
-    onBoxReady: function () {
+    showTipBelowRow: true,
+
+    syncButtonPosition: function (context) {
         var me = this,
-            iconSeparatorCls = me._iconSeparatorCls,
-            keyNav = me.focusableKeyNav;
-
-        // Keyboard handling can be disabled, e.g. by the DatePicker menu
-        // or the Date filter menu constructed by the Grid
-        if (keyNav) {
-            keyNav.map.processEventScope = me;
-            keyNav.map.processEvent = function (e) {
-                // ESC may be from input fields, and FocusableContainers ignore keys from
-                // input fields. We do not want to ignore ESC. ESC hide menus.
-                if (e.keyCode === e.ESC) {
-                    e.target = this.el.dom;
-                }
-
-                return e;
-            };
-
-            // Handle ESC key
-            keyNav.map.addBinding([{
-                key: Ext.event.Event.ESC,
-                handler: me.onEscapeKey,
-                scope: me
-            },
-                // Handle character shortcuts
-                {
-                    key: /[\w]/,
-                    handler: me.onShortcutKey,
-                    scope: me,
-                    shift: false,
-                    ctrl: false,
-                    alt: false
-                }
-            ]);
-        } else {
-            // Even when FocusableContainer key event processing is disabled,
-            // we still need to handle the Escape key!
-            me.escapeKeyNav = new Ext.util.KeyNav(me.el, {
-                eventName: 'keydown',
-                scope: me,
-                esc: me.onEscapeKey
-            });
+            scrollDelta = me.getScrollDelta(),
+            floatingButtons = me.getFloatingButtons(),
+            scrollingView = me.scrollingView,
+        // If this is negative, it means we're not scrolling so lets just ignore it
+            scrollHeight = Math.max(0, me.scroller.getSize().y - me.scroller.getClientSize().y),
+            overflow = scrollDelta - (scrollHeight - me.scroller.getPosition().y);
+        floatingButtons.show();
+        // If that's the last visible row, buttons should be at the top regardless of scrolling,
+        // but not if there is just one row which is both first and last.
+        if (overflow > 0 || (context.rowIdx > 1 && context.isLastRenderedRow())) {
+            if (!me._buttonsOnTop) {
+                floatingButtons.setButtonPosition('top');
+                me._buttonsOnTop = true;
+                me.layout.setAlign('bottom');
+                me.updateLayout();
+            }
+            scrollDelta = 0;
+        } else if (me._buttonsOnTop !== false) {
+            floatingButtons.setButtonPosition('bottom');
+            me._buttonsOnTop = false;
+            me.layout.setAlign('top');
+            me.updateLayout();
+        } else // Ensure button Y position is synced with Editor height even if button
+            // orientation doesn't change
+        {
+            floatingButtons.setButtonPosition(floatingButtons.position);
         }
-
-        me.callSuper(arguments);
-
-        // TODO: Move this to a subTemplate When we support them in the future
-        if (me.showSeparator) {
-            me.iconSepEl = me.body.insertFirst({
-                role: 'presentation',
-                cls: iconSeparatorCls + ' ' + iconSeparatorCls + '-' + me.ui,
-                html: ' '
-            });
-        }
-
-        // Modern IE browsers have click events translated to PointerEvents, and b/c of this the
-        // event isn't being canceled like it needs to be. So, we need to add an extra listener.
-        // For devices that have touch support, the default click event may be a gesture that
-        // runs asynchronously, so by the time we try and prevent it, it's already happened
-
-        // we use Ext.supports.TouchEvents here, because we're overriding Ext.supports.Touch in edit/startup.js (Editmode)
-        if (Ext.supports.TouchEvents || Ext.supports.MSPointerEvents || Ext.supports.PointerEvents) {
-            me.el.on({
-                scope: me,
-                click: me.preventClick,
-                translate: false
-            });
-        }
-
-        me.mouseMonitor = me.el.monitorMouseLeave(100, me.onMouseLeave, me);
-    }
+        return scrollDelta;
+    },
 });

@@ -19,13 +19,21 @@ use Pimcore\Bundle\AdminBundle\Security\CsrfProtectionHandler;
 use Pimcore\Bundle\CoreBundle\EventListener\Traits\PimcoreContextAwareTrait;
 use Pimcore\Http\Request\Resolver\PimcoreContextResolver;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Twig\Environment;
 
+/**
+ * @internal
+ */
 class CsrfProtectionListener implements EventSubscriberInterface
 {
     use PimcoreContextAwareTrait;
+
+    /**
+     * @var Environment
+     */
+    protected $twig;
 
     /**
      * @var CsrfProtectionHandler $handler
@@ -41,9 +49,9 @@ class CsrfProtectionListener implements EventSubscriberInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             KernelEvents::REQUEST => ['handleRequest', 11],
@@ -51,9 +59,9 @@ class CsrfProtectionListener implements EventSubscriberInterface
     }
 
     /**
-     * @param GetResponseEvent $event
+     * @param RequestEvent $event
      */
-    public function handleRequest(GetResponseEvent $event)
+    public function handleRequest(RequestEvent $event)
     {
         $request = $event->getRequest();
         if (!$this->matchesPimcoreContext($request, PimcoreContextResolver::CONTEXT_ADMIN)) {
@@ -62,7 +70,7 @@ class CsrfProtectionListener implements EventSubscriberInterface
 
         $this->csrfProtectionHandler->generateCsrfToken();
 
-        if ($request->getMethod() == Request::METHOD_GET) {
+        if ($request->isMethodCacheable()) {
             return;
         }
 
@@ -72,7 +80,6 @@ class CsrfProtectionListener implements EventSubscriberInterface
 
             // external applications
             'pimcore_admin_external_opcache_index',
-            'pimcore_admin_external_linfo_index', 'pimcore_admin_external_linfo_layout',
             'pimcore_admin_external_adminer_adminer', 'pimcore_admin_external_adminer_proxy',
             'pimcore_admin_external_adminer_proxy_1', 'pimcore_admin_external_adminer_proxy_2',
         ];
@@ -83,43 +90,5 @@ class CsrfProtectionListener implements EventSubscriberInterface
         }
 
         $this->csrfProtectionHandler->checkCsrfToken($request);
-    }
-
-    /**
-     * @param Request $request
-     *
-     * @deprecated use CsrfProtectionHandler::checkCsrfToken() instead
-     */
-    public function checkCsrfToken(Request $request)
-    {
-        @trigger_error(sprintf('Calling '.__METHOD__.' is deprecated since version 6.9.0 and will be removed in Pimcore 10. ' .
-            'Use %s service instead.', CsrfProtectionHandler::class), E_USER_DEPRECATED);
-
-        $this->csrfProtectionHandler->checkCsrfToken($request);
-    }
-
-    /**
-     * @return string
-     *
-     * @deprecated use CsrfProtectionHandler::getCsrfToken() instead
-     */
-    public function getCsrfToken()
-    {
-        @trigger_error(sprintf('Calling '.__METHOD__.' is deprecated since version 6.9.0 and will be removed in Pimcore 10. ' .
-            'Use %s service instead.', CsrfProtectionHandler::class), E_USER_DEPRECATED);
-
-        return $this->csrfProtectionHandler->getCsrfToken();
-    }
-
-    /**
-     *
-     * @deprecated use CsrfProtectionHandler::getCsrfToken() instead
-     */
-    public function regenerateCsrfToken()
-    {
-        @trigger_error(sprintf('Calling '.__METHOD__.' is deprecated since version 6.9.0 and will be removed in Pimcore 10. ' .
-            'Use %s service instead.', CsrfProtectionHandler::class), E_USER_DEPRECATED);
-
-        $this->csrfProtectionHandler->regenerateCsrfToken();
     }
 }

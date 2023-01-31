@@ -37,9 +37,7 @@ interface TrackingManagerInterface extends
     /**
      * Forwards all tracked tracking codes to the next request via FlashMesssageBag
      *
-     * @return self
+     * @return $this
      */
     public function forwardTrackedCodesAsFlashMessage(): self;
 }
-
-class_alias(TrackingManagerInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\ITrackingManager');

@@ -21,13 +21,13 @@ use Symfony\Bundle\DebugBundle\DebugBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\MonologBundle\MonologBundle;
-use Symfony\Component\Config\Loader\LoaderInterface;
-use Symfony\Component\Config\Resource\FileExistenceResource;
-use Symfony\Component\Config\Resource\FileResource;
-use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel;
-use Symfony\Component\Routing\RouteCollectionBuilder;
+use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
+/**
+ * @internal
+ */
 class InstallerKernel extends Kernel
 {
     use MicroKernelTrait;
@@ -45,7 +45,7 @@ class InstallerKernel extends Kernel
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function getProjectDir()
     {
@@ -53,19 +53,11 @@ class InstallerKernel extends Kernel
     }
 
     /**
-     * @inheritDoc
-     */
-    public function getRootDir()
-    {
-        return $this->projectRoot . '/var/installer';
-    }
-
-    /**
      * {@inheritdoc}
      */
     public function getLogDir()
     {
-        return $this->projectRoot . '/var/logs';
+        return $this->projectRoot . '/var/log';
     }
 
     /**
@@ -73,13 +65,13 @@ class InstallerKernel extends Kernel
      */
     public function getCacheDir()
     {
-        return $this->getRootDir() . '/cache';
+        return $this->projectRoot . '/var/installer/cache';
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    public function registerBundles()
+    public function registerBundles(): array
     {
         $bundles = [
             new FrameworkBundle(),
@@ -95,30 +87,27 @@ class InstallerKernel extends Kernel
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function configureContainer(ContainerBuilder $c, LoaderInterface $loader)
+    protected function configureContainer(ContainerConfigurator $configurator): void
     {
-        $c->setParameter('secret', uniqid('installer-', true));
-        $loader->load('@PimcoreInstallBundle/Resources/config/config.yml');
+        $configurator->parameters()->set('secret', uniqid('installer-', true));
+        $configurator->import('@PimcoreInstallBundle/Resources/config/config.yaml');
 
         // load installer config files if available
         foreach (['php', 'yaml', 'yml', 'xml'] as $extension) {
-            $file = sprintf('%s/app/config/installer.%s', $this->getProjectDir(), $extension);
-
-            $c->addResource(new FileExistenceResource($file));
+            $file = sprintf('%s/config/installer.%s', $this->getProjectDir(), $extension);
 
             if (file_exists($file)) {
-                $c->addResource(new FileResource($file));
-                $loader->load($file);
+                $configurator->import($file);
             }
         }
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function configureRoutes(RouteCollectionBuilder $routes)
+    protected function configureRoutes(RoutingConfigurator $routes): void
     {
         // nothing to do
     }

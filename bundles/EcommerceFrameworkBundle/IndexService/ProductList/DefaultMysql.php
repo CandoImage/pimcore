@@ -20,7 +20,6 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\CoreExtensions\ObjectData\IndexField
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config\MysqlConfigInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractCategory;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Model\AbstractProduct;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Model\IndexableInterface;
 
 /**
@@ -69,7 +68,7 @@ class DefaultMysql implements ProductListInterface
     protected $category;
 
     /**
-     * @var DefaultMysql\Dao
+     * @var DefaultMysql\Dao|null
      */
     protected $resource;
 
@@ -92,9 +91,7 @@ class DefaultMysql implements ProductListInterface
         $this->resource = new DefaultMysql\Dao($this, $this->logger);
     }
 
-    /**
-     * @return AbstractProduct[]
-     */
+    /** @inheritDoc */
     public function getProducts()
     {
         if ($this->products === null) {
@@ -105,12 +102,12 @@ class DefaultMysql implements ProductListInterface
     }
 
     /**
-     * @var string[]
+     * @var array
      */
     protected $conditions = [];
 
     /**
-     * @var string[]
+     * @var array<string[]>
      */
     protected $relationConditions = [];
 
@@ -120,17 +117,17 @@ class DefaultMysql implements ProductListInterface
     protected $queryConditions = [];
 
     /**
-     * @var float
+     * @var float|null
      */
     protected $conditionPriceFrom = null;
 
     /**
-     * @var float
+     * @var float|null
      */
     protected $conditionPriceTo = null;
 
     /**
-     * @param string $condition
+     * @param array|string $condition
      * @param string $fieldname
      */
     public function addCondition($condition, $fieldname = '')
@@ -425,7 +422,7 @@ class DefaultMysql implements ProductListInterface
      *
      * @param int $elementId
      *
-     * @return array|\Pimcore\Model\DataObject\AbstractObject
+     * @return IndexableInterface|null
      */
     protected function loadElementById($elementId)
     {
@@ -744,17 +741,10 @@ class DefaultMysql implements ProductListInterface
      */
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Count elements of an object
-     *
-     * @link http://php.net/manual/en/countable.count.php
-     *
-     * @return int The custom count as an integer.
-     * </p>
-     * <p>
-     * The return value is cast to an integer.
+     * @return int
      */
-    public function count()
+    #[\ReturnTypeWillChange]
+    public function count()// : int
     {
         if ($this->totalCount === null) {
             $this->totalCount = $this->resource->getCount($this->buildQueryFromConditions());
@@ -764,19 +754,14 @@ class DefaultMysql implements ProductListInterface
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Return the current element
-     *
-     * @link http://php.net/manual/en/iterator.current.php
-     *
-     * @return mixed Can return any type.
+     * @return IndexableInterface|false
      */
-    public function current()
+    #[\ReturnTypeWillChange]
+    public function current()// : IndexableInterface|false
     {
         $this->getProducts();
-        $var = current($this->products);
 
-        return $var;
+        return current($this->products);
     }
 
     /**
@@ -796,82 +781,49 @@ class DefaultMysql implements ProductListInterface
     }
 
     /**
-     * Return a fully configured Paginator Adapter from this method.
-     *
-     * @deprecated will be removed in Pimcore 10
-     *
-     * @return self
+     * @return int|null
      */
-    public function getPaginatorAdapter()
-    {
-        return $this;
-    }
-
-    /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Return the key of the current element
-     *
-     * @link http://php.net/manual/en/iterator.key.php
-     *
-     * @return scalar scalar on success, integer
-     * 0 on failure.
-     */
-    public function key()
+    #[\ReturnTypeWillChange]
+    public function key()// : int|null
     {
         $this->getProducts();
-        $var = key($this->products);
 
-        return $var;
+        return key($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Move forward to next element
-     *
-     * @link http://php.net/manual/en/iterator.next.php
-     *
-     * @return void Any returned value is ignored.
+     * @return void
      */
-    public function next()
+    #[\ReturnTypeWillChange]
+    public function next()// : void
     {
         $this->getProducts();
-        $var = next($this->products);
-
-        return $var;
+        next($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Rewind the Iterator to the first element
-     *
-     * @link http://php.net/manual/en/iterator.rewind.php
-     *
-     * @return void Any returned value is ignored.
+     * @return void
      */
-    public function rewind()
+    #[\ReturnTypeWillChange]
+    public function rewind()// : void
     {
         $this->getProducts();
         reset($this->products);
     }
 
     /**
-     * (PHP 5 &gt;= 5.1.0)<br/>
-     * Checks if current position is valid
-     *
-     * @link http://php.net/manual/en/iterator.valid.php
-     *
-     * @return bool The return value will be casted to boolean and then evaluated.
-     * Returns true on success or false on failure.
+     * @return bool
      */
-    public function valid()
+    #[\ReturnTypeWillChange]
+    public function valid()// : bool
     {
-        $var = $this->current() !== false;
-
-        return $var;
+        return $this->current() !== false;
     }
 
     /**
      * @return array
+     *
+     * @internal
      */
     public function __sleep()
     {
@@ -883,6 +835,9 @@ class DefaultMysql implements ProductListInterface
         return array_keys($vars);
     }
 
+    /**
+     * @internal
+     */
     public function __wakeup()
     {
         if (empty($this->resource)) {

@@ -15,10 +15,13 @@
 
 namespace Pimcore\Model\Search\Backend\Data;
 
+use Pimcore\Db\Helper;
 use Pimcore\Logger;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Search\Backend\Data $model
  */
 class Dao extends \Pimcore\Model\Dao\AbstractDao
@@ -26,7 +29,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
     /**
      * @param Model\Element\ElementInterface $element
      */
-    public function getForElement($element)
+    public function getForElement(Model\Element\ElementInterface $element): void
     {
         try {
             if ($element instanceof Model\Document) {
@@ -39,8 +42,9 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
                 throw new \Exception('unknown type of element with id [ '.$element->getId().' ] ');
             }
 
-            $data = $this->db->fetchRow('SELECT * FROM search_backend_data WHERE id= ? AND maintype = ? ', [$element->getId(), $maintype]);
+            $data = $this->db->fetchAssociative('SELECT * FROM search_backend_data WHERE id = ? AND maintype = ? ', [$element->getId(), $maintype]);
             if (is_array($data)) {
+                unset($data['id']);
                 $this->assignVariablesToModel($data);
                 $this->model->setId(new Model\Search\Backend\Data\Id($element));
             }
@@ -50,26 +54,38 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
 
     public function save()
     {
-        try {
-            $data = [
-                'id' => $this->model->getId()->getId(),
-                'fullpath' => $this->model->getFullPath(),
-                'maintype' => $this->model->getId()->getType(),
-                'type' => $this->model->getType(),
-                'subtype' => $this->model->getSubtype(),
-                'published' => $this->model->isPublished(),
-                'creationDate' => $this->model->getCreationDate(),
-                'modificationDate' => $this->model->getmodificationDate(),
-                'userOwner' => $this->model->getUserOwner(),
-                'userModification' => $this->model->getUserModification(),
-                'data' => $this->model->getData(),
-                'properties' => $this->model->getProperties(),
-            ];
+        $oldFullPath = $this->db->fetchOne('SELECT fullpath FROM search_backend_data WHERE id = :id and maintype = :type FOR UPDATE', [
+            'id' => $this->model->getId()->getId(),
+            'type' => $this->model->getId()->getType(),
+        ]);
 
-            $this->db->insertOrUpdate('search_backend_data', $data);
-        } catch (\Exception $e) {
-            Logger::error($e);
+        if ($oldFullPath && $oldFullPath !== $this->model->getFullPath()) {
+            $this->db->executeQuery('UPDATE search_backend_data
+                SET fullpath = replace(fullpath,' . $this->db->quote($oldFullPath . '/') . ',' . $this->db->quote($this->model->getFullPath() . '/') . ')
+                WHERE fullpath LIKE ' . $this->db->quote(Helper::escapeLike($oldFullPath) . '/%') . ' AND maintype = :type',
+                [
+                    'type' => $this->model->getId()->getType(),
+                ]);
         }
+
+        $data = [
+            'id' => $this->model->getId()->getId(),
+            'key' => $this->model->getKey(),
+            'index' => $this->model->getIndex(),
+            'fullpath' => $this->model->getFullPath(),
+            'maintype' => $this->model->getId()->getType(),
+            'type' => $this->model->getType(),
+            'subtype' => $this->model->getSubtype(),
+            'published' => $this->model->isPublished(),
+            'creationDate' => $this->model->getCreationDate(),
+            'modificationDate' => $this->model->getmodificationDate(),
+            'userOwner' => $this->model->getUserOwner(),
+            'userModification' => $this->model->getUserModification(),
+            'data' => $this->model->getData(),
+            'properties' => $this->model->getProperties(),
+        ];
+
+        Helper::insertOrUpdate($this->db, 'search_backend_data', $data);
     }
 
     /**

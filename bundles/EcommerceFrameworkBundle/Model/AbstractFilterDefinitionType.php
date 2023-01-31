@@ -15,6 +15,8 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\Model;
 
+use Pimcore\Bundle\EcommerceFrameworkBundle\CoreExtensions\ObjectData\IndexFieldSelection;
+
 /**
  * Abstract base class for filter definition type field collections
  */
@@ -43,19 +45,19 @@ abstract class AbstractFilterDefinitionType extends \Pimcore\Model\DataObject\Fi
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    abstract public function getLabel();
+    abstract public function getLabel(): ?string;
 
     /**
-     * @return string
+     * @return IndexFieldSelection|string|null
      */
     abstract public function getField();
 
     /**
-     * @return string
+     * @return string|null
      */
-    abstract public function getScriptPath();
+    abstract public function getScriptPath(): ?string;
 
     /**
      * @return string

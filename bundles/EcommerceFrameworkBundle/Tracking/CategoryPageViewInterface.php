@@ -25,5 +25,3 @@ interface CategoryPageViewInterface
      */
     public function trackCategoryPageView($category, $page = null);
 }
-
-class_alias(CategoryPageViewInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\Tracking\ICategoryPageView');

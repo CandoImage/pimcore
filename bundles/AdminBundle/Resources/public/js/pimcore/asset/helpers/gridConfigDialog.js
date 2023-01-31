@@ -125,6 +125,7 @@ pimcore.asset.helpers.gridConfigDialog = Class.create(pimcore.element.helpers.gr
                 this.settings.sharedRoleIds = this.settings.sharedRoleIds.join();
             }
             this.settings.shareGlobally = this.shareGlobally ? this.shareGlobally.getValue() : false;
+            this.settings.setAsFavourite = this.setAsFavourite ? this.setAsFavourite.getValue() : false;
         } else {
             delete this.settings.sharedUserIds;
             delete this.settings.sharedRoleIds;
@@ -208,7 +209,7 @@ pimcore.asset.helpers.gridConfigDialog = Class.create(pimcore.element.helpers.gr
     getSelectionPanel: function () {
         if (!this.selectionPanel) {
 
-            var childs = [];
+            var children = [];
 
             for (var i = 0; i < this.config.selectedGridColumns.length; i++) {
                 var nodeConf = this.config.selectedGridColumns[i];
@@ -250,7 +251,7 @@ pimcore.asset.helpers.gridConfigDialog = Class.create(pimcore.element.helpers.gr
                     child.locked = nodeConf.locked;
                 }
 
-                childs.push(child);
+                children.push(child);
             }
 
             this.cellEditing = Ext.create('Ext.grid.plugin.CellEditing', {
@@ -294,7 +295,7 @@ pimcore.asset.helpers.gridConfigDialog = Class.create(pimcore.element.helpers.gr
                     leaf: false,
                     isTarget: true,
                     expanded: true,
-                    children: childs
+                    children: children
                 }
             });
 

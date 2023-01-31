@@ -16,20 +16,32 @@
 namespace Pimcore\Model\DataObject\ClassDefinition\Layout;
 
 use Pimcore\Model;
+use Pimcore\Model\DataObject\ClassDefinition\Data\LayoutDefinitionEnrichmentInterface;
+use Pimcore\Model\DataObject\Concrete;
 
-class Iframe extends Model\DataObject\ClassDefinition\Layout
+class Iframe extends Model\DataObject\ClassDefinition\Layout implements LayoutDefinitionEnrichmentInterface
 {
     /**
      * Static type of this element
+     *
+     * @internal
      *
      * @var string
      */
     public $fieldtype = 'iframe';
 
-    /** @var string */
+    /**
+     * @internal
+     *
+     * @var string
+     */
     public $iframeUrl;
 
-    /** @var string */
+    /**
+     * @internal
+     *
+     * @var string
+     */
     public $renderingData;
 
     /**
@@ -65,14 +77,9 @@ class Iframe extends Model\DataObject\ClassDefinition\Layout
     }
 
     /**
-     * Override point for Enriching the layout definition before the layout is returned to the admin interface.
-     *
-     * @param Model\DataObject\Concrete|null $object
-     * @param array $context additional contextual data
-     *
-     * @return self
+     * {@inheritdoc}
      */
-    public function enrichLayoutDefinition($object, $context = [])
+    public function enrichLayoutDefinition(/* ?Concrete */ $object, /* array */ $context = []) // : static
     {
         $this->width = $this->getWidth() ? $this->getWidth() : 500;
         $this->height = $this->getHeight() ? $this->getHeight() : 500;

@@ -17,6 +17,9 @@
 
 namespace Pimcore\Tool\Text;
 
+/**
+ * @internal
+ */
 class Csv
 {
     /**
@@ -34,7 +37,6 @@ class Csv
         // threshold is ten, so add one to account for extra linefeed that is supposed to be at the end
         if ($count < 10) {
             throw new \Exception('You must provide at least ten lines in your sample data');
-        } else {
         }
         list($quote, $delim) = $this->guessQuoteAndDelim($data);
         if (!$quote) {
@@ -60,6 +62,8 @@ class Csv
      * @param string $data
      *
      * @return string
+     *
+     * @phpstan-return non-empty-string
      */
     protected function guessLinefeed($data)
     {
@@ -74,10 +78,10 @@ class Csv
             return "$cr$lf";
         }
         if ($count_cr == 0 && $count_lf > 0) {
-            return "$lf";
+            return (string)$lf;
         }
         if ($count_lf == 0 && $count_cr > 0) {
-            return "$cr";
+            return (string)$cr;
         }
 
         // sane default: cr+lf
@@ -131,6 +135,8 @@ class Csv
      * @param string $quotechar
      *
      * @return bool|string
+     *
+     * @phpstan-param non-empty-string $linefeed
      */
     protected function guessDelim($data, $linefeed, $quotechar)
     {

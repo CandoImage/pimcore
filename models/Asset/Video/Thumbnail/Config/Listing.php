@@ -16,14 +16,23 @@
 namespace Pimcore\Model\Asset\Video\Thumbnail\Config;
 
 use Pimcore\Model;
+use Pimcore\Model\Listing\CallableFilterListingInterface;
+use Pimcore\Model\Listing\CallableOrderListingInterface;
+use Pimcore\Model\Listing\JsonListing;
+use Pimcore\Model\Listing\Traits\FilterListingTrait;
+use Pimcore\Model\Listing\Traits\OrderListingTrait;
 
 /**
- * @method \Pimcore\Model\Asset\Video\Thumbnail\Config load()
  * @method \Pimcore\Model\Asset\Video\Thumbnail\Config\Listing\Dao getDao()
  */
-class Listing extends Model\Listing\JsonListing
+class Listing extends JsonListing implements CallableFilterListingInterface, CallableOrderListingInterface
 {
+    use FilterListingTrait;
+    use OrderListingTrait;
+
     /**
+     * @internal
+     *
      * @var \Pimcore\Model\Asset\Video\Thumbnail\Config[]|null
      */
     protected $thumbnails = null;
@@ -34,7 +43,7 @@ class Listing extends Model\Listing\JsonListing
     public function getThumbnails()
     {
         if ($this->thumbnails === null) {
-            $this->getDao()->load();
+            $this->getDao()->loadList();
         }
 
         return $this->thumbnails;
@@ -50,5 +59,15 @@ class Listing extends Model\Listing\JsonListing
         $this->thumbnails = $thumbnails;
 
         return $this;
+    }
+
+    /**
+     * Alias of getThumbnails()
+     *
+     * @return Model\Asset\Video\Thumbnail\Config[]|null
+     */
+    public function load()
+    {
+        return $this->getThumbnails();
     }
 }

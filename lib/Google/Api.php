@@ -15,8 +15,10 @@
 
 namespace Pimcore\Google;
 
+use Google\Client;
 use Pimcore\Config;
 use Pimcore\Model\Tool\TmpStore;
+use Psr\Cache\CacheItemPoolInterface;
 
 class Api
 {
@@ -27,13 +29,11 @@ class Api
      */
     public static function getPrivateKeyPath()
     {
-        $path = \Pimcore\Config::locateConfigFile('google-api-private-key.json');
-
-        return $path;
+        return \Pimcore\Config::locateConfigFile('google-api-private-key.json');
     }
 
     /**
-     * @return mixed
+     * @return array
      */
     public static function getConfig()
     {
@@ -85,7 +85,7 @@ class Api
     /**
      * @param string $type
      *
-     * @return \Google_Client
+     * @return Client|false returns false, if client not configured
      */
     public static function getClient($type = 'service')
     {
@@ -99,7 +99,7 @@ class Api
     /**
      * @param array|null $scope
      *
-     * @return bool|\Google_Client
+     * @return Client|false
      */
     public static function getServiceClient($scope = null)
     {
@@ -114,9 +114,10 @@ class Api
             $scope = ['https://www.googleapis.com/auth/analytics.readonly'];
         }
 
-        $client = new \Google_Client();
+        $client = new Client();
 
-        $cache = \Pimcore::getContainer()->get('pimcore.cache.core.pool');
+        /** @var CacheItemPoolInterface $cache */
+        $cache = \Pimcore::getContainer()->get('pimcore.cache.pool');
         $client->setCache($cache);
 
         $client->setApplicationName('pimcore CMF');
@@ -133,7 +134,7 @@ class Api
         $token = null;
         if ($tokenData = TmpStore::get($tokenId)) {
             $tokenInfo = json_decode($tokenData->getData(), true);
-            if (($tokenInfo['created'] + $tokenInfo['expires_in']) > (time() - 900)) {
+            if (((int)$tokenInfo['created'] + (int)$tokenInfo['expires_in']) > (time() - 900)) {
                 $token = $tokenData->getData();
             }
         }
@@ -152,7 +153,7 @@ class Api
     }
 
     /**
-     * @return \Google_Client|false
+     * @return Client|false
      */
     public static function getSimpleClient()
     {
@@ -160,9 +161,10 @@ class Api
             return false;
         }
 
-        $client = new \Google_Client();
+        $client = new Client();
 
-        $cache = \Pimcore::getContainer()->get('pimcore.cache.core.pool');
+        /** @var CacheItemPoolInterface $cache */
+        $cache = \Pimcore::getContainer()->get('pimcore.cache.pool');
         $client->setCache($cache);
 
         $client->setApplicationName('pimcore CMF');
@@ -173,6 +175,8 @@ class Api
 
     /**
      * @return array
+     *
+     * @throws \Exception
      */
     public static function getAnalyticsDimensions()
     {
@@ -181,6 +185,8 @@ class Api
 
     /**
      * @return array
+     *
+     * @throws \Exception
      */
     public static function getAnalyticsMetrics()
     {
@@ -218,13 +224,14 @@ class Api
             if ($item['attributes']['type'] == $type) {
                 if (strpos($item['id'], 'XX') !== false) {
                     for ($i = 1; $i <= 5; $i++) {
-                        $name = str_replace('1', $i, str_replace('01', $i, $translator->trans($item['attributes']['uiName'], [], 'admin')));
+                        $replace = (string) $i;
+                        $name = str_replace('1', $replace, str_replace('01', $replace, $translator->trans($item['attributes']['uiName'], [], 'admin')));
 
                         if (in_array($item['id'], ['ga:dimensionXX', 'ga:metricXX'])) {
-                            $name .= ' '.$i;
+                            $name .= ' '.$replace;
                         }
                         $result[] = [
-                            'id' => str_replace('XX', $i, $item['id']),
+                            'id' => str_replace('XX', $replace, $item['id']),
                             'name' => $name,
                         ];
                     }

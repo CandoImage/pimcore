@@ -15,7 +15,11 @@
 
 namespace Pimcore\Extension\Bundle\Installer;
 
-use Pimcore\Migrations\MigrationManager;
+use Doctrine\Migrations\DependencyFactory;
+use Doctrine\Migrations\Version\Direction;
+use Doctrine\Migrations\Version\ExecutionResult;
+use Pimcore\Migrations\FilteredMigrationsRepository;
+use Pimcore\Migrations\FilteredTableMetadataStorage;
 use Pimcore\Model\Tool\SettingsStore;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 
@@ -27,9 +31,19 @@ abstract class SettingsStoreAwareInstaller extends AbstractInstaller
     protected $bundle;
 
     /**
-     * @var MigrationManager
+     * @var FilteredMigrationsRepository
      */
-    protected $migrationManager;
+    protected $migrationRepository;
+
+    /**
+     * @var FilteredTableMetadataStorage
+     */
+    protected $tableMetadataStorage;
+
+    /**
+     * @var DependencyFactory
+     */
+    protected $dependencyFactory;
 
     public function __construct(BundleInterface $bundle)
     {
@@ -38,12 +52,33 @@ abstract class SettingsStoreAwareInstaller extends AbstractInstaller
     }
 
     /**
-     * @param MigrationManager $migrationManager
+     * @param FilteredMigrationsRepository $migrationRepository
+     *
      * @required
      */
-    public function setMigrationManager(MigrationManager $migrationManager): void
+    public function setMigrationRepository(FilteredMigrationsRepository $migrationRepository): void
     {
-        $this->migrationManager = $migrationManager;
+        $this->migrationRepository = $migrationRepository;
+    }
+
+    /**
+     * @param FilteredTableMetadataStorage $tableMetadataStorage
+     *
+     * @required
+     */
+    public function setTableMetadataStorage(FilteredTableMetadataStorage $tableMetadataStorage): void
+    {
+        $this->tableMetadataStorage = $tableMetadataStorage;
+    }
+
+    /**
+     * @param DependencyFactory $dependencyFactory
+     *
+     * @required
+     */
+    public function setDependencyFactory(DependencyFactory $dependencyFactory): void
+    {
+        $this->dependencyFactory = $dependencyFactory;
     }
 
     protected function getSettingsStoreInstallationId(): string
@@ -56,28 +91,27 @@ abstract class SettingsStoreAwareInstaller extends AbstractInstaller
         return null;
     }
 
-    private function getMigrationVersion(): ?string
-    {
-        $className = $this->getLastMigrationVersionClassName();
-
-        if ($className) {
-            preg_match('/\d+$/', $className, $matches);
-
-            return end($matches);
-        }
-
-        return null;
-    }
-
     protected function markInstalled()
     {
-        $migrationVersion = $this->getMigrationVersion();
+        $migrationVersion = $this->getLastMigrationVersionClassName();
         if ($migrationVersion) {
-            $version = $this->migrationManager->getBundleVersion(
-                $this->bundle,
-                $migrationVersion
-            );
-            $this->migrationManager->markVersionAsMigrated($version, true);
+            $this->migrationRepository->setPrefix($this->bundle->getNamespace());
+            $this->tableMetadataStorage->setPrefix($this->bundle->getNamespace());
+            $migrations = $this->dependencyFactory->getMigrationRepository()->getMigrations();
+            $executedMigrations = $this->dependencyFactory->getMetadataStorage()->getExecutedMigrations();
+
+            foreach ($migrations->getItems() as $migration) {
+                $version = $migration->getVersion();
+
+                if (!$executedMigrations->hasMigration($version)) {
+                    $migrationResult = new ExecutionResult($version, Direction::UP);
+                    $this->dependencyFactory->getMetadataStorage()->complete($migrationResult);
+                }
+
+                if ((string)$version === $migrationVersion) {
+                    break;
+                }
+            }
         }
 
         SettingsStore::set($this->getSettingsStoreInstallationId(), true, 'bool', 'pimcore');
@@ -85,12 +119,18 @@ abstract class SettingsStoreAwareInstaller extends AbstractInstaller
 
     protected function markUninstalled()
     {
-        $configuration = $this->migrationManager->getBundleConfiguration($this->bundle);
-        if ($configuration) {
-            $configuration->clearMigratedVersions();
-        }
-
         SettingsStore::set($this->getSettingsStoreInstallationId(), false, 'bool', 'pimcore');
+
+        $migrationVersion = $this->getLastMigrationVersionClassName();
+        if ($migrationVersion) {
+            $this->tableMetadataStorage->setPrefix($this->bundle->getNamespace());
+            $executedMigrations = $this->dependencyFactory->getMetadataStorage()->getExecutedMigrations();
+
+            foreach ($executedMigrations->getItems() as $migration) {
+                $migrationResult = new ExecutionResult($migration->getVersion(), Direction::DOWN);
+                $this->dependencyFactory->getMetadataStorage()->complete($migrationResult);
+            }
+        }
     }
 
     public function install()
@@ -105,18 +145,27 @@ abstract class SettingsStoreAwareInstaller extends AbstractInstaller
         $this->markUninstalled();
     }
 
+    /**
+     * @return bool
+     */
     public function isInstalled()
     {
         $installSetting = SettingsStore::get($this->getSettingsStoreInstallationId(), 'pimcore');
 
-        return $installSetting ? $installSetting->getData() : false;
+        return (bool) ($installSetting ? $installSetting->getData() : false);
     }
 
+    /**
+     * @return bool
+     */
     public function canBeInstalled()
     {
         return !$this->isInstalled();
     }
 
+    /**
+     * @return bool
+     */
     public function canBeUninstalled()
     {
         return $this->isInstalled();

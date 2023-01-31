@@ -15,6 +15,9 @@
 
 namespace Pimcore\Loader\ImplementationLoader\Exception;
 
+/**
+ * @internal
+ */
 class InvalidArgumentException extends \InvalidArgumentException
 {
 }

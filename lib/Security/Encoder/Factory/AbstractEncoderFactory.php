@@ -18,6 +18,11 @@ namespace Pimcore\Security\Encoder\Factory;
 use Symfony\Component\Security\Core\Encoder\EncoderFactoryInterface;
 use Symfony\Component\Security\Core\Encoder\PasswordEncoderInterface;
 
+/**
+ * @internal
+ *
+ * @deprecated
+ */
 abstract class AbstractEncoderFactory implements EncoderFactoryInterface
 {
     /**
@@ -41,7 +46,7 @@ abstract class AbstractEncoderFactory implements EncoderFactoryInterface
 
     /**
      * @param string $className
-     * @param array|mixed $arguments
+     * @param mixed $arguments
      */
     public function __construct($className, $arguments = null)
     {

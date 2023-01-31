@@ -24,6 +24,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Workflow\Marking;
 
+/**
+ * @internal
+ */
 class WorkflowDumpCommand extends AbstractCommand
 {
     protected static $defaultName = 'pimcore:workflow:dump';
@@ -53,7 +56,7 @@ EOF
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $container = $this->getApplication()->getKernel()->getContainer();
         $serviceId = $input->getArgument('name');

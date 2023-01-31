@@ -69,7 +69,8 @@ pimcore.report.custom.panel = Class.create({
                         {
                             text: t("add"),
                             iconCls: "pimcore_icon_add",
-                            handler: this.addField.bind(this)
+                            handler: this.addField.bind(this),
+                            disabled: !pimcore.settings['custom-reports-writeable']
                         }
                     ]
                 }
@@ -143,7 +144,8 @@ pimcore.report.custom.panel = Class.create({
         menu.add(new Ext.menu.Item({
             text: t('delete'),
             iconCls: "pimcore_icon_delete",
-            handler: this.deleteField.bind(this, tree, record)
+            handler: this.deleteField.bind(this, tree, record),
+            disabled: !record.data.writeable
         }));
 
         menu.add(new Ext.menu.Item({
@@ -204,16 +206,20 @@ pimcore.report.custom.panel = Class.create({
     },
 
     deleteField: function (tree, record) {
-        Ext.Ajax.request({
-            url: Routing.generate('pimcore_admin_reports_customreport_delete'),
-            method: 'DELETE',
-            params: {
-                name: record.data.id
-            }
-        });
+        Ext.Msg.confirm(t('delete'), sprintf(t('delete_message_advanced'), t('portlet_customreport'), record.data.text), function (btn) {
+            if (btn == 'yes') {
+                Ext.Ajax.request({
+                    url: Routing.generate('pimcore_admin_reports_customreport_delete'),
+                    method: 'DELETE',
+                    params: {
+                        name: record.data.id
+                    }
+                });
 
-        this.getEditPanel().removeAll();
-        record.remove();
+                this.getEditPanel().removeAll();
+                record.remove();
+            }
+        }.bind(this));
     },
 
 

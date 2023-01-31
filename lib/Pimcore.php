@@ -15,8 +15,8 @@
 
 use Pimcore\Cache;
 use Pimcore\File;
-use Pimcore\Model;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 
 class Pimcore
@@ -24,26 +24,7 @@ class Pimcore
     /**
      * @var bool|null
      */
-    public static $adminMode;
-
-    /**
-     * @deprecated Will be removed in Pimcore 10
-     *
-     * @var bool|null
-     */
-    protected static $debugMode;
-
-    /**
-     * @deprecated Will be removed in Pimcore 10
-     *
-     * @var bool|null
-     */
-    protected static $devMode;
-
-    /**
-     * @var bool
-     */
-    private static $inShutdown = false;
+    private static $adminMode;
 
     /**
      * @var bool
@@ -51,9 +32,9 @@ class Pimcore
     private static $shutdownEnabled = true;
 
     /**
-     * @var KernelInterface
+     * @var KernelInterface|null
      */
-    private static $kernel;
+    private static ?KernelInterface $kernel = null;
 
     /**
      * @var \Composer\Autoload\ClassLoader
@@ -65,31 +46,7 @@ class Pimcore
      */
     public static function inDebugMode(): bool
     {
-        return (bool) self::$debugMode;
-    }
-
-    /**
-     * @internal
-     *
-     * @deprecated Will be removed in Pimcore 10
-     *
-     * @return bool|null
-     */
-    public static function getDebugMode(): ?bool
-    {
-        return self::$debugMode;
-    }
-
-    /**
-     * @internal
-     *
-     * @deprecated Will be removed in Pimcore 10
-     *
-     * @param bool $debugMode
-     */
-    public static function setDebugMode(bool $debugMode): void
-    {
-        self::$debugMode = $debugMode;
+        return (bool) self::getKernel()->isDebug();
     }
 
     /**
@@ -97,37 +54,21 @@ class Pimcore
      */
     public static function inDevMode(): bool
     {
-        return (bool) self::$devMode;
-    }
+        if (!isset($_SERVER['PIMCORE_DEV_MODE']) || !is_bool($_SERVER['PIMCORE_DEV_MODE'])) {
+            $value = $_SERVER['PIMCORE_DEV_MODE'] ?? false;
+            if (!is_bool($value)) {
+                $value = filter_var($value, \FILTER_VALIDATE_BOOLEAN);
+            }
+            $_SERVER['PIMCORE_DEV_MODE'] = (bool) $value;
+        }
 
-    /**
-     * @internal
-     *
-     * @deprecated Will be removed in Pimcore 10
-     *
-     * @return bool|null
-     */
-    public static function getDevMode(): ?bool
-    {
-        return self::$devMode;
-    }
-
-    /**
-     * @internal
-     *
-     * @deprecated Will be removed in Pimcore 10
-     *
-     * @param bool $devMode
-     */
-    public static function setDevMode(bool $devMode): void
-    {
-        self::$devMode = $devMode;
+        return $_SERVER['PIMCORE_DEV_MODE'];
     }
 
     /**
      * switches pimcore into the admin mode - there you can access also unpublished elements, ....
      *
-     * @static
+     * @internal
      */
     public static function setAdminMode()
     {
@@ -137,7 +78,7 @@ class Pimcore
     /**
      * switches back to the non admin mode, where unpublished elements are invisible
      *
-     * @static
+     * @internal
      */
     public static function unsetAdminMode()
     {
@@ -146,8 +87,6 @@ class Pimcore
 
     /**
      * check if the process is currently in admin mode or not
-     *
-     * @static
      *
      * @return bool
      */
@@ -166,7 +105,7 @@ class Pimcore
     public static function isInstalled()
     {
         try {
-            \Pimcore\Db::get()->query('SELECT VERSION()');
+            \Pimcore\Db::get()->fetchOne('SELECT id FROM assets LIMIT 1');
 
             return true;
         } catch (\Exception $e) {
@@ -175,7 +114,9 @@ class Pimcore
     }
 
     /**
-     * @return \Symfony\Component\EventDispatcher\EventDispatcherInterface
+     * @internal
+     *
+     * @return EventDispatcherInterface
      */
     public static function getEventDispatcher()
     {
@@ -183,19 +124,23 @@ class Pimcore
     }
 
     /**
+     * @internal
+     *
      * @return KernelInterface
      */
     public static function getKernel()
     {
-        return static::$kernel;
+        return self::$kernel;
     }
 
     /**
+     * @internal
+     *
      * @return bool
      */
     public static function hasKernel()
     {
-        if (static::$kernel) {
+        if (self::$kernel) {
             return true;
         }
 
@@ -203,11 +148,13 @@ class Pimcore
     }
 
     /**
+     * @internal
+     *
      * @param KernelInterface $kernel
      */
     public static function setKernel(KernelInterface $kernel)
     {
-        static::$kernel = $kernel;
+        self::$kernel = $kernel;
     }
 
     /**
@@ -216,7 +163,9 @@ class Pimcore
      *
      * @internal
      *
-     * @return ContainerInterface
+     * @deprecated this method just exists for legacy reasons and shouldn't be used in new code
+     *
+     * @return ContainerInterface|null
      */
     public static function getContainer()
     {
@@ -225,13 +174,18 @@ class Pimcore
 
     /**
      * @return bool
+     *
+     * @internal
      */
     public static function hasContainer()
     {
         if (static::hasKernel()) {
-            $container = static::getContainer();
-            if ($container) {
-                return true;
+            try {
+                $container = static::getContainer();
+                if ($container) {
+                    return true;
+                }
+            } catch (\LogicException) {
             }
         }
 
@@ -240,6 +194,8 @@ class Pimcore
 
     /**
      * @return \Composer\Autoload\ClassLoader
+     *
+     * @internal
      */
     public static function getAutoloader(): \Composer\Autoload\ClassLoader
     {
@@ -248,6 +204,8 @@ class Pimcore
 
     /**
      * @param \Composer\Autoload\ClassLoader $autoloader
+     *
+     * @internal
      */
     public static function setAutoloader(\Composer\Autoload\ClassLoader $autoloader)
     {
@@ -272,25 +230,33 @@ class Pimcore
     }
 
     /**
-     * this method is called with register_shutdown_function() and writes all data queued into the cache
+     * Deletes temporary files which got created during the runtime of current process
      *
      * @static
      */
+    public static function deleteTemporaryFiles()
+    {
+        /** @var \Pimcore\Helper\LongRunningHelper $longRunningHelper */
+        $longRunningHelper = self::getContainer()->get(\Pimcore\Helper\LongRunningHelper::class);
+        $longRunningHelper->deleteTemporaryFiles();
+    }
+
+    /**
+     * this method is called with register_shutdown_function() and writes all data queued into the cache
+     *
+     * @internal
+     */
     public static function shutdown()
     {
-        // set inShutdown to true so that the output-buffer knows that he is allowed to send the headers
-        self::$inShutdown = true;
-
-        if (self::getContainer() === null) {
+        try {
+            self::getContainer();
+        } catch (\LogicException $e) {
             return;
         }
 
         if (self::$shutdownEnabled && self::isInstalled()) {
             // write and clean up cache
             Cache::shutdown();
-
-            // release all open locks from this process
-            Model\Tool\Lock::releaseAll();
         }
     }
 
@@ -310,6 +276,11 @@ class Pimcore
         self::$shutdownEnabled = true;
     }
 
+    /**
+     * @internal
+     *
+     * @return bool
+     */
     public static function disableMinifyJs(): bool
     {
         if (self::inDevMode()) {
@@ -324,6 +295,11 @@ class Pimcore
         return false;
     }
 
+    /**
+     * @internal
+     *
+     * @throws Exception
+     */
     public static function initLogger()
     {
         // special request log -> if parameter pimcore_log is set
@@ -345,7 +321,9 @@ class Pimcore
 
             $requestDebugHandler = new \Monolog\Handler\StreamHandler($requestLogFile);
 
-            foreach (self::getContainer()->getServiceIds() as $id) {
+            /** @var \Symfony\Component\DependencyInjection\Container $container */
+            $container = self::getContainer();
+            foreach ($container->getServiceIds() as $id) {
                 if (strpos($id, 'monolog.logger.') === 0) {
                     $logger = self::getContainer()->get($id);
                     if ($logger->getName() != 'event') {

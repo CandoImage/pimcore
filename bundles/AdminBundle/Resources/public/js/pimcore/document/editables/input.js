@@ -14,34 +14,16 @@
 pimcore.registerNS("pimcore.document.editables.input");
 pimcore.document.editables.input = Class.create(pimcore.document.editable, {
 
-    initialize: function(id, name, config, data, inherited) {
-        this.id = id;
-        this.name = name;
-        this.config = this.parseConfig(config);
+    initialize: function($super, id, name, config, data, inherited) {
+        $super(id, name, config, data, inherited);
 
-        if (!data) {
-            data = "";
-        }
-
-        this.data = data;
+        this.data = data ?? "";
     },
 
     render: function() {
         this.setupWrapper();
         this.element = Ext.get(this.id);
         this.element.dom.setAttribute("contenteditable", true);
-
-        // set min height for IE, as he isn't able to update :after css selector
-        this.element.update("|"); // dummy content to get appropriate height
-        if(this.element.getHeight()) {
-            this.element.applyStyles({
-                "min-height": this.element.getHeight() + "px"
-            });
-        } else {
-            this.element.applyStyles({
-                "min-height": this.element.getStyle("font-size")
-            });
-        }
 
         this.element.update(this.data + "<br>");
 
@@ -97,12 +79,6 @@ pimcore.document.editables.input = Class.create(pimcore.document.editable, {
         if (this.config["placeholder"]) {
             this.element.dom.setAttribute('data-placeholder', this.config["placeholder"]);
         }
-
-        // @TODO validator is based on \Zend\Json\Expr and does not work with Twig templates, to be removed in Pimcore 10
-        if(this.config["validator"]) {
-            this.element.isValid = this.config["validator"];
-            this.validateElement();
-        }
     },
 
     checkValue: function (mark) {
@@ -125,8 +101,6 @@ pimcore.document.editables.input = Class.create(pimcore.document.editable, {
         if (this.required) {
             this.validateRequiredValue(value, this.element, this, mark);
         }
-
-        this.validateElement(value);
     },
 
     getValue: function () {
@@ -165,31 +139,5 @@ pimcore.document.editables.input = Class.create(pimcore.document.editable, {
         } else {
             this.element.dom.setAttribute("contenteditable", true);
         }
-    },
-
-    /**
-     *
-     * validation for dedicated validator which could be added in an element view helper as the validator option
-     *
-     *
-     * @returns {pimcore.document.editables.input}
-     */
-    validateElement: function(value){
-
-        if(this.element.isValid && typeof this.element.isValid == 'function') {
-
-            value = !value ? this.element.dom.innerText : value;
-
-            var validatorMessage = this.element.isValid(strip_tags(value));
-            if(true !== validatorMessage) {
-                this.element.addCls('invalid-document-element');
-                this.element.setStyle('border', '1px solid #f40204');
-            } else {
-                this.element.removeCls('invalid-document-element');
-                this.element.setStyle('border', '');
-            }
-        }
-
-        return this;
     }
 });

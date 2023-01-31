@@ -91,11 +91,10 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
 
     createLayout: function (readOnly) {
         var autoHeight = false;
-        if (intval(this.fieldConfig.height) < 15) {
+        if (!this.fieldConfig.height) {
             autoHeight = true;
         }
 
-        var cls = 'object_field';
         var i;
 
         var columns = [];
@@ -114,10 +113,14 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
             var renderer = null;
             var listeners = null;
 
-            if (this.fieldConfig.columns[i].type == "number" && !readOnly) {
-                cellEditor = function () {
-                    return new Ext.form.NumberField({});
-                };
+            if (this.fieldConfig.columns[i].type == "number") {
+                if(!readOnly) {
+                    cellEditor = function () {
+                        return new Ext.form.NumberField({});
+                    };
+                }
+
+                renderer = Ext.util.Format.numberRenderer();
             } else if (this.fieldConfig.columns[i].type == "text" && !readOnly) {
                 cellEditor = function () {
                     return new Ext.form.TextField({});
@@ -189,39 +192,19 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
                     return Ext.String.format('<div style="text-align: center"><div role="button" class="x-grid-checkcolumn {0}" style=""></div></div>', value ? 'x-grid-checkcolumn-checked' : '');
                 }.bind(this);
 
+                listeners = {
+                    "mousedown": this.cellMousedown.bind(this, this.fieldConfig.columns[i].key, this.fieldConfig.columns[i].type, readOnly)
+                };
+
                 if (readOnly) {
                     columns.push(Ext.create('Ext.grid.column.Check', {
                         text: t(this.fieldConfig.columns[i].label),
                         dataIndex: this.fieldConfig.columns[i].key,
                         width: width,
-                        renderer: renderer
+                        renderer: renderer,
                     }));
                     continue;
                 }
-
-                cellEditor = function (type, readOnly) {
-                    var editor = Ext.create('Ext.form.field.Checkbox', {style: 'margin-top: 2px;'});
-
-                    if (!readOnly && type === "columnbool") {
-                        editor.addListener('change', function (el, newValue) {
-                            window.gridPanel = el.up('gridpanel');
-                            window.el = el;
-                            var gridPanel = el.up('gridpanel');
-                            var columnKey = el.up().column.dataIndex;
-                            if (newValue) {
-                                gridPanel.getStore().each(function (record) {
-                                    if (!!record.get(columnKey)) {
-                                        // note, we don't need to check for the row here as the editor fires another change
-                                        // on blur, which updates the underlying record without a subsequent event being fired.
-                                        record.set(columnKey, false);
-                                    }
-                                });
-                            }
-                        });
-                    }
-
-                    return editor;
-                }.bind(this, this.fieldConfig.columns[i].type, readOnly);
             }
 
             var columnConfig = {
@@ -359,6 +342,7 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
             selModel: {
                 selType: (this.fieldConfig.enableBatchEdit ? 'checkboxmodel' : 'rowmodel')
             },
+            multiSelect: true,
             columnLines: true,
             stripeRows: true,
             columns: {
@@ -373,12 +357,14 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
                     draggroup: 'element'
                 },
                 markDirty: false,
-                enableTextSelection: true,
+                enableTextSelection: this.fieldConfig.enableTextSelection,
                 listeners: {
                     afterrender: function (gridview) {
                         this.requestNicePathData(this.store.data, true);
                     }.bind(this),
                     drop: function () {
+                        this.dataChanged = true;
+
                         // this is necessary to avoid endless recursion when long lists are sorted via d&d
                         // TODO: investigate if there this is already fixed 6.2
                         if (this.object.toolbar && this.object.toolbar.items && this.object.toolbar.items.items) {
@@ -397,7 +383,7 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
                     }.bind(this)
                 }
             },
-            componentCls: cls,
+            componentCls: this.getWrapperClassNames(),
             width: this.fieldConfig.width,
             height: this.fieldConfig.height,
             tbar: {
@@ -409,10 +395,7 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
             bodyCls: "pimcore_object_tag_objects pimcore_editable_grid",
             plugins: [
                 this.cellEditing
-            ],
-            listeners: {
-                rowdblclick: this.gridRowDblClickHandler
-            }
+            ]
         });
 
         this.component.on("rowcontextmenu", this.onRowContextmenu.bind(this));
@@ -765,7 +748,7 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
 
         // check max amount in field
         if (this.fieldConfig["maxItems"] && this.fieldConfig["maxItems"] >= 1) {
-            if (this.store.getCount() >= this.fieldConfig.maxItems) {
+            if ((this.store.getData().getSource() || this.store.getData()).count() >= this.fieldConfig.maxItems) {
                 Ext.Msg.alert(t("error"), t("limit_reached"));
                 return true;
             }
@@ -809,6 +792,12 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
     },
 
     uploadDialog: function () {
+        if (!this.fieldConfig.allowMultipleAssignments || (this.fieldConfig["maxItems"] && this.fieldConfig["maxItems"] >= 1)) {
+            if (this.fieldConfig.maxItems && (this.store.getData().getSource() || this.store.getData()).count() >= this.fieldConfig.maxItems) {
+                Ext.Msg.alert(t("error"), t("limit_reached"));
+                return true;
+            }
+        }
         pimcore.helpers.assetSingleUploadDialog(this.fieldConfig.assetUploadPath, "path", function (res) {
             try {
                 var data = Ext.decode(res.response.responseText);
@@ -825,7 +814,17 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
             } catch (e) {
                 console.log(e);
             }
-        }.bind(this), null, this.context);
+        }.bind(this),
+        function (res) {
+            const response = Ext.decode(res.response.responseText);
+            if (response && response.success === false) {
+                pimcore.helpers.showNotification(t("error"), response.message, "error",
+                    res.response.responseText);
+            } else {
+                pimcore.helpers.showNotification(t("error"), res, "error",
+                    res.response.responseText);
+            }
+        }.bind(this), this.context);
     },
 
     removeElement: function (index, item) {
@@ -889,6 +888,30 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
 
     },
 
+    cellMousedown: function (key, colType, readOnly, grid, cell, rowIndex, cellIndex, e) {
+
+        // this is used for the boolean field type
+
+        var store = grid.getStore();
+        var record = store.getAt(rowIndex);
+
+        if (colType == "bool") {
+            record.set(key, !record.data[key]);
+        } else if (!readOnly && colType === "columnbool") {
+            if (record.data[key]) {
+                grid.getStore().each(function (record) {
+                    if (!!record.get(key)) {
+                        // note, we don't need to check for the row here as the editor fires another change
+                        // on blur, which updates the underlying record without a subsequent event being fired.
+                        record.set(key, false);
+                    }
+                });
+            } else {
+                record.set(key, !record.data[key]);
+            }
+        }
+    },
+
     requestNicePathData: function (targets, isInitialLoad) {
         if (!this.object) {
             return;
@@ -937,14 +960,32 @@ pimcore.object.tags.advancedManyToManyRelation = Class.create(pimcore.object.tag
         return {
             text: t(field.label), width: 150, sortable: false, dataIndex: field.key,
             getEditor: this.getWindowCellEditor.bind(this, field),
-            renderer: pimcore.object.helpers.grid.prototype.advancedRelationGridRenderer.bind(this, field, "path")
+            getRelationFilter: this.getRelationFilter,
+            renderer: pimcore.object.helpers.grid.prototype.advancedRelationGridRenderer.bind(this, field, "path"),
         };
+    },
+
+    getRelationFilter: function (dataIndex, editor) {
+        var filterValues = editor.store.getData().items;
+        if (!filterValues || !Array.isArray(filterValues) || !filterValues.length) {
+            filterValues = null;
+        } else {
+            filterValues = filterValues.map(function (item) {
+                return item.data.type + "|" + item.data.id;
+            }).join(',');
+        }
+
+        return new Ext.util.Filter({
+            operator: "like",
+            type: "string",
+            id: "x-gridfilter-" + dataIndex,
+            property: dataIndex,
+            dataIndex: dataIndex,
+            value: filterValues === null ? 'null' : filterValues
+        });
     },
 
     getCellEditValue: function () {
         return this.getValue();
     }
 });
-
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.tags.multihrefMetadata = pimcore.object.tags.advancedManyToManyRelation;

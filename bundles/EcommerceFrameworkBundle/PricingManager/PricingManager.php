@@ -17,9 +17,10 @@ namespace Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager;
 
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartPriceModificator\Discount;
+use Pimcore\Bundle\EcommerceFrameworkBundle\EventListener\SessionBagListener;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Exception\InvalidConfigException;
+use Pimcore\Bundle\EcommerceFrameworkBundle\Model\CheckoutableInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\PriceInfoInterface as PriceSystemPriceInfoInterface;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Tools\SessionConfigurator;
 use Pimcore\Targeting\VisitorInfoStorageInterface;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
@@ -47,6 +48,9 @@ class PricingManager implements PricingManagerInterface
     protected $actionMapping = [];
 
     /**
+     *
+     * @deprecated will be removed in Pimcore 11
+     *
      * @var SessionInterface
      */
     protected $session;
@@ -57,12 +61,12 @@ class PricingManager implements PricingManagerInterface
     protected $options;
 
     /**
-     * @var VisitorInfoStorageInterface
+     * @var VisitorInfoStorageInterface|null
      */
-    protected $visitorInfoStorage = null;
+    protected ?VisitorInfoStorageInterface $visitorInfoStorage = null;
 
     /**
-     * @var Rule[]
+     * @var RuleInterface[]|null
      */
     protected $rules;
 
@@ -127,7 +131,6 @@ class PricingManager implements PricingManagerInterface
 
         // add all valid rules to the price info
         foreach ($this->getValidRules() as $rule) {
-            // @var RuleInterface $rule
             $priceInfoWithRules->addRule($rule);
         }
 
@@ -158,13 +161,12 @@ class PricingManager implements PricingManagerInterface
 
         $categories = [];
         foreach ($cart->getItems() as $item) {
-            if ($product = $item->getProduct()) {
-                if (method_exists($product, 'getCategories')) {
-                    $productCategories = $product->getCategories();
-                    if (is_array($productCategories)) {
-                        foreach ($productCategories as $c) {
-                            $categories[$c->getId()] = $c;
-                        }
+            $product = $item->getProduct();
+            if ($product instanceof CheckoutableInterface && method_exists($product, 'getCategories')) {
+                $productCategories = $product->getCategories();
+                if (is_array($productCategories)) {
+                    foreach ($productCategories as $c) {
+                        $categories[$c->getId()] = $c;
                     }
                 }
             }
@@ -210,7 +212,6 @@ class PricingManager implements PricingManagerInterface
     public function getValidRules()
     {
         if (is_null($this->rules)) {
-            /** @var Rule\Listing $rules */
             $rules = $this->getRuleListing();
             $rules->setCondition('active = 1');
             $rules->setOrderKey('prio');
@@ -230,7 +231,7 @@ class PricingManager implements PricingManagerInterface
     public function getEnvironment()
     {
         /** @var AttributeBagInterface $sessionBag */
-        $sessionBag = $this->session->getBag(SessionConfigurator::ATTRIBUTE_BAG_PRICING_ENVIRONMENT);
+        $sessionBag = $this->session->getBag(SessionBagListener::ATTRIBUTE_BAG_PRICING_ENVIRONMENT);
 
         $class = $this->options['environment_class'];
 
@@ -327,7 +328,7 @@ class PricingManager implements PricingManagerInterface
         $environment = $this->getEnvironment();
         $environment->setProduct($priceInfo->getProduct());
 
-        if (method_exists($priceInfo->getProduct(), 'getCategories')) {
+        if ($priceInfo->getProduct() && method_exists($priceInfo->getProduct(), 'getCategories')) {
             $environment->setCategories((array)$priceInfo->getProduct()->getCategories());
         }
 

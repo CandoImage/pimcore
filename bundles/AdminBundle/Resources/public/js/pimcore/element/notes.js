@@ -110,7 +110,7 @@ pimcore.element.notes = Class.create({
 
             var columns = [
                 {text: "ID", sortable: true, dataIndex: 'id', hidden: true, filter: 'numeric', flex: 60},
-                {text: t("type"), sortable: true, dataIndex: 'type', filter: 'string', flex: 60},
+                {text: t("type"), sortable: true, dataIndex: 'type', filter: 'string', flex: 60, renderer: Ext.util.Format.htmlEncode},
                 {text: t("element"), sortable: false, dataIndex: 'cpath', flex: 200,
                     hidden: this.inElementContext,
                     renderer: function(value, metaData, record, rowIndex, colIndex, store) {
@@ -225,7 +225,7 @@ pimcore.element.notes = Class.create({
 
             this.layout = new Ext.Panel(layoutConf);
 
-            this.layout.on("activate", function () {
+            this.layout.on("render", function () {
                 this.store.load();
             }.bind(this));
         }

@@ -1,7 +1,6 @@
 
 In this section, you will learn the basics of Pimcore, required to start developing. 
 
-[TOC]
 
 # Creating CMS Pages with Documents
 
@@ -12,21 +11,24 @@ In the first part you'll learn the basics for creating CMS pages with Pimcore Do
 ### New Controller
 First of all, we need a controller. 
 Let's call it `ContentController.php`. 
-You have to put the file into the `/src/AppBundle/Controller` directory.
+You have to put the file into the `/src/Controller` directory.
 
 ```php
 <?php
 
-namespace AppBundle\Controller;
+namespace App\Controller;
 
 use Pimcore\Controller\FrontendController;
 use Symfony\Component\HttpFoundation\Request;
 
 class ContentController extends FrontendController
 {
+    /**
+     * @Template
+     */
     public function defaultAction(Request $request)
     {
-
+        return [];
     }
 }
 ```
@@ -37,95 +39,161 @@ don't need any custom code in our controller, so the action stays empty for the 
 
 ### Create a Template
 Now we create a template for our page:
-* Create a new folder in `/app/Resources/views` and name it like the controller (in this case `Content`). 
-* Put a new PHP template into this folder and name it like our action in lowercase (`default.html.php`).
+* Create a new folder in `/templates` and name it like the controller (snake_case) (in this case `content`). 
+* Put a new Twig template into this folder and name it like our action in snake_case (`default.html.twig`).
 
 Then we can put some template code into it, for example:
+```twig
+{% extends 'layout.html.twig' %}
 
-```php
-<?php
-/**
- * @var \Pimcore\Templating\PhpEngine $this
- * @var \Pimcore\Templating\PhpEngine $view
- * @var \Pimcore\Templating\GlobalVariables $app
- */
+{% block content %}
+    <h1>{{ pimcore_input("headline", {"width": 540}) }}</h1>
 
-$this->extend('layout.html.php');
-
-?>
-
-    <h1><?= $this->input("headline", ["width" => 540]); ?></h1>
-
-    <?php while ($this->block("contentblock")->loop()) { ?>
-        <h2><?= $this->input("subline"); ?></h2>
-        <?= $this->wysiwyg("content"); ?>
-    <?php } ?>
+    {% for i in pimcore_iterate_block(pimcore_block('contentblock')) %}
+        <h2>{{ pimcore_input('subline') }}</h2>
+        {{ pimcore_wysiwyg('content') }}
+    {% endfor %}
+{% endblock %}
 ```
 
-Pimcore uses by default an improved version of the Symfony PHP templating engine (`PhpEngine`) and therefore plain PHP as template language. So you have the full power of
-Symfony templates with all Symfony functionalities available. In addition to that, there are some Pimcore specific additions like the so called *editables*, 
-which add editable parts (placeholders) to the layout and some custom templating helpers. 
+Pimcore uses by default Symfony Twig engine, so you have the full power of Symfony templates with all Symfony functionalities available. In addition to that, there are some Pimcore specific additions like the so called *editables*, which add editable parts (placeholders) to the layout and some custom templating helpers. 
 
-We've improved the default [Symfony PHP engine](http://symfony.com/doc/3.4/templating/PHP.html), by adding the `$this` context, which is basically the same as using 
-the `$view` variable or local variables when using the default Symfony syntax. However the default syntax is still available and ready to use.  
-
-For details concerning editables (like `$this->input`, `$this->block`, ...) see [Editables](../03_Documents/01_Editables/README.md). 
+For details concerning editables (like `pimcore_input`, `pimcore_block`, ...) see [Editables](../03_Documents/01_Editables/README.md). 
 
 ### Add a Layout
-We can use Symfony`s [template inheritance and layout](http://symfony.com/doc/3.4/templating.html#template-inheritance-and-layouts) functionality 
+We can use Symfony`s [template inheritance and layout](https://symfony.com/doc/5.2/templates.html#template-inheritance-and-layouts) functionality 
 to wrap our content page with another template which contains the main navigation, a sidebar, … using the following code:
 
-```php
-$this->extend('layout.html.php');
+```twig
+{% extends 'layout.html.twig' %}
 ```
-We tell the engine that we want to use the layout `layout.html.php`. 
+We tell the engine that we want to use the layout `layout.html.twig`. 
   
-Now create a new PHP template in the folder `/app/Resources/views` and name it `layout.html.php`.
+Now create a new Twig template in the folder `/templates` and name it `layout.html.twig`.
 Then we can also put some HTML and template code into it:
 
-```php
-<?php
-/**
- * @var \Pimcore\Templating\PhpEngine $this
- * @var \Pimcore\Templating\PhpEngine $view
- * @var \Pimcore\Templating\GlobalVariables $app
- */ 
-?>
+```twig
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Example</title>
-    <link rel="stylesheet" type="text/css" href="/static/css/global.css" />
 </head>
 <body>
+    <style type="text/css">
+        body {
+            padding: 0;
+            margin: 0;
+            font-family: "Lucida Sans Unicode", Arial;
+            font-size: 14px;
+        }
+    
+        #site {
+            margin: 0 auto;
+            width: 600px;
+            padding: 30px 0 0 0;
+            color: #65615E;
+        }
+    
+        h1, h2, h3 {
+            font-size: 18px;
+            padding: 0 0 5px 0;
+            border-bottom: 1px solid #001428;
+            margin-bottom: 5px;
+        }
+    
+        h3 {
+            font-size: 14px;
+            padding: 15px 0 5px 0;
+            margin-bottom: 5px;
+            border-color: #cccccc;
+        }
+    
+        img {
+            border: 0;
+        }
+    
+        p {
+            padding: 0 0 5px 0;
+        }
+    
+        a {
+            color: #000;
+        }
+    
+        #logo {
+            text-align: center;
+            padding: 50px 0;
+        }
+    
+        #logo hr {
+            display: block;
+            height: 1px;
+            overflow: hidden;
+            background: #BBB;
+            border: 0;
+            padding: 0;
+            margin: 30px 0 20px 0;
+        }
+    
+        .claim {
+            text-transform: uppercase;
+            color: #BBB;
+        }
+    
+        #site ul {
+            padding: 10px 0 10px 20px;
+            list-style: circle;
+        }
+    
+        .buttons {
+            margin-bottom: 100px;
+            text-align: center;
+        }
+    
+        .buttons a {
+            display: inline-block;
+            background: #6428b4;
+            color: #fff;
+            padding: 5px 10px;
+            margin-right: 10px;
+            width: 40%;
+            border-radius: 2px;
+            text-decoration: none;
+        }
+    
+        .buttons a:hover {
+            background: #1C8BC1;
+        }
+    
+        .buttons a:last-child {
+            margin: 0;
+        }
+    
+    </style>
     <div id="site">
         <div id="logo">
-            <a href="http://www.pimcore.org/"><img src="/bundles/pimcoreadmin/img/logo-gray.svg" style="width: 200px;" /></a>
-            <hr />
-            <div class="claim">
-                THE OPEN-SOURCE ENTERPRISE PLATFORM FOR PIM, CMS, DAM & COMMERCE
-            </div>
+            <a href="http://www.pimcore.com/"><img src="/bundles/pimcoreadmin/img/logo-claim-gray.svg"
+                                                   style="width: 400px;"/></a>
+            <hr/>
         </div>
-        <div class="info">
-            <?php $this->slots()->output('_content') ?>
-        </div>
+        {{ block('content') }}
     </div>
 </body>
 </html>
 ```
 
-The code `<?php $this->slots()->output('_content') ?>` is the placeholder where the content of the page will be inserted.
+The code `{{ block('content') }}` is the placeholder where the content of the page will be inserted.
 
 ### Putting it all together with Pimcore Documents
 Now we need to connect the action to a page in the Pimcore backend, so that the page knows which action 
 (and therefore also which template) needs to be executed/processed.
-First, click right on *Home* in the *Documents* panel. 
+First, click right on *Home* in the *Documents* panel and Select *Add Page* > *Blank* to add a new page. 
 
 ![Create page](../img/Pimcore_Elements_check_homepage.png)
 
 Now select the tab *Settings* in the newly opened tab.
-Select the name of the controller and the name of the action in the according fields.
+Select the Controller::Action and template(if different from controller action naming).
 
 ![Page settings](../img/Pimcore_Elements_homepage_settings.png)
 
@@ -224,55 +292,51 @@ Therefore create another action in the controller (ContentController) called `pr
 ```php
 <?php
 
-namespace AppBundle\Controller;
+namespace App\Controller;
 
 use Pimcore\Controller\FrontendController;
 use Symfony\Component\HttpFoundation\Request;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 
 class ContentController extends FrontendController
 {
+    /**
+     * @Template
+     */
     public function defaultAction (Request $request)
     {
+        return [];
     }
     
     public function productAction(Request $request)
     {
+        return $this->render('content/product.html.twig');
     }
 }
 ```
 
-Then we also need a new template for our product action: `app/Resources/views/Content/product.html.php` 
+Then we also need a new template for our product action: `templates/content/product.html.twig` 
 
-```php
-<?php
-/**
- * @var \Pimcore\Templating\PhpEngine $this
- * @var \Pimcore\Templating\PhpEngine $view
- * @var \Pimcore\Templating\GlobalVariables $app
- */
+```twig
+{% extends 'layout.html.twig' %}
 
-$this->extend('layout.html.php');
+{% block content %}
+    <h1>{{ pimcore_input("headline", {"width": 540}) }}</h1>
 
-?>
-
-<h1><?= $this->input("headline", ["width" => 540]); ?></h1>
-
-<div class="product-info">
-    <?php if($this->editmode):
-        echo $this->relation('product');
-    else: ?>
-
-    <!-- Product information-->
-
-    <?php endif; ?>
-</div>
-
+    <div class="product-info">
+        {% if editmode %}
+            {{ pimcore_relation("product") }}
+        {% else %}
+            <!-- Product information-->
+        {% endif %}
+    </div>
+{% endblock %}
 ```
 
-`$this->editmode` is a standard variable (it's always set) that checks if the view is called from the Pimcore admin backend and gives you the 
+`{{ editmode }}` is a standard variable (it's always set), that checks if the view is called from the Pimcore admin backend and gives you the 
  possibility to do different stuff in editmode and in the frontend. 
 
-`$this->relation('product')` is one of the possible editable placeholders. It can be used to make 1 to 1 relations. A cool 
+`{{ pimcore_relation("product") }}` is one of the possible editable placeholders. It can be used to make 1 to 1 relations. A cool 
 alternative for that would be the [Renderlet](../03_Documents/01_Editables/28_Renderlet.md) editable.  
 Click [here](../03_Documents/01_Editables/README.md) for a full list of available editables in Pimcore.
 
@@ -295,43 +359,31 @@ Go to the product page. In my case, let's say `http://pimcore.local/tshirt` wher
 
 We haven't implemented frontend features yet, therefore the page doesn't contain any product information.
 
-Add a few lines in the template file (`app/Resources/views/Content/product.html.php`):
+Add a few lines in the template file (`templates/content/product.html.twig`):
 
-```php
-<?php
-/**
- * @var \Pimcore\Templating\PhpEngine $this
- * @var \Pimcore\Templating\PhpEngine $view
- * @var \Pimcore\Templating\GlobalVariables $app
- */
+```twig
+{% extends 'layout.html.twig' %}
+{% block content %}
+    <h1>{{ pimcore_input("headline", {"width": 540}) }}</h1>
 
-$this->extend('layout.html.php');
-
-?>
-
-<h1><?= $this->input("headline", ["width" => 540]); ?></h1>
-<div class="product-info">
-    <?php if($this->editmode):
-        echo $this->relation('product');
-    else: ?>
-    <div id="product">
-        <?php
-        /** @var \Pimcore\Model\DataObject\Product $product */
-        $product = $this->relation('product')->getElement();
-        ?>
-        <h2><?= $this->escape($product->getName()); ?></h2>
-        <div class="content">
-            <?= $product->getDescription(); ?>
-        </div>
+    <div class="product-info">
+        {% if editmode %}
+            {{ pimcore_relation("product") }}
+        {% else %}
+            {% set product = pimcore_relation("product").element %} 
+            {% if product %} 
+                <h2>{{ product.name }}</h2>
+                <div class="content">
+                    {{ product.description|raw }}
+                </div>
+            {% endif %}
+        {% endif %}
     </div>
-    <?php endif; ?>
-</div>
-
+{% endblock %}
 ```
 
 You are now able to access the linked object above by using the method `getElement()`.
 Now you have access to the entire data from the linked object (name, description, ...).
-It's a good practice to add `@var` PHPDoc in every view, to benefit from auto-complete in your IDE.
 
 ## Add a Thumbnail Configuration
 To show the product image in the view, we need to add a thumbnail configuration first. Using [thumbnail configurations](../04_Assets/03_Working_with_Thumbnails/01_Image_Thumbnails.md),
@@ -344,21 +396,17 @@ Adding a thumbnail configuration can be achieved by adding a configuration as de
 ## Showing the Image in the View
 Last but not least, we would like to show the product picture: 
 
-```php
+```twig
 <div class="content">
-    <?php
-    $picture = $product->getPicture();
-    if($picture instanceof \Pimcore\Model\Asset\Image):
-        /** @var \Pimcore\Model\Asset\Image $picture */
-        
-    ?>
-        <?= $picture->getThumbnail("content")->getHtml(); ?>
-    <?php endif; ?>
-    <?= $product->getDescription(); ?>
+    {% if product.picture %}
+        {{ product.picture.thumbnail("content").html|raw }}
+    {% endif %}
+
+    {{ product.description|raw }}
 </div>
 ```
 As you can see, Image is an additional class with useful attributes and functions.
-To print out the image in the right size just use the method `getThumbnail()->getHtml()` which returns the `<img>` or `<picture>` (when using media queries in your config) tag with the 
+To print out the image in the right size just use the method `thumbnail.html` which returns the `<img>` or `<picture>` (when using media queries in your config) tag with the 
 correct image path and also sets alt attributes to values based on the asset meta data. 
 
 Now the product page should look like this:

@@ -24,6 +24,9 @@ use Pimcore\Model\Search;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 class SearchBackendReindexCommand extends AbstractCommand
 {
     protected function configure()
@@ -35,13 +38,13 @@ class SearchBackendReindexCommand extends AbstractCommand
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // clear all data
         $db = \Pimcore\Db::get();
-        $db->query('TRUNCATE `search_backend_data`;');
+        $db->executeQuery('TRUNCATE `search_backend_data`;');
 
         $elementsPerLoop = 100;
         $types = ['asset', 'document', 'object'];
@@ -79,7 +82,7 @@ class SearchBackendReindexCommand extends AbstractCommand
                         }
 
                         $searchEntry = Search\Backend\Data::getForElement($element);
-                        if ($searchEntry instanceof Search\Backend\Data and $searchEntry->getId() instanceof Search\Backend\Data\Id) {
+                        if ($searchEntry instanceof Search\Backend\Data && $searchEntry->getId() instanceof Search\Backend\Data\Id) {
                             $searchEntry->setDataFromElement($element);
                         } else {
                             $searchEntry = new Search\Backend\Data($element);
@@ -87,14 +90,14 @@ class SearchBackendReindexCommand extends AbstractCommand
 
                         $searchEntry->save();
                     } catch (\Exception $e) {
-                        Logger::err($e);
+                        Logger::err((string) $e);
                     }
                 }
                 \Pimcore::collectGarbage();
             }
         }
 
-        $db->query('OPTIMIZE TABLE search_backend_data;');
+        $db->executeQuery('OPTIMIZE TABLE search_backend_data;');
 
         return 0;
     }

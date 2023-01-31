@@ -13,7 +13,7 @@
 
 pimcore.registerNS("pimcore.document.document");
 pimcore.document.document = Class.create(pimcore.element.abstract, {
-
+    willClose: false,
     getData: function () {
         var options = this.options || {};
         Ext.Ajax.request({
@@ -79,11 +79,15 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
 
     save: function (task, only, callback, successCallback) {
 
-        if (this.tab.disabled || this.tab.isMasked()) {
+        if (this.tab.disabled || (this.tab.isMasked() && task != 'autoSave')) {
             return;
         }
 
-        this.tab.mask();
+
+        if(task != 'autoSave'){
+            this.tab.mask();
+        }
+
         var saveData = this.getSaveData(only);
 
         if (saveData) {
@@ -91,20 +95,20 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
                 saveData.missingRequiredEditable = this.data.missingRequiredEditable;
             }
 
-            try {
-                pimcore.plugin.broker.fireEvent("preSaveDocument", this, this.getType(), task, only);
-            } catch (e) {
-                if (e instanceof pimcore.error.ValidationException) {
-                    this.tab.unmask();
-                    pimcore.helpers.showPrettyError('document', t("error"), t("saving_failed"), e.message);
-                    return false;
-                }
+            const preSaveDocument = new CustomEvent(pimcore.events.preSaveDocument, {
+                detail: {
+                    document: this,
+                    type: this.getType(),
+                    task: task,
+                    onlySaveVersion: only
+                },
+                cancelable: true
+            });
 
-                if (e instanceof pimcore.error.ActionCancelledException) {
-                    this.tab.unmask();
-                    pimcore.helpers.showNotification(t("Info"), 'Document not saved: ' + e.message, 'info');
-                    return false;
-                }
+            const isAllowed = document.dispatchEvent(preSaveDocument);
+            if (!isAllowed) {
+                this.tab.unmask();
+                return false;
             }
 
             Ext.Ajax.request({
@@ -120,22 +124,36 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
                         }
                         if (rdata && rdata.success) {
                             // check for version notification
-                            if (this.newerVersionNotification) {
+                            if (this.draftVersionNotification) {
                                 if (task == "publish" || task == "unpublish") {
-                                    this.newerVersionNotification.hide();
-                                } else {
-                                    this.newerVersionNotification.show();
+                                    this.draftVersionNotification.hide();
+                                } else if (task === 'version' || task === 'autoSave') {
+                                    this.draftVersionNotification.show();
                                 }
                             }
 
-                            pimcore.helpers.showNotification(t("success"), t("saved_successfully"), "success");
-                            this.resetChanges();
+                            if(task !== "autoSave") {
+                                pimcore.helpers.showNotification(t("success"), t("saved_successfully"), "success");
+                            }
+
+                            this.resetChanges(task);
                             Ext.apply(this.data, rdata.data);
 
-                            if (typeof this["createScreenshot"] == "function") {
-                                this.createScreenshot();
+                            if(rdata['draft']) {
+                                this.data['draft'] = rdata['draft'];
                             }
-                            pimcore.plugin.broker.fireEvent("postSaveDocument", this, this.getType(), task, only);
+
+                            const postSaveDocument = new CustomEvent(pimcore.events.postSaveDocument, {
+                                detail: {
+                                    document: this,
+                                    type: this.getType(),
+                                    task: task,
+                                    onlySaveVersion: only
+                                }
+                            });
+
+                            document.dispatchEvent(postSaveDocument);
+
                             pimcore.helpers.updateTreeElementStyle('document', this.id, rdata.treeData);
                         }
                     } catch (e) {
@@ -143,7 +161,7 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
                     }
 
                     // reload versions
-                    if (this.versions) {
+                    if (task !== 'autoSave' && this.versions) {
                         if (typeof this.versions.reload == "function") {
                             this.versions.reload();
                         }
@@ -154,6 +172,11 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
                     if (typeof callback == "function") {
                         callback();
                     }
+
+                    if (this.willClose){
+                        this.close();
+                    }
+
                 }.bind(this),
                 failure: function () {
                     this.tab.unmask();
@@ -177,20 +200,17 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
     },
 
     close: function() {
-        var tabPanel = Ext.getCmp("pimcore_panel_tabs");
-        tabPanel.remove(this.tab);
+        pimcore.helpers.closeDocument(this.id);
     },
 
     saveClose: function (only) {
-        this.save(null, only, function () {
-            this.close();
-        }.bind(this));
+        this.willClose = true;
+        this.save('version', only);
     },
 
     publishClose: function () {
-        this.publish(null, function () {
-            this.close();
-        }.bind(this));
+        this.willClose = true;
+        this.publish(null);
     },
 
     publish: function (only, callback) {
@@ -199,7 +219,9 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
                 this.data.published = true;
 
                 // toggle buttons
-                this.toolbarButtons.unpublish.show();
+                if(this.toolbarButtons.unpublish) {
+                    this.toolbarButtons.unpublish.show();
+                }
 
                 if (this.toolbarButtons.save) {
                     this.toolbarButtons.save.hide();
@@ -220,7 +242,9 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
                 this.data.published = false;
 
                 // toggle buttons
-                this.toolbarButtons.unpublish.hide();
+                if(this.toolbarButtons.unpublish) {
+                    this.toolbarButtons.unpublish.hide();
+                }
 
                 if (this.toolbarButtons.save) {
                     this.toolbarButtons.save.show();
@@ -236,9 +260,8 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
     },
 
     unpublishClose: function () {
-        this.unpublish(null, function () {
-            this.close();
-        }.bind(this));
+        this.willClose = true;
+        this.unpublish(null);
     },
 
     reload: function () {
@@ -468,14 +491,15 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
                 }
             }, {
                 xtype: "textfield",
+                itemId: "title",
+                fieldLabel: t('title'),
+                name: 'title',
                 width: "100%",
-                fieldLabel: t('key'),
-                itemId: "key",
-                name: 'key',
                 enableKeyEvents: true,
                 listeners: {
                     keyup: function (el) {
                         pageForm.getComponent("name").setValue(el.getValue());
+                        pageForm.getComponent("key").setValue(el.getValue());
                     }
                 }
             }, {
@@ -486,10 +510,10 @@ pimcore.document.document = Class.create(pimcore.element.abstract, {
                 width: "100%"
             }, {
                 xtype: "textfield",
-                itemId: "title",
-                fieldLabel: t('title'),
-                name: 'title',
-                width: "100%"
+                width: "100%",
+                fieldLabel: t('key'),
+                itemId: "key",
+                name: 'key'
             }]
         });
 

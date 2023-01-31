@@ -15,11 +15,14 @@
 
 namespace Pimcore\Cache\Core;
 
-use Pimcore\Cache\Pool\PimcoreCacheItemPoolInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 
-class WriteLock implements WriteLockInterface, LoggerAwareInterface
+/**
+ * @internal
+ */
+class WriteLock implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
 
@@ -29,7 +32,7 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
     protected $enabled = true;
 
     /**
-     * @var PimcoreCacheItemPoolInterface
+     * @var TagAwareAdapterInterface
      */
     protected $itemPool;
 
@@ -51,7 +54,7 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
      *
      * @var int|null
      */
-    protected $timestamp = 0;
+    protected $timestamp;
 
     /**
      * @var bool
@@ -59,15 +62,15 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
     protected $lockInitialized = false;
 
     /**
-     * @param PimcoreCacheItemPoolInterface $itemPool
+     * @param TagAwareAdapterInterface $itemPool
      */
-    public function __construct(PimcoreCacheItemPoolInterface $itemPool)
+    public function __construct(TagAwareAdapterInterface $itemPool)
     {
         $this->itemPool = $itemPool;
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function enable()
     {
@@ -75,7 +78,7 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function disable()
     {
@@ -83,7 +86,7 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function isEnabled()
     {
@@ -151,11 +154,9 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
      */
     public function hasLock()
     {
-        if (!$this->enabled) {
+        if (!$this->enabled || !$this->lockInitialized) {
             return false;
         }
-
-        $this->initializeLock();
 
         if ($this->timestamp && $this->timestamp > 0) {
             return true;
@@ -173,7 +174,7 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
         }
 
         // normalize timestamp
-        $this->timestamp = 0;
+        $this->timestamp = null;
 
         return false;
     }
@@ -195,11 +196,9 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
      */
     public function removeLock()
     {
-        if (!$this->enabled) {
+        if (!$this->enabled || !$this->lockInitialized) {
             return true;
         }
-
-        $this->initializeLock();
 
         if ($this->timestamp) {
             $item = $this->itemPool->getItem($this->cacheKey);
@@ -215,7 +214,7 @@ class WriteLock implements WriteLockInterface, LoggerAwareInterface
 
                     $this->itemPool->deleteItem($this->cacheKey);
 
-                    $this->timestamp = 0;
+                    $this->timestamp = null;
 
                     return true;
                 } else {

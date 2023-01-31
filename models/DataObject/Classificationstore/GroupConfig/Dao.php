@@ -18,6 +18,8 @@ namespace Pimcore\Model\DataObject\Classificationstore\GroupConfig;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Classificationstore\GroupConfig $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -31,7 +33,7 @@ class Dao extends Model\Dao\AbstractDao
      *
      * @param int $id
      *
-     * @throws \Exception
+     * @throws Model\Exception\NotFoundException
      */
     public function getById($id = null)
     {
@@ -39,12 +41,12 @@ class Dao extends Model\Dao\AbstractDao
             $this->model->setId($id);
         }
 
-        $data = $this->db->fetchRow('SELECT * FROM ' . self::TABLE_NAME_GROUPS . ' WHERE id = ?', $this->model->getId());
+        $data = $this->db->fetchAssociative('SELECT * FROM ' . self::TABLE_NAME_GROUPS . ' WHERE id = ?', [$this->model->getId()]);
 
         if (!empty($data['id'])) {
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('GroupConfig with id: ' . $this->model->getId() . ' does not exist');
+            throw new Model\Exception\NotFoundException('GroupConfig with id: ' . $this->model->getId() . ' does not exist');
         }
     }
 
@@ -62,30 +64,25 @@ class Dao extends Model\Dao\AbstractDao
         $name = $this->model->getName();
         $storeId = $this->model->getStoreId();
 
-        $data = $this->db->fetchRow('SELECT * FROM ' . self::TABLE_NAME_GROUPS . ' WHERE name = ? and storeId = ?', [$name, $storeId]);
+        $data = $this->db->fetchAssociative('SELECT * FROM ' . self::TABLE_NAME_GROUPS . ' WHERE name = ? and storeId = ?', [$name, $storeId]);
 
         if (!empty($data['id'])) {
             $this->assignVariablesToModel($data);
         } else {
-            throw new \Exception('Config with name: ' . $this->model->getName() . ' does not exist');
+            throw new Model\Exception\NotFoundException(sprintf('Classification store group config with name "%s" does not exist.', $name));
         }
     }
 
     /**
-     * @return int
-     *
-     * @todo: $amount could not be defined, so this could cause an issue
+     * @return bool
      */
     public function hasChildren()
     {
-        $amount = 0;
-
-        try {
-            $amount = (int) $this->db->fetchOne('SELECT COUNT(*) as amount FROM ' . self::TABLE_NAME_GROUPS . ' where parentId= ' . $this->model->id);
-        } catch (\Exception $e) {
+        if (!$this->model->getId()) {
+            return false;
         }
 
-        return $amount;
+        return (bool) $this->db->fetchOne('SELECT COUNT(*) as amount FROM ' . self::TABLE_NAME_GROUPS . ' WHERE parentId = ?', [$this->model->getId()]);
     }
 
     /**
@@ -143,6 +140,6 @@ class Dao extends Model\Dao\AbstractDao
 
         $this->db->insert(self::TABLE_NAME_GROUPS, []);
 
-        $this->model->setId($this->db->lastInsertId());
+        $this->model->setId((int) $this->db->lastInsertId());
     }
 }

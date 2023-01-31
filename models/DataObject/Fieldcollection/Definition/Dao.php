@@ -19,6 +19,8 @@ use Pimcore\Model;
 use Pimcore\Model\DataObject;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\DataObject\Fieldcollection\Definition $model
  */
 class Dao extends Model\Dao\AbstractDao
@@ -56,7 +58,7 @@ class Dao extends Model\Dao\AbstractDao
     public function delete(DataObject\ClassDefinition $class)
     {
         $table = $this->getTableName($class);
-        $this->db->query('DROP TABLE IF EXISTS `' . $table . '`');
+        $this->db->executeQuery('DROP TABLE IF EXISTS `' . $table . '`');
     }
 
     /**
@@ -66,14 +68,15 @@ class Dao extends Model\Dao\AbstractDao
     {
         $table = $this->getTableName($class);
 
-        $this->db->query('CREATE TABLE IF NOT EXISTS `' . $table . "` (
-		  `o_id` int(11) NOT NULL default '0',
+        $this->db->executeQuery('CREATE TABLE IF NOT EXISTS `' . $table . "` (
+		  `o_id` int(11) UNSIGNED NOT NULL default '0',
 		  `index` int(11) default '0',
           `fieldname` varchar(190) default '',
           PRIMARY KEY (`o_id`,`index`,`fieldname`(190)),
           INDEX `index` (`index`),
-          INDEX `fieldname` (`fieldname`)
-		) DEFAULT CHARSET=utf8mb4;");
+          INDEX `fieldname` (`fieldname`),
+          CONSTRAINT `".self::getForeignKeyName($table, 'o_id').'` FOREIGN KEY (`o_id`) REFERENCES objects (`o_id`) ON DELETE CASCADE
+		) DEFAULT CHARSET=utf8mb4;');
 
         $existingColumns = $this->getValidTableColumns($table, false); // no caching of table definition
         $columnsToRemove = $existingColumns;
@@ -81,14 +84,10 @@ class Dao extends Model\Dao\AbstractDao
 
         DataObject\ClassDefinition\Service::updateTableDefinitions($this->tableDefinitions, ([$table]));
 
-        /** @var DataObject\ClassDefinition\Data $value */
         foreach ($this->model->getFieldDefinitions() as $value) {
             $key = $value->getName();
 
-            if ($value instanceof DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface || method_exists($value, 'getDataForResource')) {
-                /** @var DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface $value
-                 * note that method_exists is only used for BC reasons
-                 */
+            if ($value instanceof DataObject\ClassDefinition\Data\ResourcePersistenceAwareInterface) {
                 if (is_array($value->getColumnType())) {
                     // if a datafield requires more than one field
                     foreach ($value->getColumnType() as $fkey => $fvalue) {

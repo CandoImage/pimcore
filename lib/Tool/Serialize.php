@@ -15,7 +15,7 @@
 
 namespace Pimcore\Tool;
 
-class Serialize
+final class Serialize
 {
     /**
      * @var array
@@ -23,8 +23,6 @@ class Serialize
     protected static $loopFilterProcessedObjects = [];
 
     /**
-     * @static
-     *
      * @param mixed $data
      *
      * @return string
@@ -35,8 +33,6 @@ class Serialize
     }
 
     /**
-     * @static
-     *
      * @param string $data
      *
      * @return mixed
@@ -51,6 +47,8 @@ class Serialize
     }
 
     /**
+     * @internal
+     *
      * Shortcut to access the admin serializer
      *
      * @return \Symfony\Component\Serializer\Serializer
@@ -61,14 +59,16 @@ class Serialize
     }
 
     /**
+     * @internal
+     *
      * this is a special json encoder that avoids recursion errors
      * especially for pimcore models that contain massive self referencing objects
      *
      * @param mixed $data
      *
-     * @return string
+     * @return mixed
      */
-    public static function removeReferenceLoops($data)
+    public static function removeReferenceLoops($data): mixed
     {
         self::$loopFilterProcessedObjects = []; // reset
 
@@ -102,7 +102,9 @@ class Serialize
             $propCollection = get_object_vars($clone);
 
             foreach ($propCollection as $name => $propValue) {
-                $clone->$name = self::loopFilterCycles($propValue);
+                if (!str_starts_with($name, "\0")) {
+                    $clone->$name = self::loopFilterCycles($propValue);
+                }
             }
 
             array_splice(self::$loopFilterProcessedObjects, array_search($element, self::$loopFilterProcessedObjects, true), 1);

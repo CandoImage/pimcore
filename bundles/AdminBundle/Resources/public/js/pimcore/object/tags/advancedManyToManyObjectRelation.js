@@ -94,11 +94,10 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
 
     createLayout: function (readOnly) {
         var autoHeight = false;
-        if (intval(this.fieldConfig.height) < 15) {
+        if (!this.fieldConfig.height) {
             autoHeight = true;
         }
 
-        var cls = 'object_field';
         var i;
 
         var visibleFields = this.visibleFields || [];
@@ -134,7 +133,9 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
 
                 if (fc.layout.key === "fullpath") {
                     fc.renderer = this.fullPathRenderCheck.bind(this);
-                } else if(fc.layout.layout.fieldtype == "select" || fc.layout.layout.fieldtype == "multiselect") {
+                } else if (fc.layout.layout.fieldtype == 'select'
+                    || fc.layout.layout.fieldtype == 'multiselect'
+                    || fc.layout.layout.fieldtype == 'booleanSelect') {
                     fc.layout.layout.options.forEach(option => {
                         option.key = t(option.key);
                     });
@@ -154,10 +155,14 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
             var renderer = null;
             var listeners = null;
 
-            if (this.fieldConfig.columns[i].type == "number" && !readOnly) {
-                cellEditor = function() {
-                    return new Ext.form.NumberField({});
-                }.bind();
+            if (this.fieldConfig.columns[i].type == "number") {
+                if(!readOnly) {
+                    cellEditor = function () {
+                        return new Ext.form.NumberField({});
+                    }.bind();
+                }
+
+                renderer = Ext.util.Format.numberRenderer();
             } else if (this.fieldConfig.columns[i].type == "text" && !readOnly) {
                 cellEditor = function() {
                     return new Ext.form.TextField({});
@@ -372,6 +377,7 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
             selModel: {
                 selType: (this.fieldConfig.enableBatchEdit ? 'checkboxmodel': 'rowmodel')
             },
+            multiSelect: true,
             columnLines: true,
             stripeRows: true,
             columns: {
@@ -386,12 +392,14 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
                     draggroup: 'element'
                 },
                 markDirty: false,
-                enableTextSelection: true,
+                enableTextSelection: this.fieldConfig.enableTextSelection,
                 listeners: {
                     afterrender: function (gridview) {
                         this.requestNicePathData(this.store.data, true);
                     }.bind(this),
                     drop: function () {
+                        this.dataChanged = true;
+
                         // this is necessary to avoid endless recursion when long lists are sorted via d&d
                         // TODO: investigate if there this is already fixed 6.2
                         if (this.object.toolbar && this.object.toolbar.items && this.object.toolbar.items.items) {
@@ -410,7 +418,7 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
                     }.bind(this)
                 }
             },
-            componentCls: cls,
+            componentCls: this.getWrapperClassNames(),
             width: this.fieldConfig.width,
             height: this.fieldConfig.height,
             tbar: {
@@ -423,10 +431,7 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
             bodyCls: "pimcore_object_tag_objects pimcore_editable_grid",
             plugins: [
                 this.cellEditing
-            ],
-            listeners: {
-                rowdblclick: this.gridRowDblClickHandler
-            }
+            ]
         });
 
         if (!readOnly) {
@@ -599,6 +604,7 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
         return {
             text: t(field.label), width: 150, sortable: false, dataIndex: field.key,
             getEditor: this.getWindowCellEditor.bind(this, field),
+            getRelationFilter: this.getRelationFilter,
             renderer: pimcore.object.helpers.grid.prototype.advancedRelationGridRenderer.bind(this, field, "fullpath")
         };
     },
@@ -609,6 +615,3 @@ pimcore.object.tags.advancedManyToManyObjectRelation = Class.create(pimcore.obje
     },
 
 });
-
-// @TODO BC layer, to be removed in Pimcore 10
-pimcore.object.tags.objectsMetadata = pimcore.object.tags.advancedManyToManyObjectRelation;

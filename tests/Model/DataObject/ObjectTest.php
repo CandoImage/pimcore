@@ -16,6 +16,7 @@
 namespace Pimcore\Tests\Model\DataObject;
 
 use Pimcore\Model\DataObject;
+use Pimcore\Model\Element\Service;
 use Pimcore\Tests\Test\ModelTestCase;
 use Pimcore\Tests\Util\TestHelper;
 
@@ -23,18 +24,18 @@ use Pimcore\Tests\Util\TestHelper;
  * Class ObjectTest
  *
  * @package Pimcore\Tests\Model\DataObject
+ *
  * @group model.dataobject.object
  */
 class ObjectTest extends ModelTestCase
 {
     /**
-     * Verifies that a object with the same parent ID cannot be created.
-     *
-     * @expectedException \Exception
-     * @expectedExceptionMessage ParentID and ID is identical, an element can't be the parent of itself.
+     * Verifies that an object with the same parent ID cannot be created.
      */
     public function testParentIdentical()
     {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("ParentID and ID is identical, an element can't be the parent of itself.");
         $savedObject = TestHelper::createEmptyObject();
         $this->assertTrue($savedObject->getId() > 0);
 
@@ -43,13 +44,23 @@ class ObjectTest extends ModelTestCase
     }
 
     /**
+     * Verifies that object PHP API version note is saved
+     */
+    public function testSavingVersionNotes()
+    {
+        $versionNote = ['versionNote' => 'a new version of this object'];
+        $this->testObject = TestHelper::createEmptyObject();
+        $this->testObject->save($versionNote);
+        $this->assertEquals($this->testObject->getLatestVersion(null, true)->getNote(), $versionNote['versionNote']);
+    }
+
+    /**
      * Parent ID of a new object cannot be 0
-     *
-     * @expectedException \Exception
-     * @expectedExceptionMessage ParentID and ID is identical, an element can't be the parent of itself.
      */
     public function testParentIs0()
     {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("ParentID and ID is identical, an element can't be the parent of itself.");
         $savedObject = TestHelper::createEmptyObject('', false);
         $this->assertTrue($savedObject->getId() == 0);
 
@@ -135,7 +146,7 @@ class ObjectTest extends ModelTestCase
         $this->assertEquals($userId, $object->getUserModification(), 'Expected custom user modification id');
 
         //auto generated user modification
-        $object = DataObject::getById($object->getId(), true);
+        $object = DataObject::getById($object->getId(), ['force' => true]);
         $object->save();
         $this->assertEquals(0, $object->getUserModification(), 'Expected auto assigned user modification id');
     }
@@ -158,8 +169,38 @@ class ObjectTest extends ModelTestCase
 
         //auto generated modification date
         $currentTime = time();
-        $object = DataObject::getById($object->getId(), true);
+        $object = DataObject::getById($object->getId(), ['force' => true]);
         $object->save();
         $this->assertGreaterThanOrEqual($currentTime, $object->getModificationDate(), 'Expected auto assigned modification date');
+    }
+
+    /**
+     * Verifies that when an object gets saved default values of fields get saved to the version
+     */
+    public function testDefaultValueSavedToVersion()
+    {
+        $object = TestHelper::createEmptyObject();
+        $object->save();
+
+        $versions = $object->getVersions();
+        $latestVersion = end($versions);
+
+        $this->assertEquals('default', $latestVersion->getData()->getInputWithDefault(), 'Expected default value saved to version');
+    }
+
+    /**
+     * Verifies that when an object gets cloned, the o_* fields references get renewed
+     */
+    public function testCloning()
+    {
+        $object = TestHelper::createEmptyObject('', false);
+        $clone = Service::cloneMe($object);
+
+        $object->setId(123);
+
+        $this->assertEquals(null, $clone->getId(), 'Setting ID on original object should have no impact on the cloned object');
+
+        $otherClone = clone $object;
+        $this->assertEquals(123, $otherClone->getId(), 'Shallow clone should copy the o_* fields');
     }
 }

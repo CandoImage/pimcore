@@ -17,9 +17,7 @@ declare(strict_types=1);
 
 namespace Pimcore\Tests\Unit\Translation;
 
-use Codeception\Util\Stub;
 use Pimcore\Model\Translation;
-use Pimcore\Model\Translation\Website;
 use Pimcore\Tests\Test\TestCase;
 use Pimcore\Translation\Translator;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -43,6 +41,7 @@ class TranslatorTest extends TestCase
     protected $translations = [
         'en' => [
             'simple_key' => 'EN Text',
+            'fallback_key' => 'EN Fallback',
             'Text As Key' => 'EN Text',
             'text_params' => 'Text with %Param1% and %Param2%',
             'count_key' => '%count% Count',
@@ -54,6 +53,7 @@ class TranslatorTest extends TestCase
         ],
         'de' => [
             'simple_key' => 'DE Text',
+            'fallback_key' => '',
             'Text As Key' => '',
             'text_params' => '',
             'count_key' => '',
@@ -65,9 +65,9 @@ class TranslatorTest extends TestCase
     ];
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -75,7 +75,7 @@ class TranslatorTest extends TestCase
         $this->addTranslations();
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         $this->removeTranslations();
         parent::tearDown();
@@ -85,7 +85,7 @@ class TranslatorTest extends TestCase
     {
         foreach ($this->locales as $locale => $fallback) {
             foreach ($this->translations[$locale] as $transKey => $trans) {
-                $t = Website::getByKey($transKey, true);
+                $t = Translation::getByKey($transKey, Translation::DOMAIN_DEFAULT, true);
                 $t->addTranslation($locale, $trans ?? '');
                 $t->save();
             }
@@ -96,8 +96,8 @@ class TranslatorTest extends TestCase
     {
         foreach ($this->locales as $locale => $fallback) {
             foreach ($this->translations[$locale] as $transKey => $trans) {
-                $t = Website::getByKey($transKey);
-                if ($t instanceof Website) {
+                $t = Translation::getByKey($transKey);
+                if ($t instanceof Translation) {
                     $t->delete();
                 }
             }
@@ -117,6 +117,10 @@ class TranslatorTest extends TestCase
         //Translate fr
         $this->translator->setLocale('fr');
         $this->assertEquals($this->translations['fr']['simple_key'], $this->translator->trans('simple_key'));
+
+        //Returns Fallback("en") value
+        $this->translator->setLocale('de');
+        $this->assertEquals($this->translations['en']['fallback_key'], $this->translator->trans('fallback_key'));
     }
 
     public function testTranslateTextAsKey()
@@ -199,12 +203,6 @@ class TranslatorTest extends TestCase
 
         //Upper case key
         $this->assertEquals($this->translations['en']['CASE_KEY'], $this->translator->trans('CASE_KEY'));
-
-        // Case Insensitive
-        /** @var Translator $translator */
-        $translator = Stub::construct(Translator::class, [$this->translator, true]);
-
-        $this->assertEquals($this->translations['en']['case_key'], $translator->trans('CASE_KEY'));
     }
 
     public function testLoadingTranslationList()
@@ -221,5 +219,14 @@ class TranslatorTest extends TestCase
 
         $translations = $translations->getTranslations();
         $this->assertCount(1, $translations);
+
+        //test: Filter by languages
+        $translations = new Translation\Listing();
+        $translations->setDomain('messages');
+        $translations->setLanguages(['en', 'de']);
+
+        $translations = $translations->getTranslations();
+        $translationValues = $translations[0]->getTranslations();
+        $this->assertArrayNotHasKey('fr', $translationValues);
     }
 }

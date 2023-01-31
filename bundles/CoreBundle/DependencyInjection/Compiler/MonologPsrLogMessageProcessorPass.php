@@ -34,13 +34,13 @@ class MonologPsrLogMessageProcessorPass implements CompilerPassInterface
     {
         $processorId = 'monolog.processor.psr_log_message';
 
-        if ($container->has($processorId)) {
-            return;
+        // We need to ignore this due to this bug: https://github.com/phpstan/phpstan-symfony/issues/15
+        // @phpstan-ignore-next-line
+        if (! $container->has($processorId)) {
+            $processor = new Definition(PsrLogMessageProcessor::class);
+            $processor->setPublic(false);
+
+            $container->setDefinition($processorId, $processor);
         }
-
-        $processor = new Definition(PsrLogMessageProcessor::class);
-        $processor->setPublic(false);
-
-        $container->setDefinition($processorId, $processor);
     }
 }

@@ -17,6 +17,9 @@ namespace Pimcore\Model\DataObject\ClassDefinition\Helper;
 
 use Pimcore\Model\DataObject\ClassDefinition\Layout\DynamicTextLabelInterface;
 
+/**
+ * @internal
+ */
 class DynamicTextResolver extends ClassResolver
 {
     /**

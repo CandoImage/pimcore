@@ -36,5 +36,3 @@ interface CartPriceModificatorInterface
      */
     public function modify(PriceInterface $currentSubTotal, CartInterface $cart);
 }
-
-class_alias(CartPriceModificatorInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartPriceModificator\ICartPriceModificator');

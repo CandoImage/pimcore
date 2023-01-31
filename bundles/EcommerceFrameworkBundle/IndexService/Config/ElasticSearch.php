@@ -79,7 +79,7 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
     protected $synonymProviders = [];
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      *
      * @param SynonymProviderInterface[] $synonymProviders
      */
@@ -191,17 +191,10 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
         return $parts;
     }
 
-    /**
-     * returns the full field name
-     *
-     * @param string $fieldName
-     * @param bool $considerSubFieldNames - activate to consider subfield names like name.analyzed or score definitions like name^3
-     *
-     * @return string
-     */
+    /** @inheritDoc */
     public function getFieldNameMapped($fieldName, $considerSubFieldNames = false)
     {
-        if ($this->fieldMapping[$fieldName]) {
+        if (isset($this->fieldMapping[$fieldName])) {
             return $this->fieldMapping[$fieldName];
         }
 
@@ -209,7 +202,7 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
         if ($considerSubFieldNames) {
             $fieldNameParts = $this->extractPossibleFirstSubFieldnameParts($fieldName);
             foreach ($fieldNameParts as $fieldNamePart) {
-                if ($this->fieldMapping[$fieldNamePart]) {
+                if (isset($this->fieldMapping[$fieldNamePart])) {
                     return $this->fieldMapping[$fieldNamePart] . str_replace($fieldNamePart, '', $fieldName);
                 }
             }
@@ -218,14 +211,7 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
         return $fieldName;
     }
 
-    /**
-     * returns short field name based on full field name
-     * also considers subfield names like name.analyzed etc.
-     *
-     * @param string $fullFieldName
-     *
-     * @return false|int|string
-     */
+    /** @inheritDoc */
     public function getReverseMappedFieldName($fullFieldName)
     {
         //check for direct match of field name
@@ -237,7 +223,6 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
         //search for part match in order to consider sub field names like name.analyzed
         $fieldNamePart = $fullFieldName;
         while (!empty($fieldNamePart)) {
-
             // cut off part after last .
             $fieldNamePart = substr($fieldNamePart, 0, strripos($fieldNamePart, '.'));
 
@@ -261,10 +246,11 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
      */
     public function getClientConfig($property = null)
     {
-        return $property
-            ? $this->clientConfig[$property]
-            : $this->clientConfig
-            ;
+        if ($property) {
+            return $this->clientConfig[$property] ?? null;
+        }
+
+        return $this->clientConfig;
     }
 
     /**
@@ -338,7 +324,7 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
     }
 
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function setTenantWorker(WorkerInterface $tenantWorker)
     {
@@ -359,7 +345,7 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
      * @param mixed $data
      * @param array $relations
      *
-     * @return mixed
+     * @return DefaultMockup
      */
     public function createMockupObject($objectId, $data, $relations)
     {
@@ -372,7 +358,7 @@ class ElasticSearch extends AbstractConfig implements MockupConfigInterface, Ela
      *
      * @param int $objectId
      *
-     * @return IndexableInterface | array
+     * @return IndexableInterface|null
      */
     public function getObjectMockupById($objectId)
     {

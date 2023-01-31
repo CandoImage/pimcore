@@ -16,41 +16,30 @@
 namespace Pimcore\Model\DataObject\ClassDefinition\Data;
 
 use Pimcore\Model;
+use Pimcore\Model\DataObject\ClassDefinition\DynamicOptionsProvider\CountryOptionsProvider;
 
 class Countrymultiselect extends Model\DataObject\ClassDefinition\Data\Multiselect
 {
     /**
      * Static type of this element
      *
+     * @internal
+     *
      * @var string
      */
     public $fieldtype = 'countrymultiselect';
 
-    /** Restrict selection to comma-separated list of countries.
+    /**
+     * Restrict selection to comma-separated list of countries.
+     *
+     * @internal
+     *
      * @var string|null
      */
     public $restrictTo = null;
 
-    public function __construct()
-    {
-        $countries = \Pimcore::getContainer()->get('pimcore.locale')->getDisplayRegions();
-        asort($countries);
-        $options = [];
-
-        foreach ($countries as $short => $translation) {
-            if (strlen($short) == 2) {
-                $options[] = [
-                    'key' => $translation,
-                    'value' => $short,
-                ];
-            }
-        }
-
-        $this->setOptions($options);
-    }
-
     /**
-     * @param string|null $restrictTo
+     * @param array|string|null $restrictTo
      */
     public function setRestrictTo($restrictTo)
     {
@@ -73,10 +62,10 @@ class Countrymultiselect extends Model\DataObject\ClassDefinition\Data\Multisele
     }
 
     /**
-     * @return array
+     * @return string
      */
-    public function getOptions()
+    public function getOptionsProviderClass()
     {
-        return $this->options;
+        return '@' . CountryOptionsProvider::class;
     }
 }

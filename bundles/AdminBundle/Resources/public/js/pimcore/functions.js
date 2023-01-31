@@ -30,10 +30,6 @@ function t(key, defaultValue, placeholders) {
     });
 
     var originalKey = key;
-    if(pimcore.system_i18n_case_insensitive && key){
-        key = key.toLocaleLowerCase();
-    }
-
     // the maximum length of a translation key are 190 characters
     if (key.length > 190) {
         if (!defaultValue) {
@@ -89,6 +85,8 @@ function t(key, defaultValue, placeholders) {
  * @deprecated
  */
 function ts(key) {
+    console.error('ts() function is deprecated, use t() instead. It will be removed in Pimcore 11.');
+
     return t(key);
 }
 
@@ -278,8 +276,8 @@ function is_numeric(mixed_var) {
 
 
 function in_array(needle, haystack, argStrict) {
-    // Checks if the given value exists in the array  
-    // 
+    // Checks if the given value exists in the array
+    //
     // version: 905.3120
     // discuss at: http://phpjs.org/functions/in_array
     // +   original by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
@@ -401,8 +399,8 @@ function empty (mixed_var) {
 }
 
 function str_replace(search, replace, subject, count) {
-    // Replaces all occurrences of search in haystack with replace  
-    // 
+    // Replaces all occurrences of search in haystack with replace
+    //
     // version: 905.3122
     // discuss at: http://phpjs.org/functions/str_replace
     // +   original by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
@@ -453,8 +451,8 @@ function str_replace(search, replace, subject, count) {
 
 
 function trim(str, charlist) {
-    // Strips whitespace from the beginning and end of a string  
-    // 
+    // Strips whitespace from the beginning and end of a string
+    //
     // version: 905.1001
     // discuss at: http://phpjs.org/functions/trim
     // +   original by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
@@ -562,8 +560,8 @@ function base64_encode(data) {
 }
 
 function base64_decode(data) {
-    // Decodes string using MIME base64 algorithm  
-    // 
+    // Decodes string using MIME base64 algorithm
+    //
     // version: 905.3122
     // discuss at: http://phpjs.org/functions/base64_decode
     // +   original by: Tyler Akins (http://rumkin.com)
@@ -622,8 +620,8 @@ function base64_decode(data) {
 
 
 function utf8_decode(str_data) {
-    // Converts a UTF-8 encoded string to ISO-8859-1  
-    // 
+    // Converts a UTF-8 encoded string to ISO-8859-1
+    //
     // version: 905.3122
     // discuss at: http://phpjs.org/functions/utf8_decode
     // +   original by: Webtoolkit.info (http://www.webtoolkit.info/)
@@ -662,8 +660,8 @@ function utf8_decode(str_data) {
 
 
 function ucfirst(str) {
-    // Makes a string's first character uppercase  
-    // 
+    // Makes a string's first character uppercase
+    //
     // version: 905.3122
     // discuss at: http://phpjs.org/functions/ucfirst
     // +   original by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
@@ -678,8 +676,8 @@ function ucfirst(str) {
 
 
 function array_search(needle, haystack, argStrict) {
-    // Searches the array for a given value and returns the corresponding key if successful  
-    // 
+    // Searches the array for a given value and returns the corresponding key if successful
+    //
     // version: 905.3122
     // discuss at: http://phpjs.org/functions/array_search
     // +   original by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
@@ -815,8 +813,8 @@ function strip_tags(str, allowed_tags) {
 
 
 function md5(str) {
-    // Calculate the md5 hash of a string  
-    // 
+    // Calculate the md5 hash of a string
+    //
     // version: 909.322
     // discuss at: http://phpjs.org/functions/md5    // +   original by: Webtoolkit.info (http://www.webtoolkit.info/)
     // + namespaced by: Michael White (http://getsprink.com)
@@ -1003,8 +1001,8 @@ function md5(str) {
 }
 
 function utf8_encode(string) {
-    // Encodes an ISO-8859-1 string to UTF-8  
-    // 
+    // Encodes an ISO-8859-1 string to UTF-8
+    //
     // version: 909.322
     // discuss at: http://phpjs.org/functions/utf8_encode    // +   original by: Webtoolkit.info (http://www.webtoolkit.info/)
     // +   improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
@@ -1573,7 +1571,7 @@ stringToFunction = function(str) {
     if (typeof str !== "string") {
         return str;
     }
-    
+
     var arr = str.split(".");
 
     var fn = (window || this);
@@ -1800,12 +1798,4 @@ function htmlspecialchars (string, quoteStyle, charset, doubleEncode) {
     }
 
     return string
-}
-
-
-function array_remove_value(array, item) {
-    var index = array.indexOf(item);
-    if (index !== -1) array.splice(index, 1);
-
-    return array;
 }

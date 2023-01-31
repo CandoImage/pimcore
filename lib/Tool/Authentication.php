@@ -48,9 +48,7 @@ class Authentication
     }
 
     /**
-     * @static
-     *
-     * @param Request $request
+     * @param Request|null $request
      *
      * @return User|null
      */
@@ -85,15 +83,12 @@ class Authentication
     }
 
     /**
-     * @static
-     *
      * @throws \Exception
      *
      * @return User
      */
     public static function authenticateHttpBasic()
     {
-
         // we're using Sabre\HTTP for basic auth
         $request = \Sabre\HTTP\Sapi::getRequest();
         $response = new \Sabre\HTTP\Response();
@@ -135,14 +130,14 @@ class Authentication
 
         $user = User::getByName($username);
         if (self::isValidUser($user)) {
-            if ($adminRequired and !$user->isAdmin()) {
+            if ($adminRequired && !$user->isAdmin()) {
                 return null;
             }
 
             $timeZone = date_default_timezone_get();
             date_default_timezone_set('UTC');
 
-            if ($timestamp > time() or $timestamp < (time() - (60 * 60 * 24))) {
+            if ($timestamp > time() || $timestamp < (time() - (60 * 60 * 24))) {
                 return null;
             }
             date_default_timezone_set($timeZone);
@@ -192,10 +187,12 @@ class Authentication
     }
 
     /**
+     * @internal
+     *
      * @param string $username
      * @param string $plainTextPassword
      *
-     * @return bool|false|string
+     * @return string
      *
      * @throws \Exception
      */
@@ -215,7 +212,7 @@ class Authentication
      *
      * @return string
      */
-    public static function preparePlainTextPassword($username, $plainTextPassword)
+    private static function preparePlainTextPassword($username, $plainTextPassword)
     {
         // plaintext password is prepared as digest A1 hash, this is to be backward compatible because this was
         // the former hashing algorithm in pimcore (< version 2.1.1)
@@ -223,6 +220,8 @@ class Authentication
     }
 
     /**
+     * @internal
+     *
      * @param string $username
      *
      * @return string
@@ -242,7 +241,7 @@ class Authentication
      *
      * @return array
      */
-    public static function tokenDecrypt($token)
+    private static function tokenDecrypt($token)
     {
         $secret = \Pimcore::getContainer()->getParameter('secret');
         $decrypted = Crypto::decryptWithPassword($token, $secret);

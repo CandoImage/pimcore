@@ -22,10 +22,9 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\CheckoutManagerFacto
 use Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\CheckoutManagerFactoryLocatorInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\CommitOrderProcessorLocator;
 use Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\CommitOrderProcessorLocatorInterface;
-use Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\V7\HandlePendingPayments\ThrowExceptionStrategy;
+use Pimcore\Bundle\EcommerceFrameworkBundle\CheckoutManager\V7\HandlePendingPayments\CancelPaymentOrRecreateOrderStrategy;
 use Pimcore\Bundle\EcommerceFrameworkBundle\FilterService\FilterServiceLocator;
 use Pimcore\Bundle\EcommerceFrameworkBundle\FilterService\FilterServiceLocatorInterface;
-use Pimcore\Bundle\EcommerceFrameworkBundle\Legacy\InterfaceLoader;
 use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderManagerLocator;
 use Pimcore\Bundle\EcommerceFrameworkBundle\OrderManager\OrderManagerLocatorInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\PriceSystemLocator;
@@ -41,7 +40,10 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpKernel\DependencyInjection\ConfigurableExtension;
 
-class PimcoreEcommerceFrameworkExtension extends ConfigurableExtension
+/**
+ * @internal
+ */
+final class PimcoreEcommerceFrameworkExtension extends ConfigurableExtension
 {
     const SERVICE_ID_FACTORY = 'pimcore_ecommerce.factory';
 
@@ -63,15 +65,10 @@ class PimcoreEcommerceFrameworkExtension extends ConfigurableExtension
      * The services below are defined as public as the Factory loads services via get() on
      * demand.
      *
-     * @inheritDoc
+     * {@inheritdoc}
      */
     protected function loadInternal(array $config, ContainerBuilder $container)
     {
-
-        //necessary to make sure custom services still can use old interfaces (e.g. IProduct). needs to be removed
-        //when BC layer of interfaces is removed.
-        InterfaceLoader::loadInterfaces();
-
         $loader = new YamlFileLoader(
             $container,
             new FileLocator(__DIR__ . '/../Resources/config')
@@ -80,24 +77,24 @@ class PimcoreEcommerceFrameworkExtension extends ConfigurableExtension
         $container->setParameter('pimcore_ecommerce.pimcore.config', $config['pimcore']);
         $container->setParameter('pimcore_ecommerce.decimal_scale', $config['decimal_scale']);
 
-        $loader->load('services.yml');
-        $loader->load('event_listeners.yml');
-        $loader->load('factory.yml');
-        $loader->load('environment.yml');
-        $loader->load('cart_manager.yml');
-        $loader->load('order_manager.yml');
-        $loader->load('pricing_manager.yml');
-        $loader->load('price_systems.yml');
-        $loader->load('availability_systems.yml');
-        $loader->load('checkout_manager.yml');
-        $loader->load('payment_manager.yml');
-        $loader->load('index_service.yml');
-        $loader->load('filter_service.yml');
-        $loader->load('voucher_service.yml');
-        $loader->load('offer_tool.yml');
-        $loader->load('tracking_manager.yml');
-        $loader->load('maintenance.yml');
-        $loader->load('commands.yml');
+        $loader->load('services.yaml');
+        $loader->load('event_listeners.yaml');
+        $loader->load('factory.yaml');
+        $loader->load('environment.yaml');
+        $loader->load('cart_manager.yaml');
+        $loader->load('order_manager.yaml');
+        $loader->load('pricing_manager.yaml');
+        $loader->load('price_systems.yaml');
+        $loader->load('availability_systems.yaml');
+        $loader->load('checkout_manager.yaml');
+        $loader->load('payment_manager.yaml');
+        $loader->load('index_service.yaml');
+        $loader->load('filter_service.yaml');
+        $loader->load('voucher_service.yaml');
+        $loader->load('offer_tool.yaml');
+        $loader->load('tracking_manager.yaml');
+        $loader->load('maintenance.yaml');
+        $loader->load('commands.yaml');
 
         $this->registerFactoryConfiguration($container, $config['factory']);
         $this->registerEnvironmentConfiguration($container, $config['environment']);
@@ -315,19 +312,22 @@ class PimcoreEcommerceFrameworkExtension extends ConfigurableExtension
                 '$checkoutStepDefinitions' => $tenantConfig['steps'],
             ]);
 
+            $paymentStrategyLocatorMapping = [];
             if (!empty($tenantConfig['factory_options'])) {
                 $factoryConfig = $tenantConfig['factory_options'];
 
                 $locatorMapping = [];
-                if ($factoryConfig['handle_pending_payments_strategy']) {
-                    $locatorMapping[$factoryConfig['handle_pending_payments_strategy']] = $factoryConfig['handle_pending_payments_strategy'];
-                } else {
-                    $locatorMapping[ThrowExceptionStrategy::class] = ThrowExceptionStrategy::class;
+                if ($factoryConfig['handle_pending_payments_strategy'] ?? false) {
+                    $paymentStrategyLocatorMapping[$factoryConfig['handle_pending_payments_strategy']] = $factoryConfig['handle_pending_payments_strategy'];
                 }
 
                 $checkoutManagerFactory->setArgument('$options', $factoryConfig);
-                $checkoutManagerFactory->setArgument('$handlePendingPaymentStrategyLocator', $this->setupServiceLocator($container, 'pimcore_ecommerce.checkout_manager.handle_pending_payments_strategy_locator', $locatorMapping));
             }
+
+            if (empty($paymentStrategyLocatorMapping)) {
+                $paymentStrategyLocatorMapping[CancelPaymentOrRecreateOrderStrategy::class] = CancelPaymentOrRecreateOrderStrategy::class;
+            }
+            $checkoutManagerFactory->setArgument('$handlePendingPaymentStrategyLocator', $this->setupServiceLocator($container, 'pimcore_ecommerce.checkout_manager.handle_pending_payments_strategy_locator', $paymentStrategyLocatorMapping));
 
             if (null !== $tenantConfig['payment']['provider']) {
                 $checkoutManagerFactory->setArgument('$paymentProvider', new Reference(sprintf(
@@ -422,9 +422,6 @@ class PimcoreEcommerceFrameworkExtension extends ConfigurableExtension
 
         $container->setParameter('pimcore_ecommerce.index_service.default_tenant', $config['default_tenant']);
 
-        //@TODO Pimcore 10 - remove this
-        $container->setParameter('pimcore_ecommerce.index_service.worker_mode', $config['worker_mode']);
-
         $getterIds = [];
         $interpreterIds = [];
 
@@ -484,8 +481,8 @@ class PimcoreEcommerceFrameworkExtension extends ConfigurableExtension
      * @param ContainerBuilder $container
      */
     private function registerIndexServiceElasticSearchSynonymProviders(array $tenantConfigOptions,
-                                                                       Definition $config,
-                                                                       ContainerBuilder $container)
+        Definition $config,
+        ContainerBuilder $container)
     {
         if (!isset($tenantConfigOptions['synonym_providers'])) {
             return;
@@ -566,7 +563,7 @@ class PimcoreEcommerceFrameworkExtension extends ConfigurableExtension
 
         $container
             ->setAlias(
-            self::SERVICE_ID_TOKEN_MANAGER_FACTORY,
+                self::SERVICE_ID_TOKEN_MANAGER_FACTORY,
                 $config['token_managers']['factory_id']
             )
             ->setPublic(true);

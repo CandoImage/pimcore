@@ -15,10 +15,15 @@
 
 namespace Pimcore\Maintenance;
 
+use Pimcore\Messenger\MaintenanceTaskMessage;
 use Pimcore\Model\Tool\TmpStore;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Lock\Factory as LockFactory;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Messenger\MessageBusInterface;
 
+/**
+ * @internal
+ */
 final class Executor implements ExecutorInterface
 {
     /**
@@ -41,16 +46,51 @@ final class Executor implements ExecutorInterface
      */
     private $lockFactory = null;
 
-    /**
-     * @param string $pidFileName
-     * @param LoggerInterface $logger
-     * @param LockFactory $lockFactory
-     */
-    public function __construct(string $pidFileName, LoggerInterface $logger, LockFactory $lockFactory)
-    {
+    public function __construct(
+        string $pidFileName,
+        LoggerInterface $logger,
+        LockFactory $lockFactory,
+        private MessageBusInterface $messengerBusPimcoreCore
+    ) {
         $this->pidFileName = $pidFileName;
         $this->logger = $logger;
         $this->lockFactory = $lockFactory;
+    }
+
+    public function executeTask(string $name, bool $force = false)
+    {
+        if (!in_array($name, $this->getTaskNames(), true)) {
+            throw new \Exception(sprintf('Task with name "%s" not found', $name));
+        }
+
+        $task = $this->tasks[$name];
+        $lock = $this->lockFactory->createLock('maintenance-' . $name, 86400);
+
+        if (!$lock->acquire() && !$force) {
+            $this->logger->info('Skipped job with ID {id} because it already being executed', [
+                'id' => $name,
+            ]);
+
+            return;
+        }
+
+        try {
+            $this->logger->info('Starting job with ID {id}', [
+                'id' => $name,
+            ]);
+            $task->execute();
+
+            $this->logger->info('Finished job with ID {id}', [
+                'id' => $name,
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to execute job with ID {id}: {exception}', [
+                'id' => $name,
+                'exception' => $e,
+            ]);
+        }
+
+        $lock->release();
     }
 
     /**
@@ -60,11 +100,8 @@ final class Executor implements ExecutorInterface
     {
         $this->setLastExecution();
 
-        /**
-         * @var TaskInterface $task
-         */
         foreach ($this->tasks as $name => $task) {
-            if (count($validJobs) > 0 && !in_array($name, $validJobs)) {
+            if (count($validJobs) > 0 && !in_array($name, $validJobs, true)) {
                 $this->logger->info('Skipped job with ID {id} because it is not in the valid jobs', [
                     'id' => $name,
                 ]);
@@ -72,7 +109,7 @@ final class Executor implements ExecutorInterface
                 continue;
             }
 
-            if (count($excludedJobs) > 0 && in_array($name, $excludedJobs)) {
+            if (count($excludedJobs) > 0 && in_array($name, $excludedJobs, true)) {
                 $this->logger->info('Skipped job with ID {id} because it has been excluded', [
                     'id' => $name,
                 ]);
@@ -80,30 +117,9 @@ final class Executor implements ExecutorInterface
                 continue;
             }
 
-            $lock = $this->lockFactory->createLock('maintenance-' . $name, 86400);
-
-            if (!$lock->acquire() && !$force) {
-                $this->logger->info('Skipped job with ID {id} because it already being executed', [
-                    'id' => $name,
-                ]);
-
-                continue;
-            }
-
-            try {
-                $task->execute();
-
-                $this->logger->info('Finished job with ID {id}', [
-                    'id' => $name,
-                ]);
-            } catch (\Exception $e) {
-                $this->logger->error('Failed to execute job with ID {id}: {exception}', [
-                    'id' => $name,
-                    'exception' => $e,
-                ]);
-            }
-
-            $lock->release();
+            $this->messengerBusPimcoreCore->dispatch(
+                new MaintenanceTaskMessage($name, $force)
+            );
         }
     }
 
@@ -113,6 +129,14 @@ final class Executor implements ExecutorInterface
     public function getTaskNames()
     {
         return array_keys($this->tasks);
+    }
+
+    /**
+     * @return TaskInterface[]
+     */
+    public function getTasks(): array
+    {
+        return $this->tasks;
     }
 
     /**

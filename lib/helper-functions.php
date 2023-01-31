@@ -43,35 +43,30 @@ function gzcompressfile($source, $level = null, $target = null)
         $dest = $source.'.gz';
     }
 
+    $mode = 'wb' . $level;
     $error = false;
-
-    $fp_in = fopen($source, 'rb');
-
-    $fp_out = fopen($dest, 'wb');
-    $deflateContext = deflate_init(ZLIB_ENCODING_GZIP, ['level' => $level]);
-
-    if ($fp_out && $fp_in) {
-        while (!feof($fp_in)) {
-            fwrite($fp_out, deflate_add($deflateContext, fread($fp_in, 1024 * 512), ZLIB_NO_FLUSH));
+    if ($fp_out = gzopen($dest, $mode)) {
+        if ($fp_in = fopen($source, 'rb')) {
+            while (!feof($fp_in)) {
+                gzwrite($fp_out, fread($fp_in, 1024 * 512));
+            }
+            fclose($fp_in);
+        } else {
+            $error = true;
         }
-
-        fclose($fp_in);
-
-        fwrite($fp_out, deflate_add($deflateContext, '', ZLIB_FINISH));
-        fclose($fp_out);
+        gzclose($fp_out);
     } else {
         $error = true;
     }
-
     if ($error) {
         return false;
+    } else {
+        return $dest;
     }
-
-    return $dest;
 }
 
 /**
- * @param string $string
+ * @param mixed $string
  *
  * @return bool
  */
@@ -81,9 +76,9 @@ function is_json($string)
         json_decode($string);
 
         return json_last_error() == JSON_ERROR_NONE;
-    } else {
-        return false;
     }
+
+    return false;
 }
 
 /**
@@ -117,7 +112,7 @@ function foldersize($path)
  * @param string $string
  * @param string[] $values
  *
- * @return mixed
+ * @return string
  */
 function replace_pcre_backreferences($string, $values)
 {
@@ -316,12 +311,10 @@ function formatBytes($bytes, $precision = 2)
 /**
  * @param string $str
  *
- * @return float|int
+ * @return int
  */
 function filesize2bytes($str)
 {
-    $bytes = 0;
-
     $bytes_array = [
         'K' => 1024,
         'M' => 1024 * 1024,
@@ -330,22 +323,22 @@ function filesize2bytes($str)
         'P' => 1024 * 1024 * 1024 * 1024 * 1024,
     ];
 
-    $bytes = floatval($str);
+    $bytes = (float)$str;
 
     if (preg_match('#([KMGTP])?B?$#si', $str, $matches) && (array_key_exists(1, $matches) && !empty($bytes_array[$matches[1]]))) {
         $bytes *= $bytes_array[$matches[1]];
     }
 
-    $bytes = intval(round($bytes, 2));
+    $bytes = (int)round($bytes, 2);
 
     return $bytes;
 }
 
 /**
  * @param string $base
- * @param array $data
+ * @param string[] $data
  *
- * @return array
+ * @return string[]
  */
 function rscandir($base = '', &$data = [])
 {
@@ -371,18 +364,16 @@ function rscandir($base = '', &$data = [])
  *
  * @param string $delimiter
  * @param string $string
- * @param string $limit
+ * @param int $limit
  * @param bool $useArrayFilter
  *
  * @return array
+ *
+ * @phpstan-param non-empty-string $delimiter
  */
-function explode_and_trim($delimiter, $string = '', $limit = '', $useArrayFilter = true)
+function explode_and_trim($delimiter, $string, $limit = PHP_INT_MAX, $useArrayFilter = true)
 {
-    if ($limit === '') {
-        $exploded = explode($delimiter, $string);
-    } else {
-        $exploded = explode($delimiter, $string, $limit);
-    }
+    $exploded = explode($delimiter, $string, $limit);
     foreach ($exploded as $key => $value) {
         $exploded[$key] = trim($value);
     }
@@ -632,7 +623,7 @@ function to_php_data_file_format($contents, $comments = null)
 {
     $contents = var_export_pretty($contents);
 
-    $export = '<?php ';
+    $export = '<?php';
 
     if (!empty($comments)) {
         $export .= "\n\n";

@@ -32,5 +32,3 @@ interface CategoryInterface extends ConditionInterface
      */
     public function getCategories();
 }
-
-class_alias(CategoryInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Condition\ICategory');

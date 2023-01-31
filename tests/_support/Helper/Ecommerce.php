@@ -32,7 +32,7 @@ use Pimcore\Tests\Util\Autoloader;
 class Ecommerce extends Module
 {
     /**
-     * @inheritDoc
+     * {@inheritdoc}
      */
     public function __construct(ModuleContainer $moduleContainer, $config = null)
     {

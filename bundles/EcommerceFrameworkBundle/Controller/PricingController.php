@@ -15,16 +15,14 @@
 
 namespace Pimcore\Bundle\EcommerceFrameworkBundle\Controller;
 
+use Exception;
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
 use Pimcore\Bundle\AdminBundle\HttpFoundation\JsonResponse;
 use Pimcore\Bundle\EcommerceFrameworkBundle\Factory;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\Rule;
-use Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\RuleInterface;
-use Pimcore\Controller\EventedControllerInterface;
-use Pimcore\Tool\RestClient\Exception;
+use Pimcore\Controller\KernelControllerEventInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -32,13 +30,15 @@ use Symfony\Component\Routing\Annotation\Route;
  * Class ConfigController
  *
  * @Route("/pricing")
+ *
+ * @internal
  */
-class PricingController extends AdminController implements EventedControllerInterface
+class PricingController extends AdminController implements KernelControllerEventInterface
 {
     /**
-     * @param FilterControllerEvent $event
+     * {@inheritdoc}
      */
-    public function onKernelController(FilterControllerEvent $event)
+    public function onKernelControllerEvent(ControllerEvent $event)
     {
         // permission check
         $access = $this->getAdminUser()->isAllowed('bundle_ecommerce_pricing_rules');
@@ -58,8 +58,6 @@ class PricingController extends AdminController implements EventedControllerInte
 
         $json = [];
         foreach ($rules->load() as $rule) {
-            // @var  RuleInterface $rule
-
             if ($rule->getActive()) {
                 $icon = 'bundle_ecommerce_pricing_icon_rule_' . $rule->getBehavior();
                 $title = 'Verhalten: ' . $rule->getBehavior();
@@ -266,7 +264,7 @@ class PricingController extends AdminController implements EventedControllerInte
         $ruleNewName = $request->get('name');
 
         try {
-            if ($ruleId && $ruleNewName) {
+            if ($ruleId && $ruleNewName && preg_match('/^[a-zA-Z0-9_\-]+$/', $ruleNewName)) {
                 $renameRule = Rule::getById($ruleId);
 
                 if ($renameRule->getName() != $ruleNewName) {
@@ -429,13 +427,5 @@ class PricingController extends AdminController implements EventedControllerInte
             'condition' => array_keys($pricingManager->getConditionMapping()),
             'action' => array_keys($pricingManager->getActionMapping()),
         ]);
-    }
-
-    /**
-     * @param FilterResponseEvent $event
-     */
-    public function onKernelResponse(FilterResponseEvent $event)
-    {
-        // nothing to do
     }
 }

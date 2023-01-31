@@ -23,13 +23,13 @@ use Pimcore\Bundle\EcommerceFrameworkBundle\Model\CheckoutableInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\AbstractPriceInfo;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\PriceInfoInterface;
 use Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\PriceInterface;
+use Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\PriceSystemInterface;
 use Pimcore\Model\DataObject;
-use Pimcore\Model\DataObject\AbstractObject;
 
 /**
  * Abstract base class for pimcore objects who should be used as custom products in the offer tool
  */
-class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implements CheckoutableInterface
+abstract class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implements CheckoutableInterface
 {
     // =============================================
     //     CheckoutableInterface Methods
@@ -38,36 +38,24 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
     /**
      * should be overwritten in mapped sub classes of product classes
      *
-     * @throws UnsupportedException
-     *
-     * @return string
+     * @return string|null
      */
-    public function getOSName()
-    {
-        throw new UnsupportedException('getOSName is not supported for ' . get_class($this));
-    }
+    abstract public function getOSName(): ?string;
 
     /**
      * should be overwritten in mapped sub classes of product classes
      *
-     * @throws UnsupportedException
-     *
-     * @return string
+     * @return string|null
      */
-    public function getOSProductNumber()
-    {
-        throw new UnsupportedException('getOSProductNumber is not supported for ' . get_class($this));
-    }
+    abstract public function getOSProductNumber(): ?string;
 
     /**
      * defines the name of the availability system for this product.
      * for offline tool there are no availability systems implemented
      *
-     * @throws UnsupportedException
-     *
      * @return string
      */
-    public function getAvailabilitySystemName()
+    public function getAvailabilitySystemName(): string
     {
         return 'none';
     }
@@ -78,7 +66,7 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
      *
      * @return bool
      */
-    public function getOSIsBookable($quantityScale = 1)
+    public function getOSIsBookable($quantityScale = 1): bool
     {
         return true;
     }
@@ -88,9 +76,9 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
      * there should either be a attribute in pro product object or
      * it should be overwritten in mapped sub classes of product classes
      *
-     * @return string
+     * @return string|null
      */
-    public function getPriceSystemName()
+    public function getPriceSystemName(): ?string
     {
         return 'defaultOfferToolPriceSystem';
     }
@@ -98,9 +86,9 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
     /**
      * returns instance of price system implementation based on result of getPriceSystemName()
      *
-     * @return \Pimcore\Bundle\EcommerceFrameworkBundle\PriceSystem\PriceSystemInterface
+     * @return PriceSystemInterface|null
      */
-    public function getPriceSystemImplementation()
+    public function getPriceSystemImplementation(): ?PriceSystemInterface
     {
         return Factory::getInstance()->getPriceSystem($this->getPriceSystemName());
     }
@@ -108,9 +96,9 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
     /**
      * returns instance of availability system implementation based on result of getAvailabilitySystemName()
      *
-     * @return AvailabilitySystemInterface
+     * @return AvailabilitySystemInterface|null
      */
-    public function getAvailabilitySystemImplementation()
+    public function getAvailabilitySystemImplementation(): ?AvailabilitySystemInterface
     {
         return Factory::getInstance()->getAvailabilitySystem($this->getAvailabilitySystemName());
     }
@@ -120,9 +108,9 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
      *
      * @param int $quantityScale
      *
-     * @return PriceInterface
+     * @return PriceInterface|null
      */
-    public function getOSPrice($quantityScale = 1)
+    public function getOSPrice($quantityScale = 1): ?PriceInterface
     {
         return $this->getOSPriceInfo($quantityScale)->getPrice();
     }
@@ -135,7 +123,7 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
      *
      * @return PriceInfoInterface|AbstractPriceInfo
      */
-    public function getOSPriceInfo($quantityScale = 1)
+    public function getOSPriceInfo($quantityScale = 1): ?PriceInfoInterface
     {
         return $this->getPriceSystemImplementation()->getPriceInfo($this, $quantityScale);
     }
@@ -145,9 +133,9 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
      *
      * @param int $quantity
      *
-     * @return AvailabilityInterface
+     * @return AvailabilityInterface|null
      */
-    public function getOSAvailabilityInfo($quantity = null)
+    public function getOSAvailabilityInfo($quantity = null): ?AvailabilityInterface
     {
         return $this->getAvailabilitySystemImplementation()->getAvailabilityInfo($this, $quantity);
     }
@@ -158,7 +146,7 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
      * @param int $id
      * @param bool $force
      *
-     * @return null|AbstractObject
+     * @return AbstractOfferToolProduct|null
      */
     public static function getById($id, $force = false)
     {
@@ -174,9 +162,9 @@ class AbstractOfferToolProduct extends \Pimcore\Model\DataObject\Concrete implem
     /**
      * @throws UnsupportedException
      *
-     * @return string
+     * @return string|null
      */
-    public function getProductGroup()
+    public function getProductGroup(): ?string
     {
         throw new UnsupportedException('getProductGroup is not implemented for ' . get_class($this));
     }

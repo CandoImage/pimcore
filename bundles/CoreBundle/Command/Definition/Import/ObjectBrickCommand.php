@@ -19,6 +19,9 @@ use Pimcore\Model\AbstractModel;
 use Pimcore\Model\DataObject\ClassDefinition\Service;
 use Pimcore\Model\DataObject\Objectbrick\Definition;
 
+/**
+ * @internal
+ */
 class ObjectBrickCommand extends AbstractStructureImportCommand
 {
     /**
@@ -85,6 +88,10 @@ class ObjectBrickCommand extends AbstractStructureImportCommand
      */
     protected function import(AbstractModel $definition, $json)
     {
+        if (!$definition instanceof Definition) {
+            return false;
+        }
+
         return Service::importObjectBrickFromJson($definition, $json);
     }
 }

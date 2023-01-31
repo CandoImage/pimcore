@@ -76,14 +76,15 @@ pimcore.notification.helper.showNotifications = function (notifications) {
         });
         var notification = Ext.create('Ext.window.Toast', {
             iconCls: 'pimcore_icon_' + row.type,
-            title: row.title,
-            html: row.message,
+            title: Ext.util.Format.htmlEncode(row.title),
+            html: Ext.util.Format.htmlEncode(row.message),
             autoShow: true,
             width: 400,
             height: 150,
             closable: true,
             autoClose: false,
-            tools: tools
+            tools: tools,
+            align: "br"
         });
         notification.show();
     }
@@ -92,6 +93,7 @@ pimcore.notification.helper.showNotifications = function (notifications) {
 pimcore.notification.helper.markAsRead = function (id, callback) {
     Ext.Ajax.request({
         url: Routing.generate('pimcore_admin_notification_markasread', {id: id}),
+        method: 'PUT',
         success: function (response) {
             if (callback) {
                 callback();
@@ -134,8 +136,8 @@ pimcore.notification.helper.openDetailsWindow = function (id, title, message, ty
     var notification = new Ext.Window({
         modal: true,
         iconCls: 'pimcore_icon_' + type,
-        title: title,
-        html: message,
+        title: Ext.util.Format.htmlEncode(title),
+        html: Ext.util.Format.htmlEncode(message),
         autoShow: true,
         width: 700,
         height: 350,
@@ -157,6 +159,7 @@ pimcore.notification.helper.openDetailsWindow = function (id, title, message, ty
 pimcore.notification.helper.delete = function (id, callback) {
     Ext.Ajax.request({
         url: Routing.generate('pimcore_admin_notification_delete', {id: id}),
+        method: 'DELETE',
         success: function (response) {
             if (callback) {
                 callback();
@@ -168,6 +171,7 @@ pimcore.notification.helper.delete = function (id, callback) {
 pimcore.notification.helper.deleteAll = function (callback) {
     Ext.Ajax.request({
         url: Routing.generate('pimcore_admin_notification_deleteall'),
+        method: 'DELETE',
         success: function (response) {
             if (callback) {
                 callback();

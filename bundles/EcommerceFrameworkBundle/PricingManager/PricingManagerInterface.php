@@ -85,5 +85,3 @@ interface PricingManagerInterface
      */
     public function getPriceInfo(PriceSystemPriceInfoInterface $priceInfo);
 }
-
-class_alias(PricingManagerInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\PricingManager\IPricingManager');

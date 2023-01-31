@@ -21,6 +21,9 @@ use Pimcore\Templating\Renderer\EditableRenderer;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
+/**
+ * @internal
+ */
 class DocumentEditableExtension extends AbstractExtension
 {
     /**
@@ -39,7 +42,7 @@ class DocumentEditableExtension extends AbstractExtension
     /**
      * {@inheritdoc}
      */
-    public function getFunctions()
+    public function getFunctions(): array
     {
         return [
             new TwigFunction('pimcore_*', [$this, 'renderEditable'], [
@@ -49,7 +52,7 @@ class DocumentEditableExtension extends AbstractExtension
             new TwigFunction('pimcore_iterate_block', [$this, 'getBlockIterator']),
         ];
 
-        // those are just for auto-complete, not nice, but works ;-)
+        // @phpstan-ignore-next-line those are just for auto-complete, not nice, but works ;-)
         new TwigFunction('pimcore_area');
         new TwigFunction('pimcore_areablock');
         new TwigFunction('pimcore_block');
@@ -68,35 +71,25 @@ class DocumentEditableExtension extends AbstractExtension
         new TwigFunction('pimcore_scheduledblock');
         new TwigFunction('pimcore_select');
         new TwigFunction('pimcore_snippet');
+        new TwigFunction('pimcore_table');
         new TwigFunction('pimcore_textarea');
         new TwigFunction('pimcore_video');
         new TwigFunction('pimcore_wysiwyg');
     }
 
     /**
+     * @internal
+     *
      * @param array $context
+     * @param string $type
      * @param string $name
-     * @param string $inputName
      * @param array $options
      *
-     * @return \Pimcore\Model\Document\Editable|string
+     * @return \Pimcore\Model\Document\Editable\EditableInterface|string
      *
-     * @deprecated since v6.8 and will be removed in Pimcore 10. use renderEditable instead.
+     * @throws \Exception
      */
-    public function renderTag($context, $name, $inputName, array $options = [])
-    {
-        return $this->renderEditable($context, $name, $inputName, $options);
-    }
-
-    /**
-     * @param array $context
-     * @param string $name
-     * @param string $inputName
-     * @param array $options
-     *
-     * @return \Pimcore\Model\Document\Editable|string
-     */
-    public function renderEditable($context, $name, $inputName, array $options = [])
+    public function renderEditable(array $context, string $type, string $name, array $options = [])
     {
         $document = $context['document'];
         $editmode = $context['editmode'];
@@ -104,22 +97,20 @@ class DocumentEditableExtension extends AbstractExtension
             return '';
         }
 
-        return $this->editableRenderer->render($document, $name, $inputName, $options, $editmode);
+        return $this->editableRenderer->render($document, $type, $name, $options, $editmode);
     }
 
     /**
      * Returns an iterator which can be used instead of while($block->loop())
      *
+     * @internal
+     *
      * @param BlockInterface $block
      *
-     * @return \Generator|int[]
+     * @return \Generator
      */
     public function getBlockIterator(BlockInterface $block): \Generator
     {
-        while ($block->loop()) {
-            yield $block->getCurrentIndex();
-        }
+        return $block->getIterator();
     }
 }
-
-class_alias(DocumentEditableExtension::class, 'Pimcore\Twig\Extension\DocumentTagExtension');

@@ -20,26 +20,14 @@ use Pimcore\Model;
 /**
  * @method \Pimcore\Model\User\Permission\Definition\Listing\Dao getDao()
  * @method Model\User\Permission\Definition[] load()
- * @method Model\User\Permission\Definition current()
+ * @method Model\User\Permission\Definition|false current()
  */
 class Listing extends Model\Listing\AbstractListing
 {
     /**
-     * @var Model\User\Permission\Definition[]|null
-     *
-     * @deprecated use getter/setter methods or $this->data
-     */
-    protected $definitions = null;
-
-    public function __construct()
-    {
-        $this->definitions = & $this->data;
-    }
-
-    /**
      * @param Model\User\Permission\Definition[] $definitions
      *
-     * @return static
+     * @return $this
      */
     public function setDefinitions($definitions)
     {

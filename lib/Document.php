@@ -15,6 +15,9 @@
 
 namespace Pimcore;
 
+/**
+ * @internal
+ */
 class Document
 {
     /**
@@ -73,10 +76,8 @@ class Document
      */
     public static function isFileTypeSupported($filetype)
     {
-        if (self::getDefaultAdapter()) {
-            if ($adapter = self::getDefaultAdapter()) {
-                return $adapter->isFileTypeSupported($filetype);
-            }
+        if ($adapter = self::getDefaultAdapter()) {
+            return $adapter->isFileTypeSupported($filetype);
         }
 
         return false;
@@ -100,7 +101,7 @@ class Document
                         return $adapter;
                     }
                 } catch (\Exception $e) {
-                    Logger::warning($e);
+                    Logger::warning((string) $e);
                 }
             }
         }

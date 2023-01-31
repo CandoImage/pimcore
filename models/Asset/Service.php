@@ -29,16 +29,22 @@ use Pimcore\Model\Element;
 class Service extends Model\Element\Service
 {
     /**
+     * @internal
+     *
      * @var array
      */
-    public static $gridSystemColumns = ['preview', 'id', 'type', 'fullpath', 'filename', 'creationDate', 'modificationDate', 'size'];
+    public const GRID_SYSTEM_COLUMNS = ['preview', 'id', 'type', 'fullpath', 'filename', 'creationDate', 'modificationDate', 'size'];
 
     /**
+     * @internal
+     *
      * @var Model\User|null
      */
     protected $_user;
 
     /**
+     * @internal
+     *
      * @var array
      */
     protected $_copyRecursiveIds;
@@ -61,7 +67,6 @@ class Service extends Model\Element\Service
      */
     public function copyRecursive($target, $source)
     {
-
         // avoid recursion
         if (!$this->_copyRecursiveIds) {
             $this->_copyRecursiveIds = [];
@@ -72,6 +77,13 @@ class Service extends Model\Element\Service
 
         $source->getProperties();
 
+        // triggers actions before asset cloning
+        $event = new AssetEvent($source, [
+            'target_element' => $target,
+        ]);
+        \Pimcore::getEventDispatcher()->dispatch($event, AssetEvents::PRE_COPY);
+        $target = $event->getArgument('target_element');
+
         /** @var Asset $new */
         $new = Element\Service::cloneMe($source);
         $new->setObjectVar('id', null);
@@ -79,12 +91,12 @@ class Service extends Model\Element\Service
             $new->setChildren(null);
         }
 
-        $new->setFilename(Element\Service::getSaveCopyName('asset', $new->getFilename(), $target));
+        $new->setFilename(Element\Service::getSafeCopyName($new->getFilename(), $target));
         $new->setParentId($target->getId());
         $new->setUserOwner($this->_user ? $this->_user->getId() : 0);
         $new->setUserModification($this->_user ? $this->_user->getId() : 0);
         $new->setDao(null);
-        $new->setLocked(false);
+        $new->setLocked(null);
         $new->setCreationDate(time());
         $new->setStream($source->getStream());
         $new->save();
@@ -101,9 +113,10 @@ class Service extends Model\Element\Service
         }
 
         // triggers actions after the complete asset cloning
-        \Pimcore::getEventDispatcher()->dispatch(AssetEvents::POST_COPY, new AssetEvent($new, [
+        $event = new AssetEvent($new, [
             'base_element' => $source, // the element used to make a copy
-        ]));
+        ]);
+        \Pimcore::getEventDispatcher()->dispatch($event, AssetEvents::POST_COPY);
 
         return $new;
     }
@@ -120,6 +133,13 @@ class Service extends Model\Element\Service
     {
         $source->getProperties();
 
+        // triggers actions before asset cloning
+        $event = new AssetEvent($source, [
+            'target_element' => $target,
+        ]);
+        \Pimcore::getEventDispatcher()->dispatch($event, AssetEvents::PRE_COPY);
+        $target = $event->getArgument('target_element');
+
         /** @var Asset $new */
         $new = Element\Service::cloneMe($source);
         $new->setId(null);
@@ -127,12 +147,12 @@ class Service extends Model\Element\Service
         if ($new instanceof Asset\Folder) {
             $new->setChildren(null);
         }
-        $new->setFilename(Element\Service::getSaveCopyName('asset', $new->getFilename(), $target));
+        $new->setFilename(Element\Service::getSafeCopyName($new->getFilename(), $target));
         $new->setParentId($target->getId());
         $new->setUserOwner($this->_user ? $this->_user->getId() : 0);
         $new->setUserModification($this->_user ? $this->_user->getId() : 0);
         $new->setDao(null);
-        $new->setLocked(false);
+        $new->setLocked(null);
         $new->setCreationDate(time());
         $new->setStream($source->getStream());
         $new->save();
@@ -142,9 +162,10 @@ class Service extends Model\Element\Service
         }
 
         // triggers actions after the complete asset cloning
-        \Pimcore::getEventDispatcher()->dispatch(AssetEvents::POST_COPY, new AssetEvent($new, [
+        $event = new AssetEvent($new, [
             'base_element' => $source, // the element used to make a copy
-        ]));
+        ]);
+        \Pimcore::getEventDispatcher()->dispatch($event, AssetEvents::POST_COPY);
 
         return $new;
     }
@@ -153,13 +174,12 @@ class Service extends Model\Element\Service
      * @param Asset $target
      * @param Asset $source
      *
-     * @return mixed
+     * @return Asset
      *
      * @throws \Exception
      */
     public function copyContents($target, $source)
     {
-
         // check if the type is the same
         if (get_class($source) != get_class($target)) {
             throw new \Exception('Source and target have to be the same type');
@@ -171,8 +191,7 @@ class Service extends Model\Element\Service
         }
 
         $target->setUserModification($this->_user ? $this->_user->getId() : 0);
-        $newProps = Element\Service::cloneMe($source->getProperties());
-        $target->setProperties($newProps);
+        $target->setProperties(self::cloneProperties($source->getProperties()));
         $target->save();
 
         return $target;
@@ -185,6 +204,8 @@ class Service extends Model\Element\Service
      * @param array $params
      *
      * @return array
+     *
+     * @internal
      */
     public static function gridAssetData($asset, $fields = null, $requestedLanguage = null, $params = [])
     {
@@ -211,8 +232,7 @@ class Service extends Model\Element\Service
                     if ($fieldDef[0] === 'preview') {
                         $data[$field] = self::getPreviewThumbnail($asset, ['treepreview' => true, 'width' => 108, 'height' => 70, 'frame' => true]);
                     } elseif ($fieldDef[0] === 'size') {
-                        /** @var Asset $asset */
-                        $size = @filesize($asset->getFileSystemPath());
+                        $size = $asset->getFileSize();
                         $data[$field] = formatBytes($size);
                     }
                 } else {
@@ -255,6 +275,8 @@ class Service extends Model\Element\Service
      * @param bool $onlyMethod
      *
      * @return string|null
+     *
+     * @internal
      */
     public static function getPreviewThumbnail($asset, $params = [], $onlyMethod = false)
     {
@@ -293,6 +315,10 @@ class Service extends Model\Element\Service
      */
     public static function pathExists($path, $type = null)
     {
+        if (!$path) {
+            return false;
+        }
+
         $path = Element\Service::correctPath($path);
 
         try {
@@ -310,13 +336,13 @@ class Service extends Model\Element\Service
     }
 
     /**
-     * @static
+     * @internal
      *
      * @param Element\ElementInterface $element
      *
      * @return Element\ElementInterface
      */
-    public static function loadAllFields(Element\ElementInterface $element)
+    public static function loadAllFields(Element\ElementInterface $element): Element\ElementInterface
     {
         $element->getProperties();
 
@@ -333,6 +359,8 @@ class Service extends Model\Element\Service
      *  "object" => array(...),
      *  "asset" => array(...)
      * )
+     *
+     * @internal
      *
      * @param Asset $asset
      * @param array $rewriteConfig
@@ -393,6 +421,8 @@ class Service extends Model\Element\Service
      * @param array $metadata
      *
      * @return array
+     *
+     * @internal
      */
     public static function expandMetadataForEditmode($metadata)
     {

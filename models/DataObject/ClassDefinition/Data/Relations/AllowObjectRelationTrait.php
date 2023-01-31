@@ -18,10 +18,15 @@ namespace Pimcore\Model\DataObject\ClassDefinition\Data\Relations;
 use Pimcore\Logger;
 use Pimcore\Model\DataObject;
 
+/**
+ * @internal
+ */
 trait AllowObjectRelationTrait
 {
     /**
      * Checks if an object is an allowed relation
+     *
+     * @internal
      *
      * @param DataObject\AbstractObject $object
      *
@@ -29,11 +34,15 @@ trait AllowObjectRelationTrait
      */
     protected function allowObjectRelation($object)
     {
+        if (!$object instanceof DataObject\AbstractObject || $object->getId() <= 0) {
+            return false;
+        }
+
         $allowedClasses = $this->getClasses();
         $allowed = true;
         if (!$this->getObjectsAllowed()) {
             $allowed = false;
-        } elseif ($this->getObjectsAllowed() and count($allowedClasses) > 0) {
+        } elseif (count($allowedClasses) > 0) {
             $allowedClassnames = [];
             foreach ($allowedClasses as $c) {
                 $allowedClassnames[] = $c['classes'];
@@ -55,12 +64,7 @@ trait AllowObjectRelationTrait
             //don't check if no allowed classes set
         }
 
-        if ($object instanceof DataObject\AbstractObject) {
-            Logger::debug('checked object relation to target object [' . $object->getId() . '] in field [' . $this->getName() . '], allowed:' . $allowed);
-        } else {
-            Logger::debug('checked object relation to target in field [' . $this->getName() . '], not allowed, target ist not an object');
-            Logger::debug($object);
-        }
+        Logger::debug('checked object relation to target object [' . $object->getId() . '] in field [' . $this->getName() . '], allowed:' . $allowed);
 
         return $allowed;
     }

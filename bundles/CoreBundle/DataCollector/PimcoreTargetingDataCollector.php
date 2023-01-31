@@ -23,40 +23,26 @@ use Pimcore\Targeting\VisitorInfoStorageInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\DataCollector\DataCollector;
+use Symfony\Contracts\Service\ResetInterface;
 
-class PimcoreTargetingDataCollector extends DataCollector
+/**
+ * @internal
+ */
+class PimcoreTargetingDataCollector extends DataCollector implements ResetInterface
 {
-    /**
-     * @var VisitorInfoStorageInterface
-     */
-    private $visitorInfoStorage;
-
-    /**
-     * @var DocumentResolver
-     */
-    private $documentResolver;
-
-    /**
-     * @var TargetingDataCollector
-     */
-    private $targetingDataCollector;
-
     public function __construct(
-        VisitorInfoStorageInterface $visitorInfoStorage,
-        DocumentResolver $documentResolver,
-        TargetingDataCollector $targetingDataCollector
+        private VisitorInfoStorageInterface $visitorInfoStorage,
+        private DocumentResolver $documentResolver,
+        private TargetingDataCollector $targetingDataCollector
     ) {
-        $this->visitorInfoStorage = $visitorInfoStorage;
-        $this->documentResolver = $documentResolver;
-        $this->targetingDataCollector = $targetingDataCollector;
     }
 
-    public function getName()
+    public function getName(): string
     {
         return 'pimcore_targeting';
     }
 
-    public function collect(Request $request, Response $response, \Exception $exception = null)
+    public function collect(Request $request, Response $response, ?\Throwable $exception = null)
     {
         $this->data = [];
 

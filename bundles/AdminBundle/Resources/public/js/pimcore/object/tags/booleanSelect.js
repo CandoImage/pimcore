@@ -34,9 +34,11 @@ pimcore.object.tags.booleanSelect = Class.create(pimcore.object.tags.abstract, {
                 }
             }
 
-            for(var i=0; i<field.layout.options.length; i++) {
-                if(field.layout.options[i]["value"] == value) {
-                    return field.layout.options[i]["key"];
+            if (field.layout.options !== undefined) {
+                for (var i = 0; i < field.layout.options.length; i++) {
+                    if (field.layout.options[i]["value"] == value) {
+                        return field.layout.options[i]["key"];
+                    }
                 }
             }
 
@@ -70,9 +72,7 @@ pimcore.object.tags.booleanSelect = Class.create(pimcore.object.tags.abstract, {
 
         if (field.config) {
             if (field.config.width) {
-                if (intval(field.config.width) > 10) {
-                    editorConfig.width = field.config.width;
-                }
+                editorConfig.width = field.config.width;
             }
         }
 
@@ -112,9 +112,7 @@ pimcore.object.tags.booleanSelect = Class.create(pimcore.object.tags.abstract, {
 
         if (field.config) {
             if (field.config.width) {
-                if (intval(field.config.width) > 10) {
-                    editorConfig.width = field.config.width;
-                }
+                editorConfig.width = field.config.width;
             }
         }
 
@@ -171,7 +169,7 @@ pimcore.object.tags.booleanSelect = Class.create(pimcore.object.tags.abstract, {
             selectOnFocus: true,
             fieldLabel: this.fieldConfig.title,
             store: store,
-            componentCls: "object_field object_field_type_" + this.type,
+            componentCls: this.getWrapperClassNames(),
             width: 250,
             labelWidth: 100
         };
@@ -180,11 +178,17 @@ pimcore.object.tags.booleanSelect = Class.create(pimcore.object.tags.abstract, {
             options.labelWidth = this.fieldConfig.labelWidth;
         }
 
+        if (this.fieldConfig.labelAlign) {
+            options.labelAlign = this.fieldConfig.labelAlign;
+        }
+
         if (this.fieldConfig.width) {
             options.width = this.fieldConfig.width;
         }
 
-        options.width += options.labelWidth;
+        if (!this.fieldConfig.labelAlign || 'left' === this.fieldConfig.labelAlign) {
+            options.width = this.sumWidths(options.width, options.labelWidth);
+        }
 
         if (typeof this.data == "string" || typeof this.data == "number") {
             if (in_array(this.data, validValues)) {

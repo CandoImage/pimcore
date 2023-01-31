@@ -15,6 +15,8 @@
 
 namespace Pimcore;
 
+use League\Flysystem\FilesystemOperator;
+
 class File
 {
     /**
@@ -23,14 +25,14 @@ class File
     public static $defaultMode = 0664;
 
     /**
-     * @var array
-     */
-    private static $isIncludeableCache = [];
-
-    /**
      * @var null|resource
      */
     protected static $context = null;
+
+    /**
+     * @var int
+     */
+    private static int $defaultFlags = LOCK_EX;
 
     /**
      * @param string $name
@@ -55,6 +57,8 @@ class File
     /**
      * Helper to get a valid filename for the filesystem, use Element\Service::getValidKey() for the use with Pimcore Elements
      *
+     * @internal
+     *
      * @param string $tmpFilename
      * @param string|null $language
      * @param string $replacement
@@ -75,34 +79,6 @@ class File
     }
 
     /**
-     * @param string $filename
-     *
-     * @return bool
-     */
-    public static function isIncludeable($filename)
-    {
-        if (array_key_exists($filename, self::$isIncludeableCache)) {
-            return self::$isIncludeableCache[$filename];
-        }
-
-        $isIncludeAble = false;
-
-        // use stream_resolve_include_path if PHP is >= 5.3.2 because the performance is better
-        if (function_exists('stream_resolve_include_path')) {
-            if ($include = stream_resolve_include_path($filename)) {
-                if (@is_readable($include)) {
-                    $isIncludeAble = true;
-                }
-            }
-        }
-
-        // add to store
-        self::$isIncludeableCache[$filename] = $isIncludeAble;
-
-        return $isIncludeAble;
-    }
-
-    /**
      * @param int $mode
      */
     public static function setDefaultMode($mode)
@@ -119,10 +95,18 @@ class File
     }
 
     /**
+     * @param int $defaultFlags
+     */
+    public static function setDefaultFlags(int $defaultFlags): void
+    {
+        self::$defaultFlags = $defaultFlags;
+    }
+
+    /**
      * @param string $path
      * @param mixed $data
      *
-     * @return int
+     * @return int|false
      */
     public static function put($path, $data)
     {
@@ -130,23 +114,29 @@ class File
             self::mkdir(dirname($path));
         }
 
-        $return = file_put_contents($path, $data, null, self::getContext());
+        $return = file_put_contents($path, $data, self::$defaultFlags, self::getContext());
         @chmod($path, self::$defaultMode);
 
         return $return;
     }
 
     /**
+     * @internal
+     *
      * @param string $path
-     * @param mixed $data
+     * @param string $data
+     *
+     * @return int|false
      */
     public static function putPhpFile($path, $data)
     {
-        self::put($path, $data);
+        $return = self::put($path, $data);
 
         if (function_exists('opcache_reset')) {
             opcache_reset();
         }
+
+        return $return;
     }
 
     /**
@@ -249,5 +239,26 @@ class File
             uniqid() . '-' .  bin2hex(random_bytes(15)),
             $fileExtension ?: 'tmp'
         );
+    }
+
+    /**
+     * @param FilesystemOperator $storage
+     * @param string $storagePath
+     *
+     * @throws \League\Flysystem\FilesystemException
+     */
+    public static function recursiveDeleteEmptyDirs(FilesystemOperator $storage, string $storagePath)
+    {
+        if ($storagePath === '.') {
+            return;
+        }
+
+        $contents = $storage->listContents($storagePath);
+        $count = iterator_count($contents);
+        if ($count === 0) {
+            $storage->deleteDirectory($storagePath);
+            $storagePath = dirname($storagePath, 1);
+            self::recursiveDeleteEmptyDirs($storage, $storagePath);
+        }
     }
 }

@@ -19,6 +19,9 @@ namespace Pimcore\Model\Notification\Service;
 
 use Pimcore\Model\User;
 
+/**
+ * @internal
+ */
 class UserService
 {
     /**
@@ -28,7 +31,6 @@ class UserService
      */
     public function findAll(User $loggedIn): array
     {
-
         // condition for users with groups having notifications permission
         $condition = [];
         $rolesList = new \Pimcore\Model\User\Role\Listing();

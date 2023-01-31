@@ -18,6 +18,8 @@ namespace Pimcore\Model\Schedule\Task\Listing;
 use Pimcore\Model;
 
 /**
+ * @internal
+ *
  * @property \Pimcore\Model\Schedule\Task\Listing $model
  */
 class Dao extends Model\Listing\Dao\AbstractDao
@@ -30,7 +32,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
     public function load()
     {
         $tasks = [];
-        $tasksData = $this->db->fetchCol('SELECT id FROM schedule_tasks' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
+        $tasksData = $this->db->fetchFirstColumn('SELECT id FROM schedule_tasks' . $this->getCondition() . $this->getOrder() . $this->getOffsetLimit(), $this->model->getConditionVariables());
 
         foreach ($tasksData as $taskData) {
             $tasks[] = Model\Schedule\Task::getById($taskData);
