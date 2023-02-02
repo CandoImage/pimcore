@@ -16,6 +16,7 @@
 namespace Pimcore\Model\DataObject\ClassDefinition;
 
 use Pimcore\Cache;
+use Pimcore\Db\Helper;
 use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
@@ -53,7 +54,7 @@ class Dao extends Model\Dao\AbstractDao
     {
         static $mapping;
         if ($skipCache || (!isset($mapping) && !is_array(($mapping = Cache::load(md5(__METHOD__)))))) {
-            $mapping = $this->db->fetchPairs('SELECT id, name FROM classes');
+            $mapping = Helper::fetchPairs($this->db, 'SELECT id, name FROM classes');
             Cache::save($mapping, md5(__METHOD__), ['ClassDefinitionDao']);
         }
         return $mapping;
