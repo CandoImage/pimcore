@@ -23,7 +23,7 @@ use Symfony\Component\Cache\Adapter\TraceableAdapter;
 /**
  * @property PimcoreCacheItemPoolInterface $pool
  */
-class TraceablePimcoreAdapter extends TraceableAdapter implements PimcoreCacheItemPoolInterface
+class TraceablePimcoreAdapter extends TraceableAdapter implements PimcoreCacheItemPoolInterface, PurgeableCacheItemPoolInterface
 {
     public function __construct(PimcoreCacheItemPoolInterface $pool)
     {
@@ -60,5 +60,13 @@ class TraceablePimcoreAdapter extends TraceableAdapter implements PimcoreCacheIt
     public function invalidateTags(array $tags)
     {
         return $this->pool->invalidateTags($tags);
+    }
+
+    public function purge()
+    {
+        if ($this->pool instanceof PurgeableCacheItemPoolInterface) {
+            return $this->pool->purge();
+        }
+        return false;
     }
 }
