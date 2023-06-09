@@ -31,6 +31,7 @@ interface BatchProcessingWorkerInterface extends WorkerInterface
 
     /**
      * @deprecated will be removed in Pimcore 10.0
+     *
      * @TODO Pimcore 10 - remove this
      *
      * processes elements in the queue for preparation of index data
@@ -44,6 +45,7 @@ interface BatchProcessingWorkerInterface extends WorkerInterface
 
     /**
      * @deprecated will be removed in Pimcore 10.0
+     *
      * @TODO Pimcore 10 - remove this
      *
      * processes the update index queue - updates all elements where current_crc != index_crc

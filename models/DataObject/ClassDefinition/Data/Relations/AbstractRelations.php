@@ -451,10 +451,10 @@ abstract class AbstractRelations extends Data implements
             if ($container instanceof DataObject\Concrete) {
                 $objectId = $container->getId();
             } elseif (
-                    $container instanceof DataObject\Fieldcollection\Data\AbstractData ||
-                    $container instanceof DataObject\Localizedfield ||
-                    $container instanceof DataObject\Objectbrick\Data\AbstractData
-                ) {
+                $container instanceof DataObject\Fieldcollection\Data\AbstractData ||
+                $container instanceof DataObject\Localizedfield ||
+                $container instanceof DataObject\Objectbrick\Data\AbstractData
+            ) {
                 $objectFromContainer = $container->getObject();
                 if ($objectFromContainer) {
                     $objectId = $objectFromContainer->getId();
@@ -477,10 +477,10 @@ abstract class AbstractRelations extends Data implements
                     $relationItems[$elementHash] = $item;
                 } else {
                     @trigger_error(
-                            'Passing relations multiple times is deprecated since version 6.5.2 and will throw exception in Pimcore 10, tried to assign ' . $elementHash
-                            . ' multiple times in field' . $fieldName . ' of object id: ' . $objectId,
-                            E_USER_DEPRECATED
-                        );
+                        'Passing relations multiple times is deprecated since version 6.5.2 and will throw exception in Pimcore 10, tried to assign ' . $elementHash
+                        . ' multiple times in field' . $fieldName . ' of object id: ' . $objectId,
+                        E_USER_DEPRECATED
+                    );
                 }
             }
 

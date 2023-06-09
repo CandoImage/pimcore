@@ -733,6 +733,7 @@ abstract class Editable extends Model\AbstractModel implements Model\Document\Ed
      *
      * @param Model\Document\PageSnippet|null $document
      * @param array $params
+     *
      * @abstract
      *
      * @return mixed

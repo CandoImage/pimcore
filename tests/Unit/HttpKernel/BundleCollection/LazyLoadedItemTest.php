@@ -60,6 +60,7 @@ class LazyLoadedItemTest extends TestCase
 
     /**
      * @expectedException \InvalidArgumentException
+     *
      * @expectedExceptionMessage The class "FooBarBazingaDummyClassName" does not exist
      */
     public function testExceptionOnInvalidClass()

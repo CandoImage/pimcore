@@ -1075,6 +1075,7 @@ class AssetController extends ElementControllerBase implements EventedController
 
     /**
      * @Route("/show-version", name="pimcore_admin_asset_showversion", methods={"GET"})
+     *
      * @TemplatePhp()
      *
      * @param Request $request
@@ -1479,6 +1480,7 @@ class AssetController extends ElementControllerBase implements EventedController
 
     /**
      * @Route("/get-preview-document", name="pimcore_admin_asset_getpreviewdocument", methods={"GET"})
+     *
      * @TemplatePhp()
      *
      * @param Request $request
@@ -1535,6 +1537,7 @@ class AssetController extends ElementControllerBase implements EventedController
 
     /**
      * @Route("/get-preview-video", name="pimcore_admin_asset_getpreviewvideo", methods={"GET"})
+     *
      * @TemplatePhp()
      *
      * @param Request $request
@@ -1617,6 +1620,7 @@ class AssetController extends ElementControllerBase implements EventedController
      * @Route("/image-editor", name="pimcore_admin_asset_imageeditor", methods={"GET"})
      *
      * @param Request $request
+     *
      * @TemplatePhp()
      *
      * @return array

@@ -126,7 +126,7 @@ class Rule extends AbstractModel implements RuleInterface
 
                     return $this;
 
-                // objects
+                    // objects
                 case 'setactions':
                 case 'setcondition':
                     $value = unserialize($value);

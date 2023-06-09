@@ -186,6 +186,7 @@ class Config implements \ArrayAccess
 
     /**
      * @internal
+     *
      * @static
      *
      * @param \Pimcore\Config\Config $config
@@ -542,6 +543,7 @@ class Config implements \ArrayAccess
 
     /**
      * @internal
+     *
      * @static
      *
      * @return \Pimcore\Config\Config
@@ -566,6 +568,7 @@ class Config implements \ArrayAccess
 
     /**
      * @internal
+     *
      * @static
      *
      * @param \Pimcore\Config\Config $config
@@ -610,6 +613,7 @@ class Config implements \ArrayAccess
 
     /**
      * @internal
+     *
      * @static
      *
      * @return \Pimcore\Config\Config
@@ -634,6 +638,7 @@ class Config implements \ArrayAccess
 
     /**
      * @internal
+     *
      * @static
      *
      * @param \Pimcore\Config\Config $config
@@ -645,6 +650,7 @@ class Config implements \ArrayAccess
 
     /**
      * @internal
+     *
      * @static
      *
      * @param \Pimcore\Config\Config $config
@@ -656,6 +662,7 @@ class Config implements \ArrayAccess
 
     /**
      * @internal
+     *
      * @static
      *
      * @return mixed|\Pimcore\Config\Config
@@ -911,6 +918,7 @@ class Config implements \ArrayAccess
 
     /**
      * @internal
+     *
      * @static
      *
      * @param \Pimcore\Config\Config $config

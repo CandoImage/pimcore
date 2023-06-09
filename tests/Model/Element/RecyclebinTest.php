@@ -25,6 +25,7 @@ use Pimcore\Tests\Util\TestHelper;
  * Class RecyclebinTest
  *
  * @package Pimcore\Tests\Model\Element
+ *
  * @group model.element.recyclebin
  */
 class RecyclebinTest extends ModelTestCase

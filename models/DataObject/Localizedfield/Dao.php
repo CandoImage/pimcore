@@ -97,7 +97,7 @@ class Dao extends Model\Dao\AbstractDao
 
         $forceUpdate = false;
         if ((isset($params['newParent']) && $params['newParent']) || DataObject::isDirtyDetectionDisabled() || $this->model->hasDirtyLanguages(
-            ) || $context['containerType'] == 'fieldcollection') {
+        ) || $context['containerType'] == 'fieldcollection') {
             $forceUpdate = $this->delete(false, true);
         }
 
@@ -203,8 +203,8 @@ class Dao extends Model\Dao\AbstractDao
 
             try {
                 if ((isset($params['newParent']) && $params['newParent']) || !isset($params['isUpdate']) || !$params['isUpdate'] || $this->model->isLanguageDirty(
-                        $language
-                    )) {
+                    $language
+                )) {
                     $this->db->insertOrUpdate($storeTable, $insertData);
                 }
             } catch (\Exception $e) {
@@ -234,7 +234,7 @@ class Dao extends Model\Dao\AbstractDao
                 );
                 $this->inheritanceHelper->resetFieldsToCheck();
                 $sql = 'SELECT * FROM '.$queryTable.' WHERE ooo_id = '.$object->getId(
-                    )." AND language = '".$language."'";
+                )." AND language = '".$language."'";
 
                 $oldData = [];
 
@@ -525,7 +525,7 @@ class Dao extends Model\Dao\AbstractDao
             }
         } else {
             $sql = 'ownertype = "localizedfield" AND ownername = "localizedfield" and src_id = '.$this->model->getObject(
-                )->getId().$dirtyLanguageCondition;
+            )->getId().$dirtyLanguageCondition;
             $this->db->deleteWhere('object_relations_'.$this->model->getObject()->getClassId(), $sql);
         }
 
@@ -706,9 +706,9 @@ class Dao extends Model\Dao\AbstractDao
                         $localizedFields[] = $db->quoteIdentifier($language).'.'.$db->quoteIdentifier($row['Field']);
                     } else {
                         $localizedFields[] = $getFallbackValue($row['Field'], $fallbackLanguages).sprintf(
-                                ' as "%s"',
-                                $row['Field']
-                            );
+                            ' as "%s"',
+                            $row['Field']
+                        );
                     }
                 }
 

@@ -129,6 +129,7 @@ class BundleCollectionTest extends TestCase
 
     /**
      * @expectedException \InvalidArgumentException
+     *
      * @expectedExceptionMessage Bundle "Pimcore\Tests\Unit\HttpKernel\BundleCollection\BundleA" is not registered
      */
     public function testGetItemThrowsException()

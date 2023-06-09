@@ -1621,6 +1621,7 @@ class SettingsController extends AdminController
 
     /**
      * @deprecated
+     *
      * @Route("/tag-management-add", name="pimcore_admin_settings_tagmanagementadd", methods={"POST"})
      *
      * @param Request $request
@@ -1648,6 +1649,7 @@ class SettingsController extends AdminController
 
     /**
      * @deprecated
+     *
      * @Route("/tag-management-delete", name="pimcore_admin_settings_tagmanagementdelete", methods={"DELETE"})
      *
      * @param Request $request
@@ -1666,6 +1668,7 @@ class SettingsController extends AdminController
 
     /**
      * @deprecated
+     *
      * @Route("/tag-management-get", name="pimcore_admin_settings_tagmanagementget", methods={"GET"})
      *
      * @param Request $request
@@ -1683,6 +1686,7 @@ class SettingsController extends AdminController
 
     /**
      * @deprecated
+     *
      * @Route("/tag-management-update", name="pimcore_admin_settings_tagmanagementupdate", methods={"PUT"})
      *
      * @param Request $request

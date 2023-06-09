@@ -131,6 +131,7 @@ class EditableHandler implements EditableHandlerInterface, LoggerAwareInterface
 
     /**
      * @internal
+     *
      * @required
      *
      * @param FragmentRendererInterface $fragmentRenderer
@@ -142,6 +143,7 @@ class EditableHandler implements EditableHandlerInterface, LoggerAwareInterface
 
     /**
      * @internal
+     *
      * @required
      *
      * @param RequestStack $requestStack

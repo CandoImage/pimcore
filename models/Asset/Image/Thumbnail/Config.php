@@ -557,6 +557,7 @@ class Config extends Model\AbstractModel
      * This is just for compatibility, this method will be removed with the next major release
      *
      * @deprecated
+     *
      * @static
      *
      * @param array $config

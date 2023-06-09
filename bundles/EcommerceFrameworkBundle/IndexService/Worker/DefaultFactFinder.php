@@ -287,7 +287,7 @@ class DefaultFactFinder extends AbstractMockupCacheWorker implements WorkerInter
         $entriesUpdated = parent::processUpdateIndexQueue($limit);
         if ($entriesUpdated) {
             // TODO csv schreiben?
-//            $this->commitUpdateIndex();
+            //            $this->commitUpdateIndex();
         }
 
         return $entriesUpdated;

@@ -106,6 +106,7 @@ class DecimalTest extends TestCase
 
     /**
      * @expectedException \TypeError
+     *
      * @dataProvider invalidValueCreateProvider
      */
     public function testErrorOnInvalidCreateArgument($value)
@@ -439,6 +440,7 @@ class DecimalTest extends TestCase
 
     /**
      * @dataProvider zeroDataProvider
+     *
      * @expectedException \DivisionByZeroError
      */
     public function testExceptionOnDivisionByZero($val)

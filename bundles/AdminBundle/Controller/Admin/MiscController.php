@@ -786,6 +786,7 @@ class MiscController extends AdminController
 
     /**
      * @Route("/icon-list", name="pimcore_admin_misc_iconlist", methods={"GET"})
+     *
      * @TemplatePhp()
      *
      * @param Request $request

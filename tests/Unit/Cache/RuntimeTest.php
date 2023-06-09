@@ -32,6 +32,7 @@ class RuntimeTest extends TestCase
 
     /**
      * @expectedException \InvalidArgumentException
+     *
      * @dataProvider blockedIndexProvider
      *
      * @param string $index
@@ -46,6 +47,7 @@ class RuntimeTest extends TestCase
 
     /**
      * @expectedException \InvalidArgumentException
+     *
      * @dataProvider blockedIndexProvider
      *
      * @param string $index
@@ -58,6 +60,7 @@ class RuntimeTest extends TestCase
 
     /**
      * @expectedException \InvalidArgumentException
+     *
      * @dataProvider blockedIndexProvider
      *
      * @param string $index

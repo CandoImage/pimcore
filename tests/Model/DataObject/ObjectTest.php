@@ -23,6 +23,7 @@ use Pimcore\Tests\Util\TestHelper;
  * Class ObjectTest
  *
  * @package Pimcore\Tests\Model\DataObject
+ *
  * @group model.dataobject.object
  */
 class ObjectTest extends ModelTestCase
@@ -31,6 +32,7 @@ class ObjectTest extends ModelTestCase
      * Verifies that a object with the same parent ID cannot be created.
      *
      * @expectedException \Exception
+     *
      * @expectedExceptionMessage ParentID and ID is identical, an element can't be the parent of itself.
      */
     public function testParentIdentical()
@@ -46,6 +48,7 @@ class ObjectTest extends ModelTestCase
      * Parent ID of a new object cannot be 0
      *
      * @expectedException \Exception
+     *
      * @expectedExceptionMessage ParentID and ID is identical, an element can't be the parent of itself.
      */
     public function testParentIs0()

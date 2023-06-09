@@ -32,6 +32,7 @@ class StopWatch
 
     /**
      * @param string $component
+     *
      * @static
      */
     public static function start($component = 'default')
@@ -93,6 +94,7 @@ class StopWatch
 
     /**
      * @deprecated
+     *
      * @static
      *
      * @return float

@@ -431,10 +431,10 @@ class simple_html_dom_node
                 switch ($this->_[HDOM_INFO_QUOTE][$i]) {
                     case HDOM_QUOTE_DOUBLE: $quote = '"';
 
-break;
+                        break;
                     case HDOM_QUOTE_SINGLE: $quote = '\'';
 
-break;
+                        break;
                     default: $quote = '';
                 }
                 $ret .= $key.$this->_[HDOM_INFO_SPACE][$i][1].'='.$this->_[HDOM_INFO_SPACE][$i][2].$quote.$val.$quote;

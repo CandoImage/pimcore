@@ -39,6 +39,7 @@ class Console
 
     /**
      * @deprecated since v.6.9.
+     *
      * @static
      *
      * @return string "windows" or "unix"
@@ -368,6 +369,7 @@ class Console
 
     /**
      * @deprecated since v.6.9. Use Symfony\Component\Process\Process instead. For long running background tasks use queues.
+     *
      * @static
      *
      * @param string $cmd
@@ -389,6 +391,7 @@ class Console
 
     /**
      * @deprecated since v.6.9. For long running background tasks use queues.
+     *
      * @static
      *
      * @param string $cmd
@@ -439,6 +442,7 @@ class Console
 
     /**
      * @deprecated since v.6.9. For long running background tasks use queues.
+     *
      * @static
      *
      * @param string $cmd

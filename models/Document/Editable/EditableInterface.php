@@ -73,6 +73,7 @@ interface EditableInterface
      *
      * @param PageSnippet|null $document
      * @param array $params
+     *
      * @abstract
      *
      * @return mixed

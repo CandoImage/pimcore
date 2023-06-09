@@ -50,23 +50,33 @@ class DocumentController extends AbstractElementController
      * @Route("/document/id/{id}", name="pimcore_api_rest_element_document_get", requirements={"id": "\d+"}, methods={"GET"})
      *
      * @api              {get} /document Get document
+     *
      * @apiName          getDocument
+     *
      * @apiGroup         Document
+     *
      * @apiSampleRequest off
+     *
      * @apiParam {int} id The id of document you search
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *       "id": 4711
      *       "apikey": '2132sdf2321rwefdcvvce22'
      *     }
+     *
      * @apiParam {string} apikey your access token
+     *
      * @apiSuccess {boolean} success Returns true if finished successfully
+     *
      * @apiSuccessExample {json} Succes-Response:
      *                    HTTP/1.1 200 OK
      *                    {
      *                        "success":true
      *                    }
+     *
      * @apiError {boolean} success Returns false if failed
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false,"msg":"exception 'Exception' with message 'Document with given ID (712131243) does not exist.'"}
      *
@@ -110,21 +120,30 @@ class DocumentController extends AbstractElementController
      * @Route("/document", name="pimcore_api_rest_element_document_create", methods={"POST", "PUT"})
      *
      * @api              {post} /document/id/{id} Create document
+     *
      * @apiName          createDocument
+     *
      * @apiGroup         Document
+     *
      * @apiSampleRequest off
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *       "apikey": '2132sdf2321rwefdcvvce22'
      *     }
+     *
      * @apiParam {string} apikey your access token
+     *
      * @apiSuccess {boolean} success Returns true if finished successfully
+     *
      * @apiSuccessExample {json} Succes-Response:
      *                    HTTP/1.1 200 OK
      *                    {
      *                        "success":true
      *                    }
+     *
      * @apiError {boolean} success Returns false if failed
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false,"msg":"exception 'Exception' with message 'Document with given ID (712131243) does not exist.'"}
      *
@@ -152,23 +171,33 @@ class DocumentController extends AbstractElementController
      * @Route("/document/id/{id}", name="pimcore_api_rest_element_document_update", requirements={"id": "\d+"}, methods={"POST", "PUT"})
      *
      * @api              {put} /document/id/{id} Update document
+     *
      * @apiName          updateDocument
+     *
      * @apiGroup         Document
+     *
      * @apiParam {int} id The id of document you delete
+     *
      * @apiSampleRequest off
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *       "id": 4711
      *       "apikey": '2132sdf2321rwefdcvvce22'
      *     }
+     *
      * @apiParam {string} apikey your access token
+     *
      * @apiSuccess {boolean} success Returns true if finished successfully
+     *
      * @apiSuccessExample {json} Succes-Response:
      *                    HTTP/1.1 200 OK
      *                    {
      *                        "success":true
      *                    }
+     *
      * @apiError {boolean} success Returns false if failed
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false,"msg":"exception 'Exception' with message 'Document with given ID (712131243) does not exist.'"}
      *
@@ -191,23 +220,33 @@ class DocumentController extends AbstractElementController
      * @Route("/document/id/{id}", name="pimcore_api_rest_element_document_delete", requirements={"id": "\d+"}, methods={"DELETE"})
      *
      * @api              {delete} /document Delete document
+     *
      * @apiName          deleteDocument
+     *
      * @apiGroup         Document
+     *
      * @apiParam {int} id The id of document you delete
+     *
      * @apiSampleRequest off
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *       "id": 4711
      *       "apikey": '2132sdf2321rwefdcvvce22'
      *     }
+     *
      * @apiParam {string} apikey your access token
+     *
      * @apiSuccess {boolean} success Returns true if finished successfully
+     *
      * @apiSuccessExample {json} Succes-Response:
      *                    HTTP/1.1 200 OK
      *                    {
      *                        "success":true
      *                    }
+     *
      * @apiError {boolean} success Returns false if failed
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false,"msg":"exception 'Exception' with message 'Document with given ID (712131243) does not exist.'"}
      *

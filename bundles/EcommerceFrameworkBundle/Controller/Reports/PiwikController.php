@@ -23,6 +23,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * @deprecated
+ *
  * @Route("/reports/piwik")
  */
 class PiwikController extends AdminController

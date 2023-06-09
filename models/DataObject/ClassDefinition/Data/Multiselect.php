@@ -525,7 +525,7 @@ class Multiselect extends Data implements ResourcePersistenceAwareInterface, Que
     {
         $optionsProvider = DataObject\ClassDefinition\Helper\OptionsProviderResolver::resolveProvider(
             $this->getOptionsProviderClass(),
-                DataObject\ClassDefinition\Helper\OptionsProviderResolver::MODE_MULTISELECT
+            DataObject\ClassDefinition\Helper\OptionsProviderResolver::MODE_MULTISELECT
         );
         if ($optionsProvider) {
             $context['fieldname'] = $this->getName();

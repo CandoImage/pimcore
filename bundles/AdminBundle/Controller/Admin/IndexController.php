@@ -62,6 +62,7 @@ class IndexController extends AdminController implements EventedControllerInterf
 
     /**
      * @Route("/", name="pimcore_admin_index", methods={"GET"})
+     *
      * @TemplatePhp()
      *
      * @param Request $request

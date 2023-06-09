@@ -104,6 +104,7 @@ class AbstractInstaller implements InstallerInterface
 
     /**
      * @deprecated
+     *
      * @inheritDoc
      */
     public function canBeUpdated()
@@ -113,6 +114,7 @@ class AbstractInstaller implements InstallerInterface
 
     /**
      * @deprecated
+     *
      * @inheritDoc
      */
     public function update()

@@ -24,6 +24,7 @@ abstract class ProductCentricBatchProcessingWorker extends AbstractBatchProcessi
 {
     /**
      * @deprecated
+     *
      * @TODO Pimcore 10 - remove this
      */
     const WORKER_MODE_LEGACY = 'legacy';
@@ -136,6 +137,7 @@ abstract class ProductCentricBatchProcessingWorker extends AbstractBatchProcessi
 
     /**
      * @inheritDoc
+     *
      * @TODO Pimcore 10 - remove this
      */
     public function processPreparationQueue($limit = 200)
@@ -149,6 +151,7 @@ abstract class ProductCentricBatchProcessingWorker extends AbstractBatchProcessi
 
     /**
      * @inheritDoc
+     *
      * @TODO Pimcore 10 - remove this
      */
     public function processUpdateIndexQueue($limit = 200)

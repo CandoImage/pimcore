@@ -172,6 +172,7 @@ class Date extends Model\Document\Editable
      *
      * @param Model\Document\PageSnippet|null $document
      * @param array $params
+     *
      * @abstract
      *
      * @return int|null

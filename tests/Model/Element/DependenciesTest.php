@@ -28,6 +28,7 @@ use Pimcore\Tests\Util\TestHelper;
  * Class DependenciesTest
  *
  * @package Pimcore\Tests\Model\Element
+ *
  * @group model.element.dependencies
  */
 class DependenciesTest extends ModelTestCase

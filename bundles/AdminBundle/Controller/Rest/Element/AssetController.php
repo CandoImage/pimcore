@@ -33,16 +33,22 @@ class AssetController extends AbstractElementController
      * @Route("/asset/id/{id}", name="pimcore_api_rest_element_asset_get", requirements={"id": "\d+"}, methods={"GET"})
      *
      * @api {get} /asset Get asset
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *       "id": 4711
      *       "apikey": '2132sdf2321rwefdcvvce22'
      *     }
+     *
      * @apiName getAssetFileById
+     *
      * @apiSampleRequest off
+     *
      * @apiGroup Asset
+     *
      * @apiParam {int} id The id of asset you search
      * @apiParam {string} apikey your access token
+     *
      * @apiSuccessExample {json} Success-Response:
      *                    {"success": "true", "data":{"path":"\/crm\/inquiries\/","creationDate":1368630916,"modificationDate":1388409137,"userModification":null,"childs":null}}
      *
@@ -143,20 +149,30 @@ class AssetController extends AbstractElementController
      * @Route("/asset/id/{id}", name="pimcore_api_rest_element_asset_delete", requirements={"id": "\d+"}, methods={"DELETE"})
      *
      * @api {delete} /asset Delete asset
+     *
      * @apiName deleteAsset
+     *
      * @apiGroup Asset
+     *
      * @apiParam {int} id The id of asset you delete
+     *
      * @apiSampleRequest off
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *       "id": 4711
      *       "apikey": '2132sdf2321rwefdcvvce22'
      *     }
+     *
      * @apiParam {string} apikey your access token
+     *
      * @apiSuccess {boolean} success Returns true if finished successfully
+     *
      * @apiSuccessExample {json} Succes-Response:
      *                    {"success":true}
+     *
      * @apiError {boolean} success Returns false if failed
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false,"msg":"exception 'Exception' with message 'Asset with given ID (712131243) does not exist.'"}
      *

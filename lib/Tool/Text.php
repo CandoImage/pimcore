@@ -176,6 +176,7 @@ class Text
 
     /**
      * @deprecated
+     *
      * @static
      *
      * @param  array $idMapping e.g. array("asset"=>array(OLD_ID=>NEW_ID),"object"=>array(OLD_ID=>NEW_ID),"document"=>array(OLD_ID=>NEW_ID));

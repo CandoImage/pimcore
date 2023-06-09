@@ -901,7 +901,7 @@ class CoreHandler implements LoggerAwareInterface, CoreHandlerInterface
 
             if (null === $cacheItem) {
                 $result = false;
-            // item shouldn't go to the cache (either because it's tags are ignored or were cleared within this process) -> see $this->prepareCacheTags();
+                // item shouldn't go to the cache (either because it's tags are ignored or were cleared within this process) -> see $this->prepareCacheTags();
             } else {
                 $result = $this->storeCacheItem($queueItem->getCacheItem(), $queueItem->getData(), $queueItem->isForce());
                 if (!$result) {

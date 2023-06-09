@@ -33,6 +33,7 @@ use Pimcore\Model\DataObject\Localizedfield;
  * @property AbstractConfig $tenantConfig
  *
  * @deprecated will be removed in Pimcore 10.0 use ProductCentricBatchProcessing instead
+ *
  * @TODO Pimcore 10 - remove this
  */
 abstract class AbstractBatchProcessingWorker extends AbstractWorker implements BatchProcessingWorkerInterface
@@ -402,6 +403,7 @@ abstract class AbstractBatchProcessingWorker extends AbstractWorker implements B
 
     /**
      * @deprecated will be removed in Pimcore 10.0
+     *
      * @TODO Pimcore 10 - remove this
      *
      * processes elements in the queue for preparation of index data
@@ -454,6 +456,7 @@ abstract class AbstractBatchProcessingWorker extends AbstractWorker implements B
 
     /**
      * @deprecated will be removed in Pimcore 10.0
+     *
      * @TODO Pimcore 10 - remove this
      *
      * processes the update index queue - updates all elements where current_crc != index_crc

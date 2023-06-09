@@ -212,6 +212,7 @@ abstract class AbstractCoreHandlerTest extends TestCase
      * Invalid keys is defined on abstract CachePool test
      *
      * @dataProvider invalidKeys
+     *
      * @expectedException InvalidArgumentException
      *
      * @param string $key
@@ -225,6 +226,7 @@ abstract class AbstractCoreHandlerTest extends TestCase
      * Invalid keys is defined on abstract CachePool test
      *
      * @dataProvider invalidKeys
+     *
      * @expectedException InvalidArgumentException
      *
      * @param string $key
@@ -488,6 +490,7 @@ abstract class AbstractCoreHandlerTest extends TestCase
 
     /**
      * @group cache-cli
+     *
      * @mockHandlerMethods writeSaveQueue
      */
     public function testNoWriteInCliShutdown()
@@ -507,6 +510,7 @@ abstract class AbstractCoreHandlerTest extends TestCase
 
     /**
      * @group cache-cli
+     *
      * @mockHandlerMethods writeSaveQueue
      */
     public function testWriteInCliShutdownWithHandleCliOption()
@@ -609,6 +613,7 @@ abstract class AbstractCoreHandlerTest extends TestCase
 
     /**
      * @dataProvider tagsEntriesProvider
+     *
      * @skipped
      *
      * @param array $tags

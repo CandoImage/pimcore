@@ -23,6 +23,7 @@ use Pimcore\Tests\Util\TestHelper;
  * Class AssetTest
  *
  * @package Pimcore\Tests\Model\Asset
+ *
  * @group model.asset.asset
  */
 class AssetTest extends ModelTestCase

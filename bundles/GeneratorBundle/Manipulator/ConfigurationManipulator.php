@@ -84,7 +84,7 @@ class ConfigurationManipulator extends Manipulator
         return sprintf(<<<EOF
     - { resource: "@%s/Resources/config/%s" }
 EOF
-        ,
+            ,
             $bundle->getName(),
             $bundle->getServicesConfigurationFilename()
         );

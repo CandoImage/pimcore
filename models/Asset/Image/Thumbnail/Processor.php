@@ -313,7 +313,7 @@ class Processor
 
                                     // high res calculations if enabled
                                     if (!in_array($transformation['method'], ['cropPercent']) && in_array($key,
-                                            ['width', 'height', 'x', 'y'])) {
+                                        ['width', 'height', 'x', 'y'])) {
                                         if ($highResFactor && $highResFactor > 1) {
                                             $value *= $highResFactor;
                                             $value = (int)ceil($value);

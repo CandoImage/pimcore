@@ -43,8 +43,11 @@ class SearchController extends AdminController
      * @return JsonResponse
      *
      * @todo: $conditionTypeParts could be undefined
+     *
      * @todo: $conditionSubtypeParts could be undefined
+     *
      * @todo: $conditionClassnameParts could be undefined
+     *
      * @todo: $data could be undefined
      */
     public function findAction(Request $request, EventDispatcherInterface $eventDispatcher, GridHelperService $gridHelperService)
@@ -110,8 +113,8 @@ class SearchController extends AdminController
                 $parts = explode('~', $f);
                 if (substr($f, 0, 1) == '~') {
                     //                    $type = $parts[1];
-//                    $field = $parts[2];
-//                    $keyid = $parts[3];
+                    //                    $field = $parts[2];
+                    //                    $keyid = $parts[3];
                     // key value, ignore for now
                 } elseif (count($parts) > 1) {
                     $bricks[$parts[0]] = $parts[0];

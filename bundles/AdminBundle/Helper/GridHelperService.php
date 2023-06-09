@@ -233,9 +233,9 @@ class GridHelperService
 
                     if (substr($filterField, 0, 1) === '~') {
                         // not needed for now
-//                            $type = $keyParts[1];
-//                            $field = $keyParts[2];
-//                            $keyid = $keyParts[3];
+                        //                            $type = $keyParts[1];
+                        //                            $field = $keyParts[2];
+                        //                            $keyid = $keyParts[3];
                     } elseif (count($keyParts) > 1) {
                         $brickType = $keyParts[0];
                         $brickKey = $keyParts[1];
@@ -290,14 +290,14 @@ class GridHelperService
                         $fieldConditions = [];
                         foreach ($filter['value'] as $filterValue) {
                             $brickCondition = '(' . $brickField->getFilterCondition($filterValue, $operator,
-                                    ['brickPrefix' => $brickPrefix]
-                                ) . ' AND ' . $brickPrefix . 'fieldname = ' . $db->quote($brickFilterField) . ')';
+                                ['brickPrefix' => $brickPrefix]
+                            ) . ' AND ' . $brickPrefix . 'fieldname = ' . $db->quote($brickFilterField) . ')';
                             $fieldConditions[] = $brickCondition;
                         }
                         $conditionPartsFilters[] = '(' . implode(' OR ', $fieldConditions) . ')';
                     } else {
                         $brickCondition = '(' . $brickField->getFilterCondition($filter['value'], $operator,
-                                ['brickPrefix' => $brickPrefix]) . ' AND ' . $brickPrefix . 'fieldname = ' . $db->quote($brickFilterField) . ')';
+                            ['brickPrefix' => $brickPrefix]) . ' AND ' . $brickPrefix . 'fieldname = ' . $db->quote($brickFilterField) . ')';
                         $conditionPartsFilters[] = $brickCondition;
                     }
                 } elseif ($field instanceof ClassDefinition\Data\UrlSlug) {

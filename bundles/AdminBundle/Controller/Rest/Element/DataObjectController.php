@@ -55,20 +55,29 @@ class DataObjectController extends AbstractElementController
      * @Route("/object/id/{id}", name="pimcore_api_rest_element_dataobject_get", requirements={"id": "\d+"}, methods={"GET"})
      *
      * @api {get} /object Get object data
+     *
      * @apiName Get object by id
+     *
      * @apiGroup Object
+     *
      * @apiSampleRequest off
+     *
      * @apiParam {int} id an object id
      * @apiParam {string} apikey your access token
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *         "id": 1,
      *         "apikey": "21314njdsfn1342134"
      *      }
+     *
      * @apiSuccess {json} success parameter of the returned data = true
+     *
      * @apiError {json} success parameter of the returned data = false
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false, "msg":"exception 'Exception' with message '....'"}
+     *
      * @apiSuccessExample {json} Success-Response:
      *                    HTTP/1.1 200 OK
      *                    {
@@ -151,14 +160,19 @@ class DataObjectController extends AbstractElementController
      * @Route("/object", name="pimcore_api_rest_element_dataobject_create", methods={"POST", "PUT"})
      *
      * @api {post} /object Create a new object
+     *
      * @apiName Create a new object
+     *
      * @apiGroup Object
+     *
      * @apiSampleRequest off
+     *
      * @apiDescription
      * Request body: JSON-encoded object data in the same format as returned by get object by id for the data segment but with missing id field or id set to 0
      *
      * @apiParam {json} data a new object data
      * @apiParam {string} apikey your access token
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *         "apikey": "21314njdsfn1342134",
@@ -209,10 +223,14 @@ class DataObjectController extends AbstractElementController
      *               ]
      *           }
      *     }
+     *
      * @apiSuccess {json} success parameter of the returned data = true
+     *
      * @apiError {json} success parameter of the returned data = false
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false, "msg":"exception 'Exception' with message '....'"}
+     *
      * @apiSuccessExample {json} Success-Response:
      *                    HTTP/1.1 200 OK
      *                    {
@@ -245,14 +263,19 @@ class DataObjectController extends AbstractElementController
      * @Route("/object/id/{id}", name="pimcore_api_rest_element_dataobject_update", requirements={"id": "\d+"}, methods={"POST", "PUT"})
      *
      * @api {put} /object/id/{id} Update an object
+     *
      * @apiName Create a new object
+     *
      * @apiGroup Object
+     *
      * @apiSampleRequest off
+     *
      * @apiDescription
      * Request body: JSON-encoded object data in the same format as returned by get object by id for the data segment but with missing id field or id set to 0
      *
      * @apiParam {json} data a new object data
      * @apiParam {string} apikey your access token
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *         "apikey": "21314njdsfn1342134",
@@ -303,10 +326,14 @@ class DataObjectController extends AbstractElementController
      *               ]
      *           }
      *     }
+     *
      * @apiSuccess {json} success parameter of the returned data = true
+     *
      * @apiError {json} success parameter of the returned data = false
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false, "msg":"exception 'Exception' with message '....'"}
+     *
      * @apiSuccessExample {json} Success-Response:
      *                    HTTP/1.1 200 OK
      *                    {
@@ -336,20 +363,29 @@ class DataObjectController extends AbstractElementController
      * @Route("/object/id/{id}", name="pimcore_api_rest_element_dataobject_delete", requirements={"id": "\d+"}, methods={"DELETE"})
      *
      * @api {delete} /object/id/{id} Delete object
+     *
      * @apiName Delete object
+     *
      * @apiGroup Object
+     *
      * @apiSampleRequest off
+     *
      * @apiParam {int} id an object id
      * @apiParam {string} apikey your access token
+     *
      * @apiParamExample {json} Request-Example:
      *     {
      *         "id": 1,
      *         "apikey": "21314njdsfn1342134"
      *     }
+     *
      * @apiSuccess {json} success parameter of the returned data = true
+     *
      * @apiError {json} success parameter of the returned data = false
+     *
      * @apiErrorExample {json} Error-Response:
      *                  {"success":false, "msg":"exception 'Exception' with message '....'"}
+     *
      * @apiSuccessExample {json} Success-Response:
      *                    HTTP/1.1 200 OK
      *                    {

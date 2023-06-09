@@ -183,7 +183,7 @@ class Builder
                     if ($page instanceof DocumentPage) {
                         if ($page->getDocumentType() == 'link') {
                             if ($page->getUri() && strpos($activeDocument->getFullPath(),
-                                    $page->getUri() . '/') === 0) {
+                                $page->getUri() . '/') === 0) {
                                 $activeTrail = true;
                             }
                         }

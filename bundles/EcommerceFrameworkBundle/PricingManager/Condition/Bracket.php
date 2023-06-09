@@ -82,7 +82,7 @@ class Bracket implements BracketInterface
 
                     break;
 
-                // AND
+                    // AND
                 case BracketInterface::OPERATOR_AND:
                     if ($check === false) {
                         return false;
@@ -93,7 +93,7 @@ class Bracket implements BracketInterface
 
                     break;
 
-                // AND FALSE
+                    // AND FALSE
                 case BracketInterface::OPERATOR_AND_NOT:
                     if ($check === true) {
                         return false;
@@ -104,7 +104,7 @@ class Bracket implements BracketInterface
 
                     break;
 
-                // OR
+                    // OR
                 case BracketInterface::OPERATOR_OR:
                     if ($check === true) {
                         $state = $check;

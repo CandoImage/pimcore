@@ -58,6 +58,7 @@ class AdminUserTranslator implements TranslatorInterface
 
     /**
      * @deprecated
+     *
      * @inheritDoc
      */
     public function transChoice($id, $number, array $parameters = [], $domain = null, $locale = null)

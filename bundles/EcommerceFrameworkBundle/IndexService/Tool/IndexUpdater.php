@@ -25,6 +25,7 @@ use Pimcore\Model\DataObject\Listing\Concrete;
 
 /**
  * @deprecated - use commands instead
+ *
  * @TODO Pimcore 10 - remove this
  */
 class IndexUpdater

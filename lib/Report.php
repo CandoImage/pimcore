@@ -19,6 +19,7 @@ class Report
 {
     /**
      * @static
+     *
      * @depricated
      *
      * @return \Pimcore\Config\Config

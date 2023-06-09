@@ -39,6 +39,7 @@ abstract class SettingsStoreAwareInstaller extends AbstractInstaller
 
     /**
      * @param MigrationManager $migrationManager
+     *
      * @required
      */
     public function setMigrationManager(MigrationManager $migrationManager): void

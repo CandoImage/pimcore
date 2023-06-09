@@ -52,6 +52,7 @@ class ClassesRebuildCommand extends AbstractCommand
 
     /**
      * @param ClassDefinitionManager $classDefinitionManager
+     *
      * @required
      */
     public function setClassDefinitionManager(ClassDefinitionManager $classDefinitionManager)

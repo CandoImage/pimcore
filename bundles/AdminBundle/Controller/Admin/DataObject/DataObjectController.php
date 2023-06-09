@@ -1548,6 +1548,7 @@ class DataObjectController extends ElementControllerBase implements EventedContr
      * @Route("/preview-version", name="pimcore_admin_dataobject_dataobject_previewversion", methods={"GET"})
      *
      * @param Request $request
+     *
      * @TemplatePhp()
      *
      * @throws \Exception
@@ -1583,6 +1584,7 @@ class DataObjectController extends ElementControllerBase implements EventedContr
 
     /**
      * @Route("/diff-versions/from/{from}/to/{to}", name="pimcore_admin_dataobject_dataobject_diffversions", methods={"GET"})
+     *
      * @TemplatePhp()
      *
      * @param Request $request

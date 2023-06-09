@@ -34,6 +34,7 @@ class Mail extends \Swift_Message
      * Contains the debug email addresses from settings -> system -> Email Settings -> Debug email addresses
      *
      * @var array
+     *
      * @static
      */
     protected static $debugEmailAddresses = [];

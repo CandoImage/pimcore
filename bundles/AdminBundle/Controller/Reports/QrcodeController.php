@@ -27,6 +27,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * @deprecated
+ *
  * @Route("/qrcode")
  */
 class QrcodeController extends ReportsControllerBase implements EventedControllerInterface

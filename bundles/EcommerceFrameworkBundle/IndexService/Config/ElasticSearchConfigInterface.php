@@ -53,10 +53,10 @@ interface ElasticSearchConfigInterface extends ConfigInterface
      *
      * @todo Pimcore 10 - add this method to the interface
      */
-//    public function getSynonymProviders(): array
-//    {
-//        return $this->synonymProviders;
-//    }
+    //    public function getSynonymProviders(): array
+    //    {
+    //        return $this->synonymProviders;
+    //    }
 }
 
 class_alias(ElasticSearchConfigInterface::class, 'Pimcore\Bundle\EcommerceFrameworkBundle\IndexService\Config\IElasticSearchConfig');

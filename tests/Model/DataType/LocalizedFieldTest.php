@@ -41,6 +41,7 @@ class LocalizedFieldTest extends ModelTestCase
 
     /**
      * @expectedException \Exception
+     *
      * @expectedExceptionMessage Language  not accepted in strict mode
      */
     public function testExceptionInStrictMode()
@@ -54,6 +55,7 @@ class LocalizedFieldTest extends ModelTestCase
 
     /**
      * @expectedException \Exception
+     *
      * @expectedExceptionMessage Language ko not accepted in strict mode
      */
     public function testExceptionWithLocaleInStrictMode()
