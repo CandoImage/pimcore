@@ -569,10 +569,12 @@ class DataObjectController extends ElementControllerBase implements KernelContro
 
             DataObject\Service::removeElementFromSession('object', $object->getId());
 
-            $layoutArray = json_decode($this->encodeJson($data['layout']), true);
-            $this->classFieldDefinitions = json_decode($this->encodeJson($object->getClass()->getFieldDefinitions()), true);
-            $this->injectValuesForCustomLayout($layoutArray);
-            $data['layout'] = $layoutArray;
+            if ($data['layout'] ?? false) {
+                $layoutArray = json_decode($this->encodeJson($data['layout']), true);
+                $this->classFieldDefinitions = json_decode($this->encodeJson($object->getClass()->getFieldDefinitions()), true);
+                $this->injectValuesForCustomLayout($layoutArray);
+                $data['layout'] = $layoutArray;
+            }
 
             return $this->adminJson($data);
         }
@@ -1289,7 +1291,11 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                         DataObject::OBJECT_TYPE_VARIANT,
                         DataObject::OBJECT_TYPE_FOLDER,
                     ]
-                ).'\') ORDER BY o_index LIMIT '. $updatedObject->getParent()->getChildAmount() .')
+                ).'\') ORDER BY o_index LIMIT '. $updatedObject->getParent()->getChildAmount([
+                            DataObject::OBJECT_TYPE_OBJECT,
+                            DataObject::OBJECT_TYPE_VARIANT,
+                            DataObject::OBJECT_TYPE_FOLDER,
+                        ]) .')
                             SELECT @n := IF(@n = ? - 1,@n + 2,@n + 1) AS newIndex, o_id
                             FROM cte,
                             (SELECT @n := -1) variable

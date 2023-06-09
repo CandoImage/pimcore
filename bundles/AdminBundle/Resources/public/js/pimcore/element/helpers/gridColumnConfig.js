@@ -25,9 +25,7 @@ pimcore.element.helpers.gridColumnConfig = {
             length: 50,
             allowBlank: false,
             value: this.settings.gridConfigName ? this.settings.gridConfigName : defaultName,
-            listeners: {
-                change: pimcore.helpers.htmlEncodeTextField
-            }
+            renderer: Ext.util.Format.htmlEncode
         });
 
         var descriptionField = new Ext.form.TextArea({
@@ -495,6 +493,7 @@ pimcore.element.helpers.gridColumnConfig = {
             Ext.Ajax.request({
                 url: this.batchPrepareUrl,
                 params: params,
+                method: 'POST',
                 success: function (columnIndex, response) {
                     var rdata = Ext.decode(response.responseText);
                     if (rdata.success && rdata.jobs) {

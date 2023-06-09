@@ -188,11 +188,24 @@ trait ImageThumbnailTrait
             try {
                 $localFile = $this->getLocalFile();
                 if (null !== $localFile) {
-                    if ($imageInfo = @getimagesize($localFile)) {
+                    //try to get the dimensions with getimagesize because it is much faster than e.g. the Imagick-Adapter
+                    if ($imageSize = @getimagesize($localFile)) {
                         $dimensions = [
-                            'width' => $imageInfo[0],
-                            'height' => $imageInfo[1],
+                            'width' => $imageSize[0],
+                            'height' => $imageSize[1],
                         ];
+                    } else {
+                        //fallback to Default Adapter
+                        $image = \Pimcore\Image::getInstance();
+                        if ($image->load($localFile)) {
+                            $dimensions = [
+                                'width' => $image->getWidth(),
+                                'height' => $image->getHeight(),
+                            ];
+                        }
+                    }
+
+                    if (!empty($dimensions)) {
                         if ($config = $this->getConfig()) {
                             $this->getAsset()->getDao()->addToThumbnailCache(
                                 $config->getName(),
@@ -245,16 +258,16 @@ trait ImageThumbnailTrait
                 $dimensions = $this->readDimensionsFromFile();
             }
 
-            $this->width = $dimensions['width'] ?? null;
-            $this->height = $dimensions['height'] ?? null;
-
-            // the following is only relevant if using high-res option (retina, ...)
-            $this->realHeight = $this->height;
-            $this->realWidth = $this->width;
-
-            if ($config && $config->getHighResolution() && $config->getHighResolution() > 1) {
-                $this->realWidth = (int)floor($this->width * $config->getHighResolution());
-                $this->realHeight = (int)floor($this->height * $config->getHighResolution());
+            // realWidth / realHeight is only relevant if using high-res option (retina, ...)
+            $this->width = $this->realWidth = $dimensions['width'] ?? null;
+            $this->height = $this->realHeight = $dimensions['height'] ?? null;
+            if ($config && $config->getHighResolution() > 1) {
+                if ($this->width) {
+                    $this->width = (int)floor($this->realWidth / $config->getHighResolution());
+                }
+                if ($this->height) {
+                    $this->height = (int)floor($this->realHeight / $config->getHighResolution());
+                }
             }
         }
 
