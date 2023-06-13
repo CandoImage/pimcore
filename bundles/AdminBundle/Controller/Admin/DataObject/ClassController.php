@@ -17,6 +17,7 @@ namespace Pimcore\Bundle\AdminBundle\Controller\Admin\DataObject;
 
 use Pimcore\Bundle\AdminBundle\Controller\AdminController;
 use Pimcore\Bundle\AdminBundle\HttpFoundation\JsonResponse;
+use Pimcore\Cache;
 use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Db;
 use Pimcore\Event\AdminEvents;
@@ -300,6 +301,8 @@ class ClassController extends AdminController implements KernelControllerEventIn
         $class->setId($classId);
 
         $class->save(true);
+        // clear cache to invalidate cache with class definitions
+        Cache::clearTags(['ClassDefinitionDao']);
 
         return $this->adminJson(['success' => true, 'id' => $class->getId()]);
     }
@@ -350,6 +353,8 @@ class ClassController extends AdminController implements KernelControllerEventIn
         $class = DataObject\ClassDefinition::getById($request->get('id'));
         if ($class) {
             $class->delete();
+            // clear cache to invalidate cache with class definitions
+            Cache::clearTags(['ClassDefinitionDao']);
         }
 
         return new Response();
