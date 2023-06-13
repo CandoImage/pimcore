@@ -1953,7 +1953,7 @@ class ClassController extends AdminAbstractController implements KernelControlle
         $result = [
             'suggestedIdentifier' => $maxId ? $maxId + 1 : 1,
             'existingIds' => $existingIds,
-        ];
+            ];
 
         return $this->adminJson($result);
     }
