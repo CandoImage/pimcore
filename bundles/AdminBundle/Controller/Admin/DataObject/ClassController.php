@@ -336,7 +336,7 @@ class ClassController extends AdminAbstractController implements KernelControlle
         $data['isWriteable'] = $isWriteable;
 
         return $this->adminJson(['success' => true, 'id' => $customLayout->getId(), 'name' => $customLayout->getName(),
-            'data' => $data, ]);
+                                 'data' => $data, ]);
     }
 
     /**
