@@ -56,7 +56,7 @@ class Dao extends Model\Dao\AbstractDao
         static $mapping;
         if ($skipCache || (!isset($mapping) && !is_array(($mapping = Cache::load(md5(__METHOD__)))))) {
             $mapping = Helper::fetchPairs($this->db, 'SELECT id, name FROM classes');
-            Cache::save($mapping, md5(__METHOD__), ['ClassDefinitionDao']);
+            Cache::save($mapping, md5(__METHOD__), ['ClassDefinitionDao'], null, 0, true);
         }
         return $mapping;
     }
