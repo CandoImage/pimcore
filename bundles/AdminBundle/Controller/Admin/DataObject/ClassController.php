@@ -15,7 +15,8 @@
 
 namespace Pimcore\Bundle\AdminBundle\Controller\Admin\DataObject;
 
-use Pimcore\Bundle\AdminBundle\Controller\AdminAbstractController;
+use Pimcore\Bundle\AdminBundle\Controller\AdminController;
+use Pimcore\Bundle\AdminBundle\HttpFoundation\JsonResponse;
 use Pimcore\Cache;
 use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Db;
@@ -27,21 +28,19 @@ use Pimcore\Model\Document;
 use Pimcore\Model\Translation;
 use Pimcore\Tool\Session;
 use Symfony\Component\EventDispatcher\GenericEvent;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
-use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * @Route("/class", name="pimcore_admin_dataobject_class_")
  *
  * @internal
  */
-class ClassController extends AdminAbstractController implements KernelControllerEventInterface
+class ClassController extends AdminController implements KernelControllerEventInterface
 {
     /**
      * @Route("/get-document-types", name="getdocumenttypes", methods={"GET"})
@@ -302,6 +301,7 @@ class ClassController extends AdminAbstractController implements KernelControlle
         $class->setId($classId);
 
         $class->save(true);
+        // clear cache to invalidate cache with class definitions
         Cache::clearTags(['ClassDefinitionDao']);
 
         return $this->adminJson(['success' => true, 'id' => $class->getId()]);
@@ -353,6 +353,7 @@ class ClassController extends AdminAbstractController implements KernelControlle
         $class = DataObject\ClassDefinition::getById($request->get('id'));
         if ($class) {
             $class->delete();
+            // clear cache to invalidate cache with class definitions
             Cache::clearTags(['ClassDefinitionDao']);
         }
 
@@ -457,14 +458,6 @@ class ClassController extends AdminAbstractController implements KernelControlle
 
             $values['name'] = $this->correctClassname($values['name']);
             $class->rename($values['name']);
-        }
-
-        if ($values['compositeIndices']) {
-            foreach ($values['compositeIndices'] as $index => $compositeIndex) {
-                if ($compositeIndex['index_key'] !== ($sanitizedKey = preg_replace('/[^a-za-z0-9_\-+]/', '', $compositeIndex['index_key']))) {
-                    $values['compositeIndices'][$index]['index_key'] = $sanitizedKey;
-                }
-            }
         }
 
         unset($values['creationDate']);
@@ -669,7 +662,7 @@ class ClassController extends AdminAbstractController implements KernelControlle
             if (isset($mapping[$class->getId()])) {
                 $classMapping = $mapping[$class->getId()];
                 $resultList[] = [
-                    'type' => 'main',
+                    'type' => 'master',
                     'id' => $class->getId() . '_' . 0,
                     'name' => $class->getName(),
                 ];
@@ -2047,11 +2040,10 @@ class ClassController extends AdminAbstractController implements KernelControlle
      * @Route("/video-supported-types", name="videosupportedTypestypes")
      *
      * @param Request $request
-     * @param TranslatorInterface $translator
      *
      * @return Response
      */
-    public function videoAllowedTypesAction(Request $request, TranslatorInterface $translator)
+    public function videoAllowedTypesAction(Request $request)
     {
         $videoDef = new DataObject\ClassDefinition\Data\Video();
         $res = [];
@@ -2059,7 +2051,7 @@ class ClassController extends AdminAbstractController implements KernelControlle
         foreach ($videoDef->getSupportedTypes() as $type) {
             $res[] = [
                 'key' => $type,
-                'value' => $translator->trans($type, [], 'admin'),
+                'value' => $this->trans($type),
             ];
         }
 
