@@ -269,8 +269,6 @@ class Dao extends Model\Dao\AbstractDao
     public function create()
     {
         $this->db->insert('classes', ['name' => $this->model->getName(), 'id' => $this->model->getId()]);
-        // Update class name / id mapping in cache.
-        $this->getClassNameIdMap(true);
     }
 
     /**
