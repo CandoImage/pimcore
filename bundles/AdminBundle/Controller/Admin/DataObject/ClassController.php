@@ -15,9 +15,7 @@
 
 namespace Pimcore\Bundle\AdminBundle\Controller\Admin\DataObject;
 
-use Pimcore\Bundle\AdminBundle\Controller\AdminController;
-use Pimcore\Bundle\AdminBundle\HttpFoundation\JsonResponse;
-use Pimcore\Cache;
+use Pimcore\Bundle\AdminBundle\Controller\AdminAbstractController;
 use Pimcore\Controller\KernelControllerEventInterface;
 use Pimcore\Db;
 use Pimcore\Event\AdminEvents;
@@ -28,19 +26,21 @@ use Pimcore\Model\Document;
 use Pimcore\Model\Translation;
 use Pimcore\Tool\Session;
 use Symfony\Component\EventDispatcher\GenericEvent;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBagInterface;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * @Route("/class", name="pimcore_admin_dataobject_class_")
  *
  * @internal
  */
-class ClassController extends AdminController implements KernelControllerEventInterface
+class ClassController extends AdminAbstractController implements KernelControllerEventInterface
 {
     /**
      * @Route("/get-document-types", name="getdocumenttypes", methods={"GET"})
@@ -301,8 +301,6 @@ class ClassController extends AdminController implements KernelControllerEventIn
         $class->setId($classId);
 
         $class->save(true);
-        // clear cache to invalidate cache with class definitions
-        Cache::clearTags(['ClassDefinitionDao']);
 
         return $this->adminJson(['success' => true, 'id' => $class->getId()]);
     }
@@ -338,7 +336,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
         $data['isWriteable'] = $isWriteable;
 
         return $this->adminJson(['success' => true, 'id' => $customLayout->getId(), 'name' => $customLayout->getName(),
-                                 'data' => $data, ]);
+            'data' => $data, ]);
     }
 
     /**
@@ -353,8 +351,6 @@ class ClassController extends AdminController implements KernelControllerEventIn
         $class = DataObject\ClassDefinition::getById($request->get('id'));
         if ($class) {
             $class->delete();
-            // clear cache to invalidate cache with class definitions
-            Cache::clearTags(['ClassDefinitionDao']);
         }
 
         return new Response();
@@ -458,6 +454,14 @@ class ClassController extends AdminController implements KernelControllerEventIn
 
             $values['name'] = $this->correctClassname($values['name']);
             $class->rename($values['name']);
+        }
+
+        if ($values['compositeIndices']) {
+            foreach ($values['compositeIndices'] as $index => $compositeIndex) {
+                if ($compositeIndex['index_key'] !== ($sanitizedKey = preg_replace('/[^a-za-z0-9_\-+]/', '', $compositeIndex['index_key']))) {
+                    $values['compositeIndices'][$index]['index_key'] = $sanitizedKey;
+                }
+            }
         }
 
         unset($values['creationDate']);
@@ -662,7 +666,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
             if (isset($mapping[$class->getId()])) {
                 $classMapping = $mapping[$class->getId()];
                 $resultList[] = [
-                    'type' => 'master',
+                    'type' => 'main',
                     'id' => $class->getId() . '_' . 0,
                     'name' => $class->getName(),
                 ];
@@ -1949,7 +1953,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
         $result = [
             'suggestedIdentifier' => $maxId ? $maxId + 1 : 1,
             'existingIds' => $existingIds,
-            ];
+        ];
 
         return $this->adminJson($result);
     }
@@ -1984,7 +1988,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
             'suggestedIdentifier' => $identifier,
             'existingIds' => $existingIds,
             'existingNames' => $existingNames,
-            ];
+        ];
 
         return $this->adminJson($result);
     }
@@ -2005,7 +2009,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
         $textLayout = new DataObject\ClassDefinition\Layout\Text();
 
         $context = [
-          'data' => $request->get('renderingData'),
+            'data' => $request->get('renderingData'),
         ];
 
         if ($renderingClass = $request->get('renderingClass')) {
@@ -2040,10 +2044,11 @@ class ClassController extends AdminController implements KernelControllerEventIn
      * @Route("/video-supported-types", name="videosupportedTypestypes")
      *
      * @param Request $request
+     * @param TranslatorInterface $translator
      *
      * @return Response
      */
-    public function videoAllowedTypesAction(Request $request)
+    public function videoAllowedTypesAction(Request $request, TranslatorInterface $translator)
     {
         $videoDef = new DataObject\ClassDefinition\Data\Video();
         $res = [];
@@ -2051,7 +2056,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
         foreach ($videoDef->getSupportedTypes() as $type) {
             $res[] = [
                 'key' => $type,
-                'value' => $this->trans($type),
+                'value' => $translator->trans($type, [], 'admin'),
             ];
         }
 
