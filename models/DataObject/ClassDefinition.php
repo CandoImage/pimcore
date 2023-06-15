@@ -322,6 +322,8 @@ class ClassDefinition extends Model\AbstractModel
      */
     public function exists()
     {
+        // cache for class definitions needs to be cleared here to avoid wrong exists but still using the cache
+        Cache::clearTags(['ClassDefinitionDao']);
         $name = $this->getDao()->getNameById($this->getId());
 
         return is_string($name);

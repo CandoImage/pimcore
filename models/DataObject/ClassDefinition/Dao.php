@@ -44,11 +44,12 @@ class Dao extends Model\Dao\AbstractDao
      *
      * Mapping is actively updated as soon as a class is saved.
      *
+     * @param bool $skipCache
+     * @return array
      * @see self::save()
      *
-     * @return array
      */
-    protected function getClassNameIdMap($skipCache = false): array
+    protected function getClassNameIdMap(bool $skipCache = false): array
     {
         static $mapping;
         if ($skipCache || (!isset($mapping) && !is_array(($mapping = Cache::load(md5(__METHOD__)))))) {
@@ -314,6 +315,8 @@ class Dao extends Model\Dao\AbstractDao
 
         // clean slug table
         DataObject\Data\UrlSlug::handleClassDeleted($this->model->getId());
+        // Update class name / id mapping in cache.
+        $this->getClassNameIdMap(true);
     }
 
     /**
