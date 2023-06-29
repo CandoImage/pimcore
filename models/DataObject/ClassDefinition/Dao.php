@@ -15,6 +15,8 @@
 
 namespace Pimcore\Model\DataObject\ClassDefinition;
 
+use Pimcore\Cache;
+use Pimcore\Db\Helper;
 use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
@@ -40,6 +42,25 @@ class Dao extends Model\Dao\AbstractDao
     protected $tableDefinitions = null;
 
     /**
+     * Helper to minimize db queries used when looking up classes id / name.
+     *
+     * Mapping is actively updated as soon as a class is saved.
+     *
+     * @see self::save()
+     *
+     * @return array
+     */
+    protected function getClassNameIdMap($skipCache = false): array
+    {
+        static $mapping;
+        if ($skipCache || (!isset($mapping) && !is_array(($mapping = Cache::load(md5(__METHOD__)))))) {
+            $mapping = Helper::fetchPairs($this->db, 'SELECT id, name FROM classes');
+            Cache::save($mapping, md5(__METHOD__), ['ClassDefinitionDao']);
+        }
+        return $mapping;
+    }
+
+    /**
      * @param string $id
      *
      * @return string|null
@@ -48,9 +69,12 @@ class Dao extends Model\Dao\AbstractDao
     {
         try {
             if (!empty($id)) {
-                if ($name = $this->db->fetchOne('SELECT name FROM classes WHERE id = ?', [$id])) {
-                    return $name;
-                }
+                $mapping = $this->getClassNameIdMap();
+                return $mapping[$id] ?? null;
+
+//                if ($name = $this->db->fetchOne('SELECT name FROM classes WHERE id = ?', [$id])) {
+//                    return $name;
+//                }
             }
         } catch (\Exception $e) {
         }
@@ -71,7 +95,12 @@ class Dao extends Model\Dao\AbstractDao
 
         try {
             if (!empty($name)) {
-                $id = $this->db->fetchOne('SELECT id FROM classes WHERE name = ?', [$name]);
+                $mapping = $this->getClassNameIdMap();
+                if (($v = array_search($name, $mapping, true)) !== false) {
+                    $id = $v;
+                }
+//                $id = $this->db->fetchOne('SELECT id FROM classes WHERE name = ?', [$name]);
+
             }
         } catch (\Exception $e) {
         }
@@ -97,6 +126,9 @@ class Dao extends Model\Dao\AbstractDao
         }
 
         $this->update();
+
+        // Update class name / id mapping in cache.
+        $this->getClassNameIdMap(true);
     }
 
     /**
