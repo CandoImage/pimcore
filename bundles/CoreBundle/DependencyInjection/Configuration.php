@@ -219,6 +219,7 @@ final class Configuration implements ConfigurationInterface
                         ->info('Integer value in seconds.')
                         ->defaultValue(1800)
                     ->end()
+                ->end()
                 ->arrayNode('cleanup_directory')
                 ->addDefaultsIfNotSet()
                 ->children()
@@ -231,6 +232,7 @@ final class Configuration implements ConfigurationInterface
                         ->defaultValue([])
                         ->variablePrototype()
                     ->end()
+                ->end()
             ->end()
         ;
     }
