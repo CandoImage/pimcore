@@ -229,7 +229,7 @@ final class Configuration implements ConfigurationInterface
                     ->end()
                     ->scalarNode('cleanup_directories')
                         ->info('Directories to cleanup.')
-                        ->defaultValue(['hans', 'test'])
+//                        ->defaultValue(['hans', 'test'])
                     ->end()
                 ->end()
             ->end()
