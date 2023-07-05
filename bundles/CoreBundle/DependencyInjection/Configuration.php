@@ -224,7 +224,7 @@ final class Configuration implements ConfigurationInterface
                         ->arrayNode('cleanup_directory')
                             ->addDefaultsIfNotSet()
                             ->children()
-                                ->integerNode('cleanup_tmp_files_atime_older_than')
+                                ->integerNode('cleanup_files_atime_older_than')
                                     ->info('Integer value in seconds.')
                                     ->defaultValue(7_776_000) // 90 days
                                 ->end()
