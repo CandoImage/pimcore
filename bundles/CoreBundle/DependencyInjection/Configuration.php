@@ -228,6 +228,12 @@ final class Configuration implements ConfigurationInterface
                                     ->info('Integer value in seconds.')
                                     ->defaultValue(7_776_000) // 90 days
                                 ->end()
+                                ->arrayNode('directories')
+                                    ->info('Directories to cleanup.')
+                                    ->scalarPrototype()->end()
+                                    ->defaultValue([])
+                                    ->end()
+                                ->end()
                             ->end()
                         ->end()
                     ->end()
