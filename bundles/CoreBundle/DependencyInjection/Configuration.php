@@ -221,7 +221,6 @@ final class Configuration implements ConfigurationInterface
                                 ->end()
                             ->end()
                         ->end()
-                        ->end()
                         ->arrayNode('cleanup_directory')
                             ->addDefaultsIfNotSet()
                             ->children()
@@ -229,8 +228,9 @@ final class Configuration implements ConfigurationInterface
                                     ->info('Integer value in seconds.')
                                     ->defaultValue(7_776_000) // 90 days
                                 ->end()
-                                ->scalarNode('cleanup_directories')
+                                ->arrayNode('cleanup_directories')
                                     ->info('Directories to cleanup.')
+                                    ->prototype('scalar')->end()
                                 ->end()
                             ->end()
                         ->end()
