@@ -228,9 +228,9 @@ final class Configuration implements ConfigurationInterface
                         ->defaultValue(7_776_000) // 90 days
                     ->end()
                     ->arrayNode('cleanup_directories')
-                        ->defaultValue(['directory' => null])
                         ->info('Directories to cleanup.')
                         ->variablePrototype()->end()
+                        ->defaultValue([])
                     ->end()
                 ->end()
             ->end()
