@@ -46,6 +46,7 @@ final class HousekeepingTask implements TaskInterface
     public function execute()
     {
         $this->deleteFilesInFolderOlderThanSeconds(PIMCORE_TEMPORARY_DIRECTORY, $this->tmpFileTime);
+        $this->deleteFilesInFolderOlderThanSeconds(PIMCORE_SYSTEM_TEMP_DIRECTORY, $this->tmpFileTime);
 
         $environments = Config::getEnvironmentConfig()->getProfilerHousekeepingEnvironments();
 
