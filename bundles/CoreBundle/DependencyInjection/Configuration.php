@@ -231,7 +231,7 @@ final class Configuration implements ConfigurationInterface
                                 ->arrayNode('directories')
                                     ->info('Directories to cleanup.')
                                     ->scalarPrototype()->end()
-                                    ->defaultValue([])
+                                    ->defaultValue([PIMCORE_PRIVATE_VAR. '/tmp', PIMCORE_WEB_ROOT . '/var/tmp'])
                                     ->end()
                                 ->end()
                             ->end()
