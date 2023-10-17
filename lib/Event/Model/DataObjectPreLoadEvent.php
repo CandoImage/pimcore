@@ -39,7 +39,7 @@ class DataObjectPreLoadEvent extends Event implements ElementEventInterface
 
     public function getObject(): AbstractObject
     {
-        if ($this->object === null) {
+        if (is_null($this->object)) {
             throw new NotFoundException();
         }
         return $this->object;

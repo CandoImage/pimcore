@@ -39,7 +39,7 @@ class DocumentPreLoadEvent extends Event implements ElementEventInterface
 
     public function getDocument(): Document
     {
-        if ($this->document === null) {
+        if (is_null($this->document)) {
             throw new NotFoundException();
         }
         return $this->document;
