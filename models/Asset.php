@@ -17,6 +17,7 @@ namespace Pimcore\Model;
 
 use Doctrine\DBAL\Exception\DeadlockException;
 use Exception;
+use Pimcore\Event\Model\AssetPreLoadEvent;
 use function is_array;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
@@ -283,6 +284,11 @@ class Asset extends Element\AbstractElement
 
             try {
                 $asset->getDao()->getById($id);
+                // fire pre load event
+                $preLoadEvent = new AssetPreLoadEvent($asset, ['params' => $params]);
+                \Pimcore::getEventDispatcher()->dispatch($preLoadEvent, AssetEvents::PRE_LOAD);
+                $asset = $preLoadEvent->getAsset();
+
                 $className = 'Pimcore\\Model\\Asset\\' . ucfirst($asset->getType());
                 /** @var Asset $newAsset */
                 $newAsset = self::getModelFactory()->build($className);
