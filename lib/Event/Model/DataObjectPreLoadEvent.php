@@ -25,7 +25,7 @@ class DataObjectPreLoadEvent extends Event implements ElementEventInterface
 {
     use ArgumentsAwareTrait;
 
-    protected ?AbstractObject $object = null;
+    protected ?AbstractObject $object;
 
     /**
      * DataObjectEvent constructor.
@@ -39,7 +39,7 @@ class DataObjectPreLoadEvent extends Event implements ElementEventInterface
 
     public function getObject(): AbstractObject
     {
-        if (is_null($this->object)) {
+        if ($this->object === null) {
             throw new NotFoundException();
         }
         return $this->object;

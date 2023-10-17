@@ -25,7 +25,7 @@ class AssetPreLoadEvent extends Event implements ElementEventInterface
 {
     use ArgumentsAwareTrait;
 
-    protected ?Asset $asset = null;
+    protected ?Asset $asset;
 
     /**
      * AssetEvent constructor.
@@ -40,7 +40,7 @@ class AssetPreLoadEvent extends Event implements ElementEventInterface
 
     public function getAsset(): Asset
     {
-        if (is_null($this->asset)) {
+        if ($this->asset === null) {
             throw new NotFoundException();
         }
         return $this->asset;

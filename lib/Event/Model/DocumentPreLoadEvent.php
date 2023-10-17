@@ -25,7 +25,7 @@ class DocumentPreLoadEvent extends Event implements ElementEventInterface
 {
     use ArgumentsAwareTrait;
 
-    protected ?Document $document = null;
+    protected ?Document $document;
 
     /**
      * DocumentEvent constructor.
@@ -39,7 +39,7 @@ class DocumentPreLoadEvent extends Event implements ElementEventInterface
 
     public function getDocument(): Document
     {
-        if (is_null($this->document)) {
+        if ($this->document === null) {
             throw new NotFoundException();
         }
         return $this->document;
