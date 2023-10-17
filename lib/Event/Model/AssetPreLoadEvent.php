@@ -40,7 +40,7 @@ class AssetPreLoadEvent extends Event implements ElementEventInterface
 
     public function getAsset(): Asset
     {
-        echo getType($this->asset);
+        $type = getType($this->asset);
         if ($this->asset === null) {
             throw new NotFoundException();
         }
