@@ -22,6 +22,7 @@ use Pimcore\Cache\RuntimeCache;
 use Pimcore\Db;
 use Pimcore\Event\DataObjectEvents;
 use Pimcore\Event\Model\DataObjectEvent;
+use Pimcore\Event\Model\DataObjectPreLoadEvent;
 use Pimcore\Logger;
 use Pimcore\Model;
 use Pimcore\Model\DataObject;
@@ -399,6 +400,11 @@ abstract class AbstractObject extends Model\Element\AbstractElement
                     $object = self::getModelFactory()->build($className);
                     RuntimeCache::set($cacheKey, $object);
                     $object->getDao()->getById($id);
+                    // fire pre load event
+                    $preLoadEvent = new DataObjectPreLoadEvent($object, ['params' => $params]);
+                    \Pimcore::getEventDispatcher()->dispatch($preLoadEvent, DataObjectEvents::PRE_LOAD);
+                    $object = $preLoadEvent->getObject();
+
                     $object->__setDataVersionTimestamp($object->getModificationDate());
 
                     Service::recursiveResetDirtyMap($object);
@@ -416,6 +422,15 @@ abstract class AbstractObject extends Model\Element\AbstractElement
                 return null;
             }
         } else {
+            try {
+                // fire pre load event
+                $preLoadEvent = new DataObjectPreLoadEvent($object, ['params' => $params]);
+                \Pimcore::getEventDispatcher()->dispatch($preLoadEvent, DataObjectEvents::PRE_LOAD);
+                $object = $preLoadEvent->getObject();
+            } catch (Model\Exception\NotFoundException $e) {
+                return null;
+            }
+
             RuntimeCache::set($cacheKey, $object);
         }
 
