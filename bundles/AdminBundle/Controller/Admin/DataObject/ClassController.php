@@ -414,7 +414,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
             $customLayout->save();
 
             return $this->adminJson(['success' => true, 'id' => $customLayout->getId(), 'data' => $customLayout->getObjectVars()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error($e->getMessage());
 
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
@@ -494,7 +494,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
             $class->setFieldDefinitions([]);
 
             return $this->adminJson(['success' => true, 'class' => $class]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error($e->getMessage());
 
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
@@ -577,7 +577,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
                     $customLayout->setDescription($importData['description']);
                     $customLayout->save();
                     $success = true;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::error($e->getMessage());
                 }
             }
@@ -813,7 +813,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
             $fcDef->save();
 
             return $this->adminJson(['success' => true, 'id' => $fcDef->getKey()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error($e->getMessage());
 
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
@@ -1209,7 +1209,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
             $brickDef->save();
 
             return $this->adminJson(['success' => true, 'id' => $brickDef->getKey()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error($e->getMessage());
 
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
@@ -1652,7 +1652,7 @@ class ClassController extends AdminController implements KernelControllerEventIn
                         $layoutDef = DataObject\ClassDefinition\Service::generateLayoutTreeFromArray($item['layoutDefinitions'], true);
                         $layoutDefinition->setLayoutDefinitions($layoutDef);
                         $layoutDefinition->save();
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Logger::error($e->getMessage());
 
                         return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);

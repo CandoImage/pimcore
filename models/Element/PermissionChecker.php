@@ -131,7 +131,7 @@ class PermissionChecker
                             continue;
                         }
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::warn('Unable to get permission '.$type.' for object '.$element->getId());
                 }
             }

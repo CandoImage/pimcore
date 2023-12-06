@@ -246,7 +246,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
             }
 
             return $codeSets;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         return false;
@@ -532,7 +532,7 @@ class Pattern extends AbstractTokenManager implements ExportableTokenManagerInte
 
         try {
             $tokens->setFilterConditions($params['id'], $params);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->template = '@PimcoreEcommerceFramework/voucher/voucher_code_tab_error.html.twig';
             $viewParamsBag['errors'][] = $e->getMessage() . ' | Error-Code: ' . $e->getCode();
         }

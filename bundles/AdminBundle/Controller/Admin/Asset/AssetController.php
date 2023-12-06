@@ -357,7 +357,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
             }
 
             return $this->adminJson($response);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -389,7 +389,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
             $response->headers->set('Content-Type', 'text/html');
 
             return $response;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -460,7 +460,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                     $newParent = Asset\Service::createFolderByPath($newPath);
 
                     break;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     if ($retries < ($maxRetries - 1)) {
                         $waitTime = rand(100000, 900000); // microseconds
                         usleep($waitTime); // wait specified time until we restart the transaction
@@ -766,7 +766,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                     $tmpAsset['imageWidth'] = $asset->getCustomSetting('imageWidth');
                     $tmpAsset['imageHeight'] = $asset->getCustomSetting('imageHeight');
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::debug('Cannot get dimensions of image, seems to be broken.');
             }
         } elseif ($asset->getType() == 'video') {
@@ -774,7 +774,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                 if (\Pimcore\Video::isAvailable()) {
                     $tmpAsset['thumbnail'] = $this->getThumbnailUrl($asset, ['origin' => 'treeNode']);
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::debug('Cannot get dimensions of video, seems to be broken.');
             }
         } elseif ($asset->getType() == 'document') {
@@ -783,7 +783,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                 if (\Pimcore\Document::isAvailable() && \Pimcore\Document::isFileTypeSupported($asset->getFilename())) {
                     $tmpAsset['thumbnail'] = $this->getThumbnailUrl($asset, ['origin' => 'treeNode']);
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::debug('Cannot get dimensions of video, seems to be broken.');
             }
         }
@@ -893,7 +893,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                 try {
                     $asset->save();
                     $success = true;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                 }
             } else {
@@ -908,7 +908,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                 $asset->setFilename($request->get('filename'));
                 $asset->save();
                 $success = true;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         } else {
@@ -944,7 +944,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
             $server->addPlugin(new \Sabre\DAV\Browser\Plugin());
 
             $server->start();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error((string) $e);
         }
 
@@ -1005,7 +1005,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                             $property->setInheritable($propertyData['inheritable']);
 
                             $properties[$propertyName] = $property;
-                        } catch (\Exception $e) {
+                        } catch (\Throwable $e) {
                             Logger::err("Can't add " . $propertyName . ' to asset ' . $asset->getRealFullPath());
                         }
                     }
@@ -1081,7 +1081,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                 $treeData = $this->getTreeNodeConfig($asset);
 
                 return $this->adminJson(['success' => true, 'treeData' => $treeData]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         }
@@ -1635,7 +1635,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
             try {
                 $document = \Pimcore\Document::getInstance();
                 $stream = $document->getPdf($asset);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // nothing to do
             }
         }
@@ -2669,7 +2669,7 @@ class AssetController extends ElementControllerBase implements KernelControllerE
                     }
 
                     return $this->adminJson(['success' => false, 'message' => 'something went wrong.']);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                 }
             }

@@ -1235,7 +1235,7 @@ class TestDataHelper extends AbstractTestDataHelper
             $object->$setter($invalidValue);
             $object->save();
             $this->fail('expected a ValidationException');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->assertInstanceOf(ValidationException::class, $e);
         }
     }
@@ -1254,7 +1254,7 @@ class TestDataHelper extends AbstractTestDataHelper
             $object->$setter($invalidValue);
             $object->save();
             $this->fail('expected a ValidationException');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->assertInstanceOf(ValidationException::class, $e);
         }
     }
@@ -1273,7 +1273,7 @@ class TestDataHelper extends AbstractTestDataHelper
             $object->$setter($invalidValue);
             $object->save();
             $this->fail('expected a ValidationException');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->assertInstanceOf(ValidationException::class, $e);
         }
 

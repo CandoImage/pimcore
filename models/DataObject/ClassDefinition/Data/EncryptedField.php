@@ -125,7 +125,7 @@ class EncryptedField extends Data implements ResourcePersistenceAwareInterface, 
 
             try {
                 $key = Key::loadFromAsciiSafeString($key);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 throw new \Exception('Could not find config "pimcore.encryption.secret". Please run "vendor/bin/generate-defuse-key" from command line and add the result to config/config.yaml');
             }
             // store it in raw binary mode to preserve space
@@ -158,7 +158,7 @@ class EncryptedField extends Data implements ResourcePersistenceAwareInterface, 
 
                 try {
                     $key = Key::loadFromAsciiSafeString($key);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     if (!self::isStrictMode()) {
                         Logger::error('failed to load key');
 
@@ -179,7 +179,7 @@ class EncryptedField extends Data implements ResourcePersistenceAwareInterface, 
                 }
 
                 return $data;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::error((string) $e);
                 if (self::isStrictMode()) {
                     throw new \Exception('encrypted field ' . $this->getName() . ' cannot be decoded');

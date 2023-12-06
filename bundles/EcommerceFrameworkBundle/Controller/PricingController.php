@@ -153,7 +153,7 @@ class PricingController extends AdminController implements KernelControllerEvent
 
             $return['success'] = true;
             $return['id'] = $rule->getId();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $return['message'] = $e->getMessage();
         }
 
@@ -183,7 +183,7 @@ class PricingController extends AdminController implements KernelControllerEvent
             $rule = Rule::getById((int) $request->get('id'));
             $rule->delete();
             $return['success'] = true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $return['message'] = $e->getMessage();
         }
 
@@ -236,7 +236,7 @@ class PricingController extends AdminController implements KernelControllerEvent
             $newRule->save();
 
             $return['success'] = true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $return['message'] = $e->getMessage();
         }
 
@@ -377,7 +377,7 @@ class PricingController extends AdminController implements KernelControllerEvent
             // finish
             $return['success'] = true;
             $return['id'] = $rule->getId();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $return['message'] = $e->getMessage();
         }
 

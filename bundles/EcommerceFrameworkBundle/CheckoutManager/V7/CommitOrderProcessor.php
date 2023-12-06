@@ -133,7 +133,7 @@ class CommitOrderProcessor implements CommitOrderProcessorInterface, LoggerAware
         // this needs to be in a try-catch block
         try {
             $paymentStatus = $paymentProvider->handleResponse($paymentResponseParams);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::err((string) $e);
 
             //create payment status with error message and cancelled payment
@@ -304,7 +304,7 @@ class CommitOrderProcessor implements CommitOrderProcessorInterface, LoggerAware
 
         try {
             $this->sendConfirmationMail($order);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error('Error during sending confirmation e-mail: ' . $e);
         }
 

@@ -47,7 +47,7 @@ class TagsController extends AdminController
             $tag->save();
 
             return $this->adminJson(['success' => true, 'id' => $tag->getId()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
         }
     }

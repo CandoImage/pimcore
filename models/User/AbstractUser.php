@@ -212,7 +212,7 @@ class AbstractUser extends Model\AbstractModel
             $this->update();
 
             $this->commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->rollBack();
 
             throw $e;

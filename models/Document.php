@@ -419,7 +419,7 @@ class Document extends Element\AbstractElement
                     $this->commit();
 
                     break; // transaction was successfully completed, so we cancel the loop here -> no restart required
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     try {
                         $this->rollBack();
                     } catch (\Exception $er) {
@@ -465,7 +465,7 @@ class Document extends Element\AbstractElement
             }
 
             return $this;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $failureEvent = new DocumentEvent($this, $params);
             $failureEvent->setArgument('exception', $e);
             if ($isUpdate) {
@@ -606,7 +606,7 @@ class Document extends Element\AbstractElement
             $tags = array_merge($tags, $additionalTags);
 
             \Pimcore\Cache::clearTags($tags);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::crit((string) $e);
         }
     }
@@ -789,7 +789,7 @@ class Document extends Element\AbstractElement
                     $parent->setChildren(null);
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->rollBack();
             $failureEvent = new DocumentEvent($this);
             $failureEvent->setArgument('exception', $e);
@@ -826,7 +826,7 @@ class Document extends Element\AbstractElement
                     }
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error((string) $e);
         }
 
@@ -952,7 +952,7 @@ class Document extends Element\AbstractElement
                     }
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error((string) $e);
         }
 

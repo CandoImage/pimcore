@@ -47,7 +47,7 @@ class Dao extends Model\Dao\AbstractDao
             ]);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }

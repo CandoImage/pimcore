@@ -30,7 +30,7 @@ class CompositeIndexTest extends ModelTestCase
         try {
             $db->executeQuery('ALTER TABLE `object_query_' . $classId . '` DROP INDEX `mycomposite`');
             $this->fail('expected that the index does not exist yet');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         $definition = ClassDefinition::getById($classId);

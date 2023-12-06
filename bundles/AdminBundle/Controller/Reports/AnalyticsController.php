@@ -109,7 +109,7 @@ class AnalyticsController extends ReportsControllerBase implements KernelControl
             }
 
             return $this->adminJson($data);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson(false);
         }
     }

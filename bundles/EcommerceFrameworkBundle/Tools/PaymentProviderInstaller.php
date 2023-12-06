@@ -74,7 +74,7 @@ class PaymentProviderInstaller extends AbstractInstaller
             foreach ($this->bricksToInstall as $brickKey => $brickFile) {
                 $installed = Objectbrick\Definition::getByKey($brickKey);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // nothing to do
         }
 
@@ -110,7 +110,7 @@ class PaymentProviderInstaller extends AbstractInstaller
     {
         try {
             $brick = Objectbrick\Definition::getByKey($brickKey);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $brick = null;
         }
 

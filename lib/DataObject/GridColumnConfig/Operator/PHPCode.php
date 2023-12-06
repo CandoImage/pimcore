@@ -78,7 +78,7 @@ final class PHPCode extends AbstractOperator
     {
         try {
             return $this->getInstance()->getLabeledValue($element);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return null;
         }
     }

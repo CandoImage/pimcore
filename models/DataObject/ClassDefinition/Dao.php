@@ -52,7 +52,7 @@ class Dao extends Model\Dao\AbstractDao
             if (!empty($id)) {
                 $name = $this->db->fetchOne('SELECT name FROM classes WHERE id = ?', [$id]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         return $name;
@@ -73,7 +73,7 @@ class Dao extends Model\Dao\AbstractDao
             if (!empty($name)) {
                 $id = $this->db->fetchOne('SELECT id FROM classes WHERE name = ?', [$name]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         if (empty($id)) {
@@ -223,7 +223,7 @@ class Dao extends Model\Dao\AbstractDao
         try {
             //$this->db->executeQuery('CREATE OR REPLACE VIEW `' . $objectView . '` AS SELECT * FROM `objects` left JOIN `' . $objectTable . '` ON `objects`.`o_id` = `' . $objectTable . '`.`oo_id` WHERE `objects`.`o_classId` = ' . $this->model->getId() . ';');
             $this->db->executeQuery('CREATE OR REPLACE VIEW `' . $objectView . '` AS SELECT * FROM `' . $objectTable . '` JOIN `objects` ON `objects`.`o_id` = `' . $objectTable . '`.`oo_id`;');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::debug((string) $e);
         }
 
@@ -320,7 +320,7 @@ class Dao extends Model\Dao\AbstractDao
             if (!empty($id)) {
                 $name = $this->db->fetchOne('SELECT name FROM classes WHERE LOWER(id) = ?', [strtolower($id)]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         return $name;

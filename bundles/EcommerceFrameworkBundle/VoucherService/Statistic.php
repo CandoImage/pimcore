@@ -81,7 +81,7 @@ class Statistic extends \Pimcore\Model\AbstractModel
             $result = Helper::fetchPairs($db, $query, $params);
 
             return $result;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             //            \Pimcore\Log\Simple::log('VoucherService',$e);
             return false;
         }
@@ -100,7 +100,7 @@ class Statistic extends \Pimcore\Model\AbstractModel
             $db->executeQuery('INSERT INTO ' . \Pimcore\Bundle\EcommerceFrameworkBundle\VoucherService\Statistic\Dao::TABLE_NAME . ' (voucherSeriesId,date) VALUES (?,NOW())', [(int)$seriesId]);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             //            \Pimcore\Log\Simple::log('VoucherService',$e);
             return false;
         }
@@ -128,7 +128,7 @@ class Statistic extends \Pimcore\Model\AbstractModel
             $db->executeQuery($query, $params);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }

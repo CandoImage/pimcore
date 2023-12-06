@@ -103,7 +103,7 @@ class Token extends AbstractModel
 
             return $tokenUsed >= $maxUsages;
             // If an Error occurs the token is defined as used.
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return true;
         }
     }

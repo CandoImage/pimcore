@@ -258,7 +258,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
                 // relation needs to be an array with src_id, dest_id, type, fieldname
                 try {
                     $db->insert(Model\DataObject\Data\UrlSlug::TABLE_NAME, $slug);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::error((string) $e);
                     if ($e instanceof UniqueConstraintViolationException) {
 
@@ -270,7 +270,7 @@ class UrlSlug extends Data implements CustomResourcePersistingInterface, LazyLoa
                             // retrying the transaction should success the next time
                             try {
                                 $existingSlug->getAction();
-                            } catch (\Exception $e) {
+                            } catch (\Throwable $e) {
                                 $db->insert(Model\DataObject\Data\UrlSlug::TABLE_NAME, $slug);
 
                                 return;

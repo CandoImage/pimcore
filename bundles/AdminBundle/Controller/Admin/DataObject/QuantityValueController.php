@@ -203,7 +203,7 @@ class QuantityValueController extends AdminController
                         true));
                 }
                 $result[] = $unit->getObjectVars();
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // nothing to do ...
             }
         }
@@ -232,7 +232,7 @@ class QuantityValueController extends AdminController
 
         try {
             $convertedValue = $conversionService->convert(new QuantityValue($request->get('value'), $fromUnit), $toUnit);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson(['success' => false]);
         }
 
@@ -267,7 +267,7 @@ class QuantityValueController extends AdminController
                 $convertedValue = $conversionService->convert(new QuantityValue($request->get('value'), $fromUnit), $targetUnit);
 
                 $convertedValues[] = ['unit' => $targetUnit->getAbbreviation(), 'unitName' => $targetUnit->getLongname(), 'value' => round($convertedValue->getValue(), 4)];
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         }

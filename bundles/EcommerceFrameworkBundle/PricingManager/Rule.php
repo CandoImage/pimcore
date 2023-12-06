@@ -41,7 +41,7 @@ class Rule extends AbstractModel implements RuleInterface
 
         try {
             $rule = RuntimeCache::get($cacheKey);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             try {
                 $ruleClass = get_called_class();
                 /** @var Rule $rule */

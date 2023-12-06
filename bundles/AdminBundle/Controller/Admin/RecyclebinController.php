@@ -194,7 +194,7 @@ class RecyclebinController extends AdminController implements KernelControllerEv
                     Recyclebin\Item::create($element, $this->getAdminUser());
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
         }
 

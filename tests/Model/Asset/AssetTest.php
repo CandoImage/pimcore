@@ -158,7 +158,7 @@ class AssetTest extends ModelTestCase
         // clean the thumbnails
         try {
             $stream = $thumbnail->getStream();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $stream = null;
         }
 
@@ -168,7 +168,7 @@ class AssetTest extends ModelTestCase
 
         try {
             $stream1 = $thumbnail->getStream();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $stream1 = null;
         }
 

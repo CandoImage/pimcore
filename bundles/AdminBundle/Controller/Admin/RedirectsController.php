@@ -258,7 +258,7 @@ class RedirectsController extends AdminController
             }
 
             return $this->adminJson(['success' => true]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error($e->getMessage());
 
             return $this->adminJson(['success' => false]);

@@ -108,7 +108,7 @@ class NewsletterController extends FrontendController
                 $user->save();
 
                 $success = true;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 echo $e->getMessage();
             }
         }

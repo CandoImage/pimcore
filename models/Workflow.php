@@ -119,7 +119,7 @@ class Workflow extends AbstractModel
             if (!$workflow) {
                 throw new \Exception('Workflow in registry is null');
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             try {
                 $workflow = new self();
                 \Pimcore\Cache\RuntimeCache::set($cacheKey, $workflow);

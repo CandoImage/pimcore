@@ -85,7 +85,7 @@ class SettingsController extends AdminController
             try {
                 $mime = $storage->mimeType(self::CUSTOM_LOGO_PATH);
                 $stream = $storage->readStream(self::CUSTOM_LOGO_PATH);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // do nothing
             }
         }
@@ -451,7 +451,7 @@ class SettingsController extends AdminController
         try {
             $file = Config::locateConfigFile('system.yml');
             $existingValues = Config::getConfigInstance($file, true);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // nothing to do
         }
 

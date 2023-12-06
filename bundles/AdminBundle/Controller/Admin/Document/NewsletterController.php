@@ -397,7 +397,7 @@ class NewsletterController extends DocumentControllerBase
         try {
             $mail = Newsletter::prepareMail($document);
             Newsletter::sendNewsletterDocumentBasedMail($mail, $sendingContainer);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson([
                 'success' => false,
                 'error' => $e->getMessage(),

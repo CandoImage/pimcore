@@ -105,7 +105,7 @@ class Cart extends AbstractCart implements CartInterface
 
         try {
             $cart = RuntimeCache::get($cacheKey);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             try {
                 $cartClass = get_called_class();
                 /** @var Cart $cart */

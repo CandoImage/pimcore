@@ -269,7 +269,7 @@ class ExtensionManagerController extends AdminController implements KernelContro
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 404);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -354,7 +354,7 @@ class ExtensionManagerController extends AdminController implements KernelContro
             $bundle->setContainer(\Pimcore::getContainer());
 
             return $bundle;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error('Failed to build instance of bundle {bundle}: {error}', [
                 'bundle' => $bundleName,
                 'error' => $e->getMessage(),

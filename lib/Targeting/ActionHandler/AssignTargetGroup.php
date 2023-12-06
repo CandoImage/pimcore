@@ -132,7 +132,7 @@ class AssignTargetGroup implements ActionHandlerInterface
                 self::STORAGE_KEY,
                 $data
             );
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
 

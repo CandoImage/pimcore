@@ -130,7 +130,7 @@ abstract class Processor
             $document->setLastGenerated((time() + 1));
             $document->setLastGenerateMessage('');
             $document->save();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::err((string) $e);
             $document->setLastGenerateMessage($e->getMessage());
             $document->save();

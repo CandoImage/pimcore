@@ -85,7 +85,7 @@ class OptimizedMysql extends AbstractMockupCacheWorker implements BatchProcessin
             $this->deleteFromMockupCache($objectId);
             $this->deleteFromStoreTable($objectId);
             $this->db->commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->db->rollBack();
             Logger::warn("Error during deleting from index tables for object $objectId: " . $e);
         }
@@ -144,7 +144,7 @@ class OptimizedMysql extends AbstractMockupCacheWorker implements BatchProcessin
                 $this->saveToMockupCache($objectId, $data);
 
                 $this->db->commit();
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $this->db->rollBack();
                 Logger::warn("Error during updating index table for object $objectId: " . $e->getMessage());
             }

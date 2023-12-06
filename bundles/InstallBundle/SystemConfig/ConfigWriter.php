@@ -72,7 +72,7 @@ final class ConfigWriter
 
                     break;
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
             }
         }
 

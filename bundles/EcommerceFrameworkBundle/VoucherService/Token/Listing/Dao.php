@@ -57,7 +57,7 @@ class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
                 $this->getCondition(),
                 $this->model->getConditionVariables()
             );
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return 0;
         }
     }

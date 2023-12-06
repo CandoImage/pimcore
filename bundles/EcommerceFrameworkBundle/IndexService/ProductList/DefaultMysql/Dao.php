@@ -278,7 +278,7 @@ class Dao
             } else {
                 throw new \Exception('Field array for given object id is empty');
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error((string) $e);
 
             return '';

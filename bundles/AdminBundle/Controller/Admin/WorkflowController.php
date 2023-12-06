@@ -92,7 +92,7 @@ class WorkflowController extends AdminController implements KernelControllerEven
                     $wfConfig['additional_fields'] = [];
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $wfConfig['message'] = $e->getMessage();
         }
 
@@ -133,7 +133,7 @@ class WorkflowController extends AdminController implements KernelControllerEven
                     'reasons' => [$reason],
 
                 ];
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $data = [
                     'success' => false,
                     'message' => 'error performing action on this element',
@@ -190,7 +190,7 @@ class WorkflowController extends AdminController implements KernelControllerEven
                 'reasons' => [$reason],
 
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $data = [
                 'success' => false,
                 'message' => 'error performing action on this element',

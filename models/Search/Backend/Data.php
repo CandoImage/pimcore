@@ -480,7 +480,7 @@ class Data extends \Pimcore\Model\AbstractModel
                             $contentText = preg_replace('/[ ]+/', ' ', $contentText);
                             $this->data .= ' ' . $contentText;
                         }
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Logger::error((string) $e);
                     }
                 }
@@ -492,7 +492,7 @@ class Data extends \Pimcore\Model\AbstractModel
                         $contentText = Encoding::toUTF8($contentText);
                         $this->data .= ' ' . $contentText;
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::error((string) $e);
                 }
             } elseif ($element instanceof Asset\Image) {
@@ -505,7 +505,7 @@ class Data extends \Pimcore\Model\AbstractModel
                             $this->data .= ' ' . $key . ' : ' . $value;
                         }
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::error((string) $e);
                 }
             }
@@ -612,7 +612,7 @@ class Data extends \Pimcore\Model\AbstractModel
                     $this->getDao()->save();
                     // successfully completed, so we cancel the loop here -> no restart required
                     break;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     // we try to start saving $maxRetries times again (deadlocks, ...)
                     if ($retries < ($maxRetries - 1)) {
                         $run = $retries + 1;

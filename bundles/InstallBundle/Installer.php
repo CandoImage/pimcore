@@ -257,7 +257,7 @@ class Installer
             if (count($errors) > 0) {
                 return $errors;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $errors[] = sprintf('Couldn\'t establish connection to MySQL: %s', $e->getMessage());
 
             return $errors;
@@ -624,7 +624,7 @@ class Installer
 
                     $this->createOrUpdateUser($userCredentials);
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $this->logger->error((string) $e);
                 $errors[] = $e->getMessage();
             }

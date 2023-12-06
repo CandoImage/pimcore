@@ -49,7 +49,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
     {
         try {
             return (int) $this->db->fetchOne('SELECT COUNT(*) FROM targeting_target_groups ' . $this->getCondition(), $this->model->getConditionVariables());
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return 0;
         }
     }

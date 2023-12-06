@@ -133,7 +133,7 @@ class Reservation extends AbstractModel
             $db->executeQuery($query, $params);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -168,7 +168,7 @@ class Reservation extends AbstractModel
             $db->executeQuery($query, $params);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -186,7 +186,7 @@ class Reservation extends AbstractModel
 
         try {
             return (bool)$db->fetchOne($query, [$code, $cart->getId()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -205,7 +205,7 @@ class Reservation extends AbstractModel
             $count = $db->fetchOne($query, [$code]);
 
             return (int)$count;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }

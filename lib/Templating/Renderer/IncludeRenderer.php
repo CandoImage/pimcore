@@ -74,13 +74,13 @@ class IncludeRenderer
         if (is_numeric($include)) {
             try {
                 $include = Model\Document::getById($include);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $include = $originalInclude;
             }
         } elseif (is_string($include)) {
             try {
                 $include = Model\Document::getByPath($include);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $include = $originalInclude;
             }
         }
@@ -179,7 +179,7 @@ class IncludeRenderer
 
             $html->clear();
             unset($html);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // add a div container if the include doesn't contain markup/html
             $content = '<div class="' . $editmodeClass . '" pimcore_id="' . $include->getId() . '" pimcore_type="' . $include->getType() . '">' . $content . '</div>';
         }

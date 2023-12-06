@@ -52,7 +52,7 @@ class DisableCommand extends AbstractBundleCommand
             $this->bundleManager->disable($bundle);
 
             $this->io->success(sprintf('Bundle "%s" was successfully disabled', $bundle->getName()));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->handlePrerequisiteError($e->getMessage());
         }
 

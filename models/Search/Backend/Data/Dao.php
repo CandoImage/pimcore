@@ -48,7 +48,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
                 $this->assignVariablesToModel($data);
                 $this->model->setId(new Model\Search\Backend\Data\Id($element));
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
     }
 
@@ -73,7 +73,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
             ];
 
             Helper::insertOrUpdate($this->db, 'search_backend_data', $data);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error((string) $e);
         }
     }
@@ -97,7 +97,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
     {
         try {
             return $this->db->fetchOne('SELECT @@innodb_ft_min_token_size');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return 3;
         }
     }
@@ -106,7 +106,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
     {
         try {
             return $this->db->fetchOne('SELECT @@innodb_ft_max_token_size');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return 84;
         }
     }

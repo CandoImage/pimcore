@@ -102,7 +102,7 @@ final class Console
             if (!empty($systemConfig['path_variable'])) {
                 $paths = explode(PATH_SEPARATOR, $systemConfig['path_variable']);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warning((string) $e);
         }
 
@@ -132,7 +132,7 @@ final class Console
                         return $fullQualifiedPath;
                     }
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // nothing to do ...
             }
         }
@@ -169,7 +169,7 @@ final class Console
             if (strpos($process->getOutput() . $process->getErrorOutput(), 'imagemagick.org') !== false) {
                 return true;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // noting to do
         }
 
@@ -185,7 +185,7 @@ final class Console
     {
         try {
             return self::getExecutable('php', true);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $phpFinder = new PhpExecutableFinder();
             $phpPath = $phpFinder->find(true);
             if (!$phpPath) {

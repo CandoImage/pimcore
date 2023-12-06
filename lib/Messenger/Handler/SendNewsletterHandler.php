@@ -131,7 +131,7 @@ class SendNewsletterHandler
 
             try {
                 \Pimcore\Tool\Newsletter::sendNewsletterDocumentBasedMail($mail, $sendingParamContainer);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::err(sprintf('Exception while sending newsletter: %s', $e->getMessage()));
             }
 
@@ -185,7 +185,7 @@ class SendNewsletterHandler
                 try {
                     $mail = \Pimcore\Tool\Newsletter::prepareMail($document, $sendingParamContainer, $hostUrl);
                     \Pimcore\Tool\Newsletter::sendNewsletterDocumentBasedMail($mail, $sendingParamContainer);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::err(sprintf('Exception while sending newsletter: %s', $e->getMessage()));
                 }
 

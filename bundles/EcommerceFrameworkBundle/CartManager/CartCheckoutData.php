@@ -36,7 +36,7 @@ class CartCheckoutData extends AbstractCartCheckoutData
 
         try {
             $checkoutDataItem = RuntimeCache::get($cacheKey);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             try {
                 $checkoutDataItem = new self();
                 $checkoutDataItem->getDao()->getByKeyCartId($key, $cartId);

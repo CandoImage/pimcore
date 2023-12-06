@@ -47,7 +47,7 @@ trait DataObjectActionsTrait
             $object->save();
 
             return ['success' => true];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error((string) $e);
 
             return ['success' => false, 'message' => $e->getMessage()];
@@ -109,7 +109,7 @@ trait DataObjectActionsTrait
                     'success' => true,
                     'data' => DataObject\Service::gridObjectData($object, $allParams['fields'], $requestedLanguage),
                 ];
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return [
                     'success' => false,
                     'message' => $e->getMessage(),

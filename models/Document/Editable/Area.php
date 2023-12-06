@@ -134,7 +134,7 @@ class Area extends Model\Document\Editable
             $info->setId($config['type']);
             $info->setEditable($this);
             $info->setIndex(0);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $info = null;
         }
 

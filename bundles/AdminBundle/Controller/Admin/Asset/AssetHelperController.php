@@ -224,7 +224,7 @@ class AssetHelperController extends AdminController
                     }
                     $userIds = implode(',', $userIds);
                     $shared = ($savedGridConfig->getOwnerId() != $userId && $savedGridConfig->isShareGlobally()) || $db->fetchOne('select * from gridconfig_shares where sharedWithUserId IN (' . $userIds . ') and gridConfigId = ' . $savedGridConfig->getId());
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                 }
 
                 if (!$shared && $savedGridConfig->getOwnerId() != $this->getAdminUser()->getId()) {
@@ -454,7 +454,7 @@ class AssetHelperController extends AdminController
 
                 $favourite->setObjectId(0);
                 $favourite->save();
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $favourite->delete();
             }
 
@@ -582,7 +582,7 @@ class AssetHelperController extends AdminController
                     'availableConfigs' => $availableConfigs,
                     'sharedConfigs' => $sharedConfigs,
                 ]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         }
@@ -1159,7 +1159,7 @@ class AssetHelperController extends AdminController
 
                             return $this->adminJson(['success' => true]);
                         }
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                     }
                 } else {
@@ -1168,7 +1168,7 @@ class AssetHelperController extends AdminController
                     return $this->adminJson(['success' => false, 'message' => 'AssetHelperController::batchAction => There is no asset left to update.']);
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::err($e);
 
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);

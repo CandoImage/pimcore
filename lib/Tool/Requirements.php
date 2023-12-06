@@ -55,7 +55,7 @@ final class Requirements
                     'state' => $varWritable ? Check::STATE_OK : Check::STATE_ERROR,
                     'message' => str_replace(PIMCORE_PROJECT_ROOT, '', $varDir) . ' needs to be writable by PHP',
                 ]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $checks[] = new Check([
                     'name' => str_replace(PIMCORE_PROJECT_ROOT, '', $varDir) . ' (not checked - too many files)',
                     'state' => Check::STATE_WARNING,
@@ -125,7 +125,7 @@ final class Requirements
                   field varchar(190) DEFAULT NULL,
                   PRIMARY KEY (id)
                 ) DEFAULT CHARSET=utf8mb4;');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -139,7 +139,7 @@ final class Requirements
 
         try {
             $db->executeQuery('ALTER TABLE __pimcore_req_check ADD COLUMN alter_field varchar(190) NULL DEFAULT NULL');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -154,7 +154,7 @@ final class Requirements
         try {
             $db->executeQuery('CREATE INDEX field_alter_field ON __pimcore_req_check (field, alter_field);');
             $db->executeQuery('DROP INDEX field_alter_field ON __pimcore_req_check;');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -168,7 +168,7 @@ final class Requirements
 
         try {
             $db->executeQuery('ALTER TABLE __pimcore_req_check ADD FULLTEXT INDEX `fulltextFieldIndex` (`field`)');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -185,7 +185,7 @@ final class Requirements
                 'field' => uniqid(),
                 'alter_field' => uniqid(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -202,7 +202,7 @@ final class Requirements
                 'field' => uniqid(),
                 'alter_field' => uniqid(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -216,7 +216,7 @@ final class Requirements
 
         try {
             $db->fetchAllAssociative('SELECT * FROM __pimcore_req_check');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -230,7 +230,7 @@ final class Requirements
 
         try {
             $db->executeQuery('CREATE OR REPLACE VIEW __pimcore_req_check_view AS SELECT * FROM __pimcore_req_check');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -244,7 +244,7 @@ final class Requirements
 
         try {
             $db->fetchAllAssociative('SELECT * FROM __pimcore_req_check_view');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -258,7 +258,7 @@ final class Requirements
 
         try {
             $db->executeQuery('DELETE FROM __pimcore_req_check');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -272,7 +272,7 @@ final class Requirements
 
         try {
             $db->executeQuery('SHOW CREATE VIEW __pimcore_req_check_view');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -286,7 +286,7 @@ final class Requirements
 
         try {
             $db->executeQuery('SHOW CREATE TABLE __pimcore_req_check');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -300,7 +300,7 @@ final class Requirements
 
         try {
             $db->executeQuery('DROP VIEW __pimcore_req_check_view');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -314,7 +314,7 @@ final class Requirements
 
         try {
             $db->executeQuery('DROP TABLE __pimcore_req_check');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -333,7 +333,7 @@ final class Requirements
                 )
                 SELECT * from counter'
             );
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $queryCheck = false;
         }
 
@@ -355,7 +355,7 @@ final class Requirements
         // PHP CLI BIN
         try {
             $phpCliBin = (bool) \Pimcore\Tool\Console::getPhpCli();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $phpCliBin = false;
         }
 
@@ -373,7 +373,7 @@ final class Requirements
         // FFMPEG BIN
         try {
             $ffmpegBin = (bool) \Pimcore\Video\Adapter\Ffmpeg::getFfmpegCli();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $ffmpegBin = false;
         }
 
@@ -385,7 +385,7 @@ final class Requirements
         // Chromium BIN
         try {
             $chromiumBin = (bool) \Pimcore\Image\Chromium::getChromiumBinary();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $chromiumBin = false;
         }
 
@@ -397,7 +397,7 @@ final class Requirements
         // ghostscript BIN
         try {
             $ghostscriptBin = (bool) \Pimcore\Document\Adapter\Ghostscript::getGhostscriptCli();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $ghostscriptBin = false;
         }
 
@@ -409,7 +409,7 @@ final class Requirements
         // LibreOffice BIN
         try {
             $libreofficeBin = (bool) \Pimcore\Document\Adapter\LibreOffice::getLibreOfficeCli();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $libreofficeBin = false;
         }
 
@@ -422,7 +422,7 @@ final class Requirements
         foreach (['jpegoptim', 'pngquant', 'optipng', 'exiftool'] as $optimizerName) {
             try {
                 $optimizerAvailable = \Pimcore\Tool\Console::getExecutable($optimizerName);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $optimizerAvailable = false;
             }
 
@@ -435,7 +435,7 @@ final class Requirements
         // timeout binary
         try {
             $timeoutBin = (bool) \Pimcore\Tool\Console::getTimeoutBinary();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $timeoutBin = false;
         }
 
@@ -447,7 +447,7 @@ final class Requirements
         // pdftotext binary
         try {
             $pdftotextBin = (bool) \Pimcore\Document\Adapter\Ghostscript::getPdftotextCli();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $pdftotextBin = false;
         }
 
@@ -458,7 +458,7 @@ final class Requirements
 
         try {
             $facedetectAvailable = \Pimcore\Tool\Console::getExecutable('facedetect');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $facedetectAvailable = false;
         }
 
@@ -469,7 +469,7 @@ final class Requirements
 
         try {
             $graphvizAvailable = \Pimcore\Tool\Console::getExecutable('dot');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $graphvizAvailable = false;
         }
 

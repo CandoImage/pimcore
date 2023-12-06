@@ -52,7 +52,7 @@ class Ffmpeg extends Adapter
             if ($ffmpeg && $phpCli) {
                 return true;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warning((string) $e);
         }
 

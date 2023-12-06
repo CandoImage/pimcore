@@ -57,7 +57,7 @@ class Folder extends DAV\Collection
         foreach ($childsList as $child) {
             try {
                 $children[] = $this->getChild($child);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::warning((string) $e);
             }
         }

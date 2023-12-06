@@ -85,7 +85,7 @@ SQL;
                 $conn = \Pimcore\Db::getConnection();
 
                 self::$cache[$rule->getId()] = $conn->fetchAssociative($query);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::error((string) $e);
             }
         }

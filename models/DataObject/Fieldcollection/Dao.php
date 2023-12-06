@@ -63,7 +63,7 @@ class Dao extends Model\Dao\AbstractDao
 
             try {
                 $results = $this->db->fetchAllAssociative('SELECT * FROM ' . $tableName . ' WHERE o_id = ? AND fieldname = ? ORDER BY `index` ASC', [$object->getId(), $this->model->getFieldname()]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $results = [];
             }
 
@@ -178,7 +178,7 @@ class Dao extends Model\Dao\AbstractDao
                         'fieldname' => $this->model->getFieldname(),
                     ]);
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // create definition if it does not exist
                 $definition->createUpdateTable($object->getClass());
             }
@@ -195,7 +195,7 @@ class Dao extends Model\Dao\AbstractDao
                             'fieldname' => $this->model->getFieldname(),
                         ]);
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::error((string) $e);
                 }
             }

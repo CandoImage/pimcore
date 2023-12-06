@@ -250,7 +250,7 @@ class FullPageCacheListener
 
                 return;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error((string) $e);
 
             $this->disable('ERROR: Exception (see log files in /var/log)');
@@ -397,7 +397,7 @@ class FullPageCacheListener
                 }
 
                 Cache::save($cacheItem, $cacheKey, $tags, $this->lifetime, 1000, true);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::error((string) $e);
 
                 return;

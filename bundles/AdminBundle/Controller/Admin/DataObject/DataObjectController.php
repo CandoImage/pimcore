@@ -844,7 +844,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                 'type' => $object->getType(),
                 'message' => $message,
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $return = [
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -880,7 +880,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                 try {
                     $folder->save();
                     $success = true;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                 }
             }
@@ -1078,7 +1078,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                 }
 
                 $success = true;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::error((string) $e);
 
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
@@ -1104,7 +1104,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                 Db::get()->commit();
 
                 break;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Db::get()->rollBack();
 
                 // we try to start the transaction $maxRetries times again (deadlocks, ...)
@@ -1485,7 +1485,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                 $object->save();
 
                 return $this->adminJson(['success' => true]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         }
@@ -1523,7 +1523,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                         $property->setInheritable($propertyData['inheritable']);
 
                         $properties[$propertyName] = $property;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Logger::err("Can't add " . $propertyName . ' to object ' . $object->getRealFullPath());
                     }
                 }
@@ -1563,7 +1563,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                         'general' => ['o_modificationDate' => $object->getModificationDate() ],
                         'treeData' => $treeData, ]
                 );
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         }

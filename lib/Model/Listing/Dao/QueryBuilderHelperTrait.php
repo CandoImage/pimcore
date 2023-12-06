@@ -164,7 +164,7 @@ trait QueryBuilderHelperTrait
             if ($query->getQueryPart($part)) {
                 return true;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // do nothing
         }
 

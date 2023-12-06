@@ -33,7 +33,7 @@ class Dao extends Model\Dao\AbstractDao
                 'key' => $this->model->getKey(),
                 'category' => $this->model->getCategory() ? $this->model->getCategory() : '',
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warn((string) $e);
         }
     }

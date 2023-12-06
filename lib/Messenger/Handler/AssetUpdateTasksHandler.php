@@ -70,7 +70,7 @@ class AssetUpdateTasksHandler
     {
         try {
             $asset->setCustomSetting('duration', $asset->getDurationFromBackend());
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::err('Unable to get duration of video: ' . $asset->getId());
         }
 
@@ -83,7 +83,7 @@ class AssetUpdateTasksHandler
                 $asset->removeCustomSetting('videoWidth');
                 $asset->removeCustomSetting('videoHeight');
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::err('Unable to get dimensions of video: ' . $asset->getId());
         }
 
@@ -105,7 +105,7 @@ class AssetUpdateTasksHandler
                 $image->setCustomSetting('imageHeight', $dimensions['height']);
                 $imageDimensionsCalculated = true;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->warning('Problem getting the dimensions of the image with ID ' . $image->getId());
         }
 
@@ -126,7 +126,7 @@ class AssetUpdateTasksHandler
 
         try {
             $image->handleEmbeddedMetaData(true);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->warning($e->getMessage());
         }
 
@@ -138,7 +138,7 @@ class AssetUpdateTasksHandler
 
         try {
             $image->generateLowQualityPreview();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->warning($e->getMessage());
         }
     }

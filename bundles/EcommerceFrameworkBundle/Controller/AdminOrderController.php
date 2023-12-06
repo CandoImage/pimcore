@@ -245,7 +245,7 @@ class AdminOrderController extends AdminController implements KernelControllerEv
                         $json = $json[0];
                     }
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // noting to do
             }
 

@@ -223,7 +223,7 @@ class Areablock extends Model\Document\Editable implements BlockInterface
             $info->setId($this->currentIndex ? $this->currentIndex['type'] : null);
             $info->setEditable($this);
             $info->setIndex($this->current);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::err((string) $e);
         }
 

@@ -59,7 +59,7 @@ class PreAuthenticatedAdminSessionAuthenticator implements InteractiveAuthentica
             if ($user) {
                 $username = $user->getUsername();
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($e instanceof AuthenticationException) {
                 $this->clearToken($e);
             }

@@ -67,7 +67,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
     {
         try {
             return $this->db->fetchOne('SELECT usages FROM ' . self::TABLE_NAME . ' WHERE token = ?', $code);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -81,7 +81,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
             $this->db->executeQuery('UPDATE ' . self::TABLE_NAME . ' SET usages=usages+1 WHERE token = ?', [$this->model->getToken()]);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -95,7 +95,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
             $this->db->executeQuery('UPDATE ' . self::TABLE_NAME . ' SET usages=usages-1 WHERE token = ?', [$this->model->getToken()]);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }

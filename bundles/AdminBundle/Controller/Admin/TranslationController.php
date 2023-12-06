@@ -304,7 +304,7 @@ class TranslationController extends AdminController
 
                 try {
                     $t = Translation::getByKey($translationData, Translation::DOMAIN_ADMIN);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::log((string) $e);
                 }
                 if (!$t instanceof Translation) {
@@ -320,7 +320,7 @@ class TranslationController extends AdminController
 
                     try {
                         $t->save();
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Logger::log((string) $e);
                     }
                 }
@@ -925,7 +925,7 @@ class TranslationController extends AdminController
             } else {
                 Logger::warning(sprintf('Could not resolve element %s', $id));
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::err($e->getMessage());
 
             return $this->adminJson([
@@ -1135,7 +1135,7 @@ class TranslationController extends AdminController
                     fwrite($f, $output);
                     fclose($f);
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::error('Word Export: ' . $e->getMessage());
                 Logger::error((string) $e);
 

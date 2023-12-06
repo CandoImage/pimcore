@@ -191,7 +191,7 @@ class Installer extends AbstractInstaller
             $installed = $this->db->fetchOne('SELECT `key` FROM users_permission_definitions WHERE `key` = :key', [
                 'key' => $this->permissionsToInstall[0],
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // nothing to do
         }
 

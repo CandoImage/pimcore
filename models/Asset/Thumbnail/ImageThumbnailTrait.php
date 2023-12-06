@@ -197,7 +197,7 @@ trait ImageThumbnailTrait
                         );
                     }
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // noting to do
             }
         }

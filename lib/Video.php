@@ -42,7 +42,7 @@ class Video
                     return $adapter;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::crit('Unable to load video adapter: ' . $e->getMessage());
 
             throw $e;
@@ -78,7 +78,7 @@ class Video
                     if ($adapter->isAvailable()) {
                         return $adapter;
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::warning((string) $e);
                 }
             }

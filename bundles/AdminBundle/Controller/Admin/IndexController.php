@@ -133,13 +133,13 @@ class IndexController extends AdminController implements KernelResponseEventInte
         try {
             $tables = $db->fetchAllAssociative('SELECT TABLE_NAME as name,TABLE_ROWS as `rows` from information_schema.TABLES
                 WHERE TABLE_ROWS IS NOT NULL AND TABLE_SCHEMA = ?', [$db->getDatabase()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $tables = [];
         }
 
         try {
             $mysqlVersion = $db->fetchOne('SELECT VERSION()');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $mysqlVersion = null;
         }
 
@@ -154,7 +154,7 @@ class IndexController extends AdminController implements KernelResponseEventInte
                 'bundles' => array_keys($kernel->getBundles()),
                 'tables' => $tables,
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $data = [];
         }
 
@@ -291,7 +291,7 @@ class IndexController extends AdminController implements KernelResponseEventInte
         try {
             $instanceId = $this->getParameter('secret');
             $instanceId = sha1(substr($instanceId, 3, -3));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // nothing to do
         }
 

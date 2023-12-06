@@ -65,7 +65,7 @@ class Dao extends Model\Dao\AbstractDao
             if (!empty($name)) {
                 $id = $this->db->fetchOne('SELECT id FROM custom_layouts WHERE name = ?', [$name]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         return $id;
@@ -84,7 +84,7 @@ class Dao extends Model\Dao\AbstractDao
             if (!empty($id)) {
                 $name = $this->db->fetchOne('SELECT name FROM custom_layouts WHERE id = ?', [$id]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         return $name;
@@ -104,7 +104,7 @@ class Dao extends Model\Dao\AbstractDao
             if (!empty($name) && !empty($classId)) {
                 $id = $this->db->fetchOne('SELECT id FROM custom_layouts WHERE name = ? AND classId = ?', [$name, $classId]);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         return $id;

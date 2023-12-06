@@ -645,7 +645,7 @@ class ModelDataObjectPermissionsTest extends ModelTestCase
                 $request,
                 $eventDispatcher
             );
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if (is_null($expectedChildren)) {
                 $this->assertInstanceOf(AccessDeniedHttpException::class, $e, 'Assert master object permission');
 

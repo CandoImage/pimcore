@@ -48,7 +48,7 @@ class Dao extends \Pimcore\Model\Listing\Dao\AbstractDao
     {
         try {
             return (int)$this->db->fetchOne('SELECT COUNT(*) FROM `' . \Pimcore\Bundle\EcommerceFrameworkBundle\CartManager\CartItem\Dao::TABLE_NAME . '`' . $this->getCondition());
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return 0;
         }
     }

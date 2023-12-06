@@ -849,7 +849,7 @@ abstract class AbstractDataTypeTestCase extends TestCase
 
         try {
             $this->testObject->save();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $ex = $e;
         }
         $this->assertNotNull($ex, 'duplicate slug, expected an exception');

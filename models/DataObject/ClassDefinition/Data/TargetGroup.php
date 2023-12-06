@@ -44,7 +44,7 @@ class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
         if (!empty($data)) {
             try {
                 $this->checkValidity($data, true, $params);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $data = null;
             }
         }
@@ -66,7 +66,7 @@ class TargetGroup extends Model\DataObject\ClassDefinition\Data\Select
         if (!empty($data)) {
             try {
                 $this->checkValidity($data, true, $params);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $data = null;
             }
         }

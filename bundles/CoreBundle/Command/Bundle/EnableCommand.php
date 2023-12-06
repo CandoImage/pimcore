@@ -79,7 +79,7 @@ class EnableCommand extends AbstractBundleCommand
             $this->bundleManager->enable($bundleClass, $state);
 
             $this->io->success(sprintf('Bundle "%s" was successfully enabled', $bundleClass));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->handlePrerequisiteError($e->getMessage());
         }
 

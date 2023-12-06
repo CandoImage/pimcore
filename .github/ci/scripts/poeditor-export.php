@@ -65,7 +65,7 @@ foreach($projects as $projectId => $sourceUrl) {
             ]);
 
             print_r($response);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             echo $e->getMessage();
         }
 
@@ -81,7 +81,7 @@ foreach($projects as $projectId => $sourceUrl) {
             ]);
 
             print_r($response);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             echo $e->getMessage();
         }
 

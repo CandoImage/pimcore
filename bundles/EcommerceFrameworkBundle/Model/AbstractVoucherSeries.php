@@ -64,7 +64,7 @@ abstract class AbstractVoucherSeries extends \Pimcore\Model\DataObject\Concrete
             }
 
             return $result;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }

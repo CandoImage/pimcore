@@ -84,7 +84,7 @@ class Link extends Data implements ResourcePersistenceAwareInterface, QueryResou
 
             try {
                 $this->checkValidity($data, true, $params);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $data->setInternalType(null);
                 $data->setInternal(null);
             }

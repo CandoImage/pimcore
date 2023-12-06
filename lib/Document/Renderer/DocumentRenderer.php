@@ -130,7 +130,7 @@ class DocumentRenderer implements DocumentRendererInterface
 
         try {
             $request = $this->requestHelper->getCurrentRequest();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $request = $this->requestHelper->createRequestWithContext();
         }
 

@@ -87,7 +87,7 @@ class GlobalTemplateVariablesListener implements EventSubscriberInterface, Logge
             $this->twig->addGlobal('document', $this->documentResolver->getDocument($request));
             $this->twig->addGlobal('editmode', $this->editmodeResolver->isEditmode($request));
             array_push($this->globalsStack, $globals);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             array_push($this->globalsStack, false);
         }
     }

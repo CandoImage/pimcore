@@ -185,7 +185,7 @@ class Translator implements TranslatorInterface, TranslatorBagInterface, LocaleA
                     foreach ($jsonFiles as $sourceFile => $fallbackFile) {
                         try {
                             $jsonPath = $this->getKernel()->locateResource($this->getAdminPath() . '/' . $sourceFile);
-                        } catch (\Exception $e) {
+                        } catch (\Throwable $e) {
                             $jsonPath = $this->getKernel()->locateResource($this->getAdminPath() . '/' . $fallbackFile);
                         }
 

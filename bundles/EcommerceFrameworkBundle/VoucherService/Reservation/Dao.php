@@ -107,7 +107,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
             }
 
             return $count;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return true;
         }
     }
@@ -130,7 +130,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
             }
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return true;
         }
     }

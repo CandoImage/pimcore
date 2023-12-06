@@ -354,7 +354,7 @@ class CheckoutManager implements CheckoutManagerInterface
 
         try {
             $order = $commitOrderProcessor->handlePaymentResponseAndCommitOrderPayment($paymentResponseParams, $this->getPayment());
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             throw $e;
         } finally {
             $this->updateEnvironmentAfterOrderCommit($order);

@@ -206,7 +206,7 @@ class Dao extends Model\Element\Dao
 
         try {
             $path = $this->db->fetchOne('SELECT CONCAT(o_path,`o_key`) as o_path FROM objects WHERE o_id = ?', [$this->model->getId()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error('could not get current object path from DB');
         }
 
@@ -274,7 +274,7 @@ class Dao extends Model\Element\Dao
                 }
 
                 $properties[$propertyRaw['name']] = $property;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::error("can't add property " . $propertyRaw['name'] . ' to object ' . $this->model->getRealFullPath());
             }
         }
@@ -552,7 +552,7 @@ class Dao extends Model\Element\Dao
                     return true;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warn('Unable to get permission ' . $type . ' for object ' . $this->model->getId());
         }
 
@@ -636,7 +636,7 @@ class Dao extends Model\Element\Dao
             $permissions = $this->db->fetchAssociative('SELECT ' . $queryType . ' FROM users_workspaces_object WHERE cid IN (' . implode(',', $parentIds) . ') AND userId IN (' . implode(',', $userIds) . ') ORDER BY LENGTH(cpath) DESC, FIELD(userId, ' . $user->getId() . ') DESC' . $orderByType . ' LIMIT 1');
 
             return $permissions;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warn('Unable to get permission ' . $type . ' for object ' . $this->model->getId());
         }
 
@@ -666,7 +666,7 @@ class Dao extends Model\Element\Dao
             $cid = $this->model->getId();
             $sql = 'SELECT ' . $type . ' FROM users_workspaces_object WHERE cid != ' . $cid . ' AND cpath LIKE ' . $this->db->quote(Helper::escapeLike($this->model->getRealFullPath()) . '%') . ' AND userId IN (' . implode(',', $userIds) . ') ORDER BY LENGTH(cpath) DESC';
             $permissions = $this->db->fetchAllAssociative($sql);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warn('Unable to get permission ' . $type . ' for object ' . $this->model->getId());
         }
 

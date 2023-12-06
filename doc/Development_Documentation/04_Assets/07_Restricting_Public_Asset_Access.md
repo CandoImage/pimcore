@@ -172,7 +172,7 @@ class MyAssetController extends FrontendController
                 try {
                     $parameters = $matcher->matchRequest($request);
                     return $this->forward('PimcoreCoreBundle:PublicServices:thumbnail', $parameters);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     // nothing to do
                 }
             }

@@ -81,7 +81,7 @@ class Dao extends Model\Listing\Dao\AbstractDao
             }
 
             return count($layouts);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return 0;
         }
     }

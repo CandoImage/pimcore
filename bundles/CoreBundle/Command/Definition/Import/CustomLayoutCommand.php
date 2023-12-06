@@ -127,7 +127,7 @@ class CustomLayoutCommand extends AbstractStructureImportCommand
             $customLayout->save();
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error($e->getMessage());
         }
 

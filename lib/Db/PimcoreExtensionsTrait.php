@@ -544,7 +544,7 @@ trait PimcoreExtensionsTrait
     {
         try {
             return $this->executeQuery($sql);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             foreach ($exclusions as $exclusion) {
                 if ($e instanceof $exclusion) {
                     throw new ValidationException($e->getMessage(), 0, $e);

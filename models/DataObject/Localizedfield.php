@@ -348,7 +348,7 @@ final class Localizedfield extends Model\AbstractModel implements
             }
 
             throw new \Exception('Not supported language');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return Tool::getDefaultLanguage();
         }
     }

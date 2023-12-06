@@ -152,7 +152,7 @@ class Single extends AbstractTokenManager implements ExportableTokenManagerInter
             $db->executeQuery($query, [trim($this->configuration->getToken()), $this->getFinalTokenLength(), $this->getSeriesId(), trim($this->configuration->getToken()), $this->getFinalTokenLength()]);
 
             return trim($this->configuration->getToken());
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
         }
 
         return false;

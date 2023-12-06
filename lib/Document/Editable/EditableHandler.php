@@ -205,7 +205,7 @@ class EditableHandler implements LoggerAwareInterface
                         // build URL to icon
                         $icon = $this->webPathResolver->getPath($bundle, 'areas/' . $brick->getId(), 'icon.png');
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $icon = '';
                 }
             }

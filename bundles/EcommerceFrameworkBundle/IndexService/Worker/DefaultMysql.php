@@ -177,7 +177,7 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
                         if (isset($data[$attribute->getName()]) && is_array($data[$attribute->getName()])) {
                             $data[$attribute->getName()] = $this->convertArray($data[$attribute->getName()]);
                         }
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Logger::err('Exception in IndexService: ' . $e);
                     }
                 }
@@ -190,7 +190,7 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
 
                 try {
                     $this->mySqlHelper->doInsertData($data);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::warn('Error during updating index table: ' . $e);
                 }
 
@@ -199,7 +199,7 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
                     foreach ($relationData as $rd) {
                         $this->db->insert($this->tenantConfig->getRelationTablename(), $rd);
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::warn('Error during updating index relation table: ' . $e);
                 }
             } else {
@@ -207,13 +207,13 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
 
                 try {
                     $this->db->delete($this->tenantConfig->getTablename(), ['o_id' => $subObjectId]);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::warn('Error during updating index table: ' . $e);
                 }
 
                 try {
                     $this->db->delete($this->tenantConfig->getRelationTablename(), ['src' => $subObjectId]);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::warn('Error during updating index relation table: ' . $e);
                 }
 
@@ -221,7 +221,7 @@ class DefaultMysql extends AbstractWorker implements WorkerInterface
                     if ($this->tenantConfig->getTenantRelationTablename()) {
                         $this->db->delete($this->tenantConfig->getTenantRelationTablename(), ['o_id' => $subObjectId]);
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::warn('Error during updating index tenant relation table: ' . $e);
                 }
             }

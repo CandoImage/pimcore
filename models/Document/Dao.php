@@ -225,7 +225,7 @@ class Dao extends Model\Element\Dao
 
         try {
             $path = $this->db->fetchOne('SELECT CONCAT(path,`key`) as path FROM documents WHERE id = ?', [$this->model->getId()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error('could not  get current document path from DB');
         }
 
@@ -297,7 +297,7 @@ class Dao extends Model\Element\Dao
                 }
 
                 $properties[$propertyRaw['name']] = $property;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::error("can't add property " . $propertyRaw['name'] . ' to document ' . $this->model->getRealFullPath());
             }
         }
@@ -542,7 +542,7 @@ class Dao extends Model\Element\Dao
                     return true;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warn('Unable to get permission ' . $type . ' for document ' . $this->model->getId());
         }
 

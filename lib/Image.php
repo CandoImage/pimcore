@@ -48,7 +48,7 @@ final class Image
             } else {
                 return Pimcore::getContainer()->get(Adapter\GD::class);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::crit('Unable to load image extensions: ' . $e->getMessage());
 
             throw $e;

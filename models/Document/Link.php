@@ -375,7 +375,7 @@ class Link extends Model\Document
                     $this->object = Model\DataObject\Concrete::getById($this->internal);
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warn((string) $e);
             $this->internalType = '';
             $this->internal = null;

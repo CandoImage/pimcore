@@ -162,7 +162,7 @@ final class ImageThumbnail
                             $deferred,
                             $generated
                         );
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Logger::error("Couldn't create image-thumbnail of video " . $this->asset->getRealFullPath());
                         Logger::error($e->getMessage());
                     }

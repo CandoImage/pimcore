@@ -81,7 +81,7 @@ public function paymentResponseAction(Request $request, Factory $factory, Reques
         $session->set("last_order_id", $order->getId());
         $goto = $this->generateUrl('shop-checkout-completed');
          
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
  
         $this->addFlash('danger', $e->getMessage());
         $goto = $this->generateUrl('shop-checkout-address');

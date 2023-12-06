@@ -196,7 +196,7 @@ class UserController extends AdminController implements KernelControllerEventInt
                 'success' => true,
                 'id' => $user->getId(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
         }
     }
@@ -1197,7 +1197,7 @@ class UserController extends AdminController implements KernelControllerEventInt
 
                     $success = true;
                     $message = sprintf($this->trans('invitation_link_sent'), $user->getEmail());
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $message .= 'could not send email';
                 }
             }
@@ -1242,7 +1242,7 @@ class UserController extends AdminController implements KernelControllerEventInt
 
             //try to generate invitation link for custom admin point
             $loginUrl = $this->generateUrl($adminEntryPointRoute, $params, $referenceType);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             //use default login check for invitation link
             $loginUrl = $this->generateUrl($fallbackUrl, $params, $referenceType);
         }

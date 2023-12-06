@@ -38,7 +38,7 @@ class LibreOffice extends Ghostscript
             if ($lo && parent::isAvailable()) { // LibreOffice and GhostScript is necessary
                 return true;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::notice($e->getMessage());
         }
 
@@ -113,7 +113,7 @@ class LibreOffice extends Ghostscript
             if (parent::isFileTypeSupported($asset->getFilename())) {
                 return parent::getPdf($asset);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // nothing to do, delegate to libreoffice
         }
 

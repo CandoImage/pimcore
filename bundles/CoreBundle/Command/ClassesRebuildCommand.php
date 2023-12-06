@@ -130,7 +130,7 @@ class ClassesRebuildCommand extends AbstractCommand
 
             try {
                 $brickDefinition->save(false);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $output->write((string)$e);
             }
         }

@@ -203,7 +203,7 @@ abstract class PageSnippet extends Model\Document
             }
 
             return $version;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $postUpdateFailureEvent = new DocumentEvent($this, [
                 'saveVersionOnly' => true,
                 'exception' => $e,
@@ -338,7 +338,7 @@ abstract class PageSnippet extends Model\Document
                 $this->editables[$name]->setName($name);
                 $this->editables[$name]->setDocument($this);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warning("can't set element " . $name . ' with the type ' . $type . ' to the document: ' . $this->getRealFullPath());
         }
 
@@ -679,7 +679,7 @@ abstract class PageSnippet extends Model\Document
                         }
                     }
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // noting to do, as rendering the document failed for whatever reason
             }
         }

@@ -146,7 +146,7 @@ class MySql
         if (!empty($searchIndexColumns)) {
             try {
                 $this->dbexec('ALTER TABLE ' . $this->tenantConfig->getTablename() . ' DROP INDEX search;');
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::info((string) $e);
             }
 

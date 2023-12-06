@@ -91,7 +91,7 @@ class Dao extends \Pimcore\Model\Dao\AbstractDao
 
         try {
             $this->db->insert(self::TABLE_NAME, $data);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->db->update(self::TABLE_NAME, $data, ['key' => $this->db->quote($this->model->getKey()), 'cartId' => $this->db->quote($this->model->getCartId())]);
         }
     }

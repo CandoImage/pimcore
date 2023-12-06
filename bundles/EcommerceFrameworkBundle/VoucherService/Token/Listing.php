@@ -159,7 +159,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
 
         try {
             $codes = $db->fetchAllAssociative($query, array_values($queryParams));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
 
@@ -179,7 +179,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
 
         try {
             return $db->fetchOne($query, $params);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -193,7 +193,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
 
         try {
             return $db->fetchOne($query, $params);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -213,7 +213,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
 
         try {
             return $db->fetchOne($query, $params);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -239,7 +239,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
             $result = $db->fetchOne($query, $params);
 
             return $result;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return null;
         }
     }
@@ -309,7 +309,7 @@ class Listing extends \Pimcore\Model\Listing\AbstractListing implements Paginate
             $db->commit();
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $db->rollBack();
 
             return false;

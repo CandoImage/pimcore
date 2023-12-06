@@ -204,7 +204,7 @@ final class DefaultValue extends AbstractValue
             if ($element instanceof Concrete) {
                 try {
                     $result = $this->getValueForObject($element, $this->attribute, $brickType, $brickKey);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $result = $this->getDefaultValue($element->$getter());
                 }
             } else {

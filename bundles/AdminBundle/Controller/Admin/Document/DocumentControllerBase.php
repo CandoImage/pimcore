@@ -139,7 +139,7 @@ abstract class DocumentControllerBase extends AdminController implements KernelC
                         }
 
                         $properties[$propertyName] = $property;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         Logger::warning("Can't add " . $propertyName . ' to document ' . $document->getRealFullPath());
                     }
                 }

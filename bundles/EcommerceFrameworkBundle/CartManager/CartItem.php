@@ -74,7 +74,7 @@ class CartItem extends AbstractCartItem implements CartItemInterface
 
         try {
             $cartItem = RuntimeCache::get($cacheKey);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             try {
                 $cartItem = new static();
                 $cartItem->getDao()->getByCartIdItemKey($cartId, $itemKey, $parentKey);

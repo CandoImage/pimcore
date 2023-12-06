@@ -473,7 +473,7 @@ class Dao extends Listing\Dao\AbstractDao
             $this->totalCount = (int) $this->db->fetchOne('SELECT FOUND_ROWS()');
 
             return array_map('intval', $objectIds);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             throw $e;
         }
     }

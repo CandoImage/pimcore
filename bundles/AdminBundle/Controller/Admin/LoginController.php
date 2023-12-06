@@ -215,7 +215,7 @@ class LoginController extends AdminController implements BruteforceProtectedCont
                     if ($event->hasResponse()) {
                         return $event->getResponse();
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     Logger::error('Error sending password recovery email: ' . $e->getMessage());
                     $error = 'lost_password_email_error';
                 }

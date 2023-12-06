@@ -265,7 +265,7 @@ class Dao extends Model\Element\Dao
                 }
 
                 $properties[$propertyRaw['name']] = $property;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Logger::error("can't add property " . $propertyRaw['name'] . ' to asset ' . $this->model->getRealFullPath());
             }
         }
@@ -297,7 +297,7 @@ class Dao extends Model\Element\Dao
 
         try {
             $path = $this->db->fetchOne('SELECT CONCAT(path,filename) as path FROM assets WHERE id = ?', [$this->model->getId()]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error('could not get  current asset path from DB');
         }
 
@@ -508,7 +508,7 @@ class Dao extends Model\Element\Dao
                     return true;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warn('Unable to get permission ' . $type . ' for asset ' . $this->model->getId());
         }
 

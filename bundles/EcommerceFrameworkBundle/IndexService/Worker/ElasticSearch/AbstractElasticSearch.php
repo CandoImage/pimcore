@@ -644,7 +644,7 @@ abstract class AbstractElasticSearch extends Worker\ProductCentricBatchProcessin
                     'id' => $objectId,
                     $this->routingParamName => $storeEntry['o_virtualProductId'],
                 ]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 //if \Elasticsearch\Common\Exceptions\Missing404Exception <- the object is not in the index so its ok.
                 if ($e instanceof Missing404Exception == false) {
                     throw $e;
@@ -700,7 +700,7 @@ abstract class AbstractElasticSearch extends Worker\ProductCentricBatchProcessin
             } else {
                 Logger::info('Index-Actions - no settings update necessary for Index: ' . $this->getIndexNameVersion());
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::info("Index-Actions - can't create Mapping - trying reindexing " . $e->getMessage());
             Logger::info('Index-Actions - Perform native reindexing for Index: ' . $this->getIndexNameVersion());
 
@@ -731,7 +731,7 @@ abstract class AbstractElasticSearch extends Worker\ProductCentricBatchProcessin
 
         try {
             $result = $esClient->indices()->getAlias(['index' => $this->indexName]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error((string) $e);
 
             return null;

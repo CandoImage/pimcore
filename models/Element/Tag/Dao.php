@@ -87,7 +87,7 @@ class Dao extends Model\Dao\AbstractDao
             $this->db->commit();
 
             return true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->db->rollBack();
 
             throw $e;
@@ -111,7 +111,7 @@ class Dao extends Model\Dao\AbstractDao
             $this->db->executeStatement('DELETE FROM tags WHERE ' . Helper::quoteInto($this->db, 'idPath LIKE ?', Helper::escapeLike($this->model->getIdPath()) . $this->model->getId() . '/%'));
 
             $this->db->commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->db->rollBack();
 
             throw $e;
@@ -197,7 +197,7 @@ class Dao extends Model\Dao\AbstractDao
             }
 
             $this->db->commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->db->rollBack();
 
             throw $e;

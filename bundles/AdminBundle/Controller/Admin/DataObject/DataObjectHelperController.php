@@ -730,7 +730,7 @@ class DataObjectHelperController extends AdminController
             }, 'pimcore_gridconfig');
 
             return $calculatedColumnConfig;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error((string) $e);
         }
     }
@@ -849,7 +849,7 @@ class DataObjectHelperController extends AdminController
                     . ' and objectId != ' . $objectId . ' and objectId != 0'
                     . ' and type != ' . $db->quote($type));
                 $specializedConfigs = $count > 0;
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $favourite->delete();
             }
 
@@ -974,7 +974,7 @@ class DataObjectHelperController extends AdminController
                     'availableConfigs' => $availableConfigs,
                     'sharedConfigs' => $sharedConfigs,
                 ]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
             }
         }
@@ -1747,7 +1747,7 @@ class DataObjectHelperController extends AdminController
                         $object->setUserModification($this->getAdminUser()->getId());
                         $object->save();
                         $success = true;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);
                     }
                 } else {
@@ -1756,7 +1756,7 @@ class DataObjectHelperController extends AdminController
                     return $this->adminJson(['success' => false, 'message' => 'DataObjectController::batchAction => There is no object left to update.']);
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::err((string) $e);
 
             return $this->adminJson(['success' => false, 'message' => $e->getMessage()]);

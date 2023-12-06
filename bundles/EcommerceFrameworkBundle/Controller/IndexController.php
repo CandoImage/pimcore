@@ -102,7 +102,7 @@ class IndexController extends AdminController
             $data = $event->getArgument('data');
 
             return $this->adminJson(['data' => array_values($data)]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->adminJson(['message' => $e->getMessage()]);
         }
     }

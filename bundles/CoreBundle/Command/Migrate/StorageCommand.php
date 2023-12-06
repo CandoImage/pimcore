@@ -62,7 +62,7 @@ class StorageCommand extends AbstractCommand
             try {
                 $sourceStorage = $this->locator->get($storageSourceName);
                 $targetStorage = $this->locator->get($storageTargetName);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $this->io->warning(sprintf('Skipped migrating storage "%s": please make sure "%s" and "%s" configuration exists.', $storageName, $storageSourceName, $storageTargetName));
 
                 continue;
@@ -90,7 +90,7 @@ class StorageCommand extends AbstractCommand
                         } else {
                             $progressBar->setMessage(sprintf('Skipping %s: %s', $storageName, $item->path()));
                         }
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         $progressBar->setMessage(sprintf('Skipping %s: %s', $storageName, $item->path()));
                     }
                     $progressBar->advance();

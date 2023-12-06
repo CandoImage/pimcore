@@ -140,7 +140,7 @@ class Concrete extends DataObject implements LazyLoadedFieldsInterface
                     //check throws Exception
                     try {
                         $fd->checkValidity($value, $omitMandatoryCheck, $params);
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         if ($this->getClass()->getAllowInherit() && $fd->supportsInheritance() && $fd->isEmpty($value)) {
                             //try again with parent data when inheritance is activated
                             try {
@@ -151,7 +151,7 @@ class Concrete extends DataObject implements LazyLoadedFieldsInterface
                                 $fd->checkValidity($value, $omitMandatoryCheck, $params);
 
                                 DataObject::setGetInheritedValues($getInheritedValues);
-                            } catch (\Exception $e) {
+                            } catch (\Throwable $e) {
                                 if (!$e instanceof Model\Element\ValidationException) {
                                     throw $e;
                                 }
@@ -291,7 +291,7 @@ class Concrete extends DataObject implements LazyLoadedFieldsInterface
             }
 
             return $version;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $postUpdateFailureEvent = new DataObjectEvent($this, [
                 'saveVersionOnly' => true,
                 'exception' => $e,
@@ -688,7 +688,7 @@ class Concrete extends DataObject implements LazyLoadedFieldsInterface
 
         try {
             return call_user_func_array([parent::class, $method], $arguments);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // there is no property for the called method, so throw an exception
             Logger::error('Class: DataObject\\Concrete => call to undefined static method '.$method);
 

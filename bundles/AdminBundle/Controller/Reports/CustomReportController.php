@@ -260,7 +260,7 @@ class CustomReportController extends ReportsControllerBase
             }
 
             $success = true;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $errorMessage = $e->getMessage();
         }
 
