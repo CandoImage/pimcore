@@ -180,7 +180,7 @@ abstract class DocumentControllerBase extends AdminAbstractController implements
     {
         if ($document instanceof Model\Document\PageSnippet) {
             // if a target group variant get's saved, we have to load all other editables first, otherwise they will get deleted
-            if ($request->get('appendEditables') || ($document instanceof TargetingDocumentInterface && $document->hasTargetGroupSpecificEditables())) {
+            if($request->get('appendEditables') || (interface_exists(TargetingDocumentInterface::class) && $document instanceof TargetingDocumentInterface)) {
                 // ensure editable are loaded
                 $document->getEditables();
             } else {
