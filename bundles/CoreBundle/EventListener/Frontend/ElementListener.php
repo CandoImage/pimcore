@@ -172,8 +172,10 @@ class ElementListener implements EventSubscriberInterface, LoggerAwareInterface
         // reset because of preview and editmode (saved in session)
         $document->setUseTargetGroup(null);
 
+        $originalSetting = Document\PageSnippet::getGetInheritedValues();
+        Document\PageSnippet::setGetInheritedValues(true);
         $this->targetingConfigurator->configureTargetGroup($document);
-
+        Document\PageSnippet::setGetInheritedValues($originalSetting);
         if ($document->getUseTargetGroup()) {
             $this->logger->info('Setting target group to {targetGroup} for document {document}', [
                 'targetGroup' => $document->getUseTargetGroup(),
