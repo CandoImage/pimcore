@@ -312,7 +312,10 @@ trait ImageThumbnailTrait
      */
     public function getFileExtension()
     {
-        return \Pimcore\File::getFileExtension($this->getPath());
+        // Path is actually an URI which could contain parameters! Which fucks up
+        // the file extension extraction if not cleaned up.
+        $path = parse_url($this->getPath(), PHP_URL_PATH);
+        return \Pimcore\File::getFileExtension($path);
     }
 
     /**
