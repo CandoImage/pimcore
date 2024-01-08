@@ -1,4 +1,3 @@
-
 /**
  * Pimcore
  *
@@ -75,7 +74,8 @@ pimcore.element.properties = Class.create({
                     ["document", "Document"],
                     ["asset", "Asset"],
                     ["object", "Object"],
-                    ["bool", "Checkbox"]
+                    ["bool", "Checkbox"],
+                    ["date", "Date"]
                 ]
             });
 
@@ -174,7 +174,9 @@ pimcore.element.properties = Class.create({
                                 }
 
                             }
-
+                            if (rec.data.type == 'date' && rec.data.data !== '') {
+                                return new Date(v);
+                            }
                             return v;
                         }
                     },
@@ -466,6 +468,14 @@ pimcore.element.properties = Class.create({
             }
         } else if (type == 'text') {
             return Ext.util.Format.htmlEncode(value);
+        } else if (type == 'date') {
+            if (value) {
+                if (!(value instanceof Date)) {
+                    value = new Date(value);
+                }
+                return Ext.Date.format(value, "Y-m-d");
+            }
+            return Ext.util.Format.htmlEncode(value);
         }
 
         return value;
@@ -505,6 +515,12 @@ pimcore.element.properties = Class.create({
                 triggerAction: 'all',
                 editable: false,
                 store: config.split(",")
+            });
+        }
+        else if (type == "date") {
+            property = Ext.create('Ext.form.field.Date', {
+                format: "Y-m-d",
+                value: data.data ?? null
             });
         }
 
@@ -656,6 +672,9 @@ pimcore.element.properties = Class.create({
                 value = "";
             }
             if (type == "text") {
+                value = "";
+            }
+            if (type == "date") {
                 value = "";
             }
             value = "";
