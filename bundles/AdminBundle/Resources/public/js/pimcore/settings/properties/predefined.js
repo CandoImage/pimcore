@@ -142,7 +142,7 @@ pimcore.settings.properties.predefined = Class.create({
                 editor: new Ext.form.ComboBox({
                     triggerAction: 'all',
                     editable: false,
-                    store: ["text","document","asset","object","bool","select"]
+                    store: ["text","document","asset","object","bool","select","date"]
 
                 })
             },
