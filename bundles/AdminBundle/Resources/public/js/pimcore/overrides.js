@@ -934,6 +934,18 @@ Ext.override(Ext.picker.Date, {
     }
 });
 
+function isElementInTheViewport(domElement) {
+    if (domElement && typeof domElement.getBoundingClientRect === "function") {
+        const rect = domElement.getBoundingClientRect();
+        if (rect) {
+            return (
+                rect["top"] < window.innerHeight &&
+                rect["bottom"] > 0
+            );
+        }
+    }
+    return false;
+}
 
 /** workaround for [DataObject] Advanced Image Dropzone only works once #9115
  * Issue: on node drop the component gets destroyed. On mouse up it then tries to focus an already destroyed element.
@@ -950,7 +962,9 @@ Ext.override(Ext.dom.Element, {
         } else {
             Ext.fireEvent('beforefocus', dom);
             if (dom) {
-                dom.focus();
+                dom.focus({
+                    preventScroll: isElementInTheViewport(dom)
+                });
             }
         }
 
