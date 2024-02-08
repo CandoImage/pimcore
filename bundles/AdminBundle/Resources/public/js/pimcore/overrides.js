@@ -1203,6 +1203,32 @@ Ext.override(Ext.picker.Date, {
     }
 });
 
+function isElementInTheViewport(domElement) {
+  if (domElement && typeof domElement.getBoundingClientRect === "function") {
+      const rect = domElement.getBoundingClientRect();
+      if (rect) {
+          return (
+              rect["top"] < window.innerHeight &&
+              rect["bottom"] > 0
+          );
+      }
+  }
+  return false;
+}
+
+Ext.override(Ext.dom.Element, {
+  focus: function (defer, dom) {
+      var me = this;
+
+      dom = dom || me.dom;
+
+      dom.focus({
+        preventScroll: isElementInTheViewport(dom)
+      });
+
+      return me;
+  }
+});
 
 /**
  * A specialized {@link Ext.view.BoundListKeyNav} implementation for navigating in the quicksearch.
