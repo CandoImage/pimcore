@@ -472,11 +472,14 @@ pimcore.treenodelocator = function()
                 return -1;
             }
 
-            if (firstElementChild && elementKey.toUpperCase() < firstElementChild.data.text.toUpperCase()) {
+            // Cando fix: simple string comparison is not working as expected, because umlauts and special characters
+            // will be sort by their ASCII codes. In that case we have to use the upper case version of the string
+            // with the locale compare function. Should this be extended with the admin ui locale?
+            if (firstElementChild && elementKey.toUpperCase().localeCompare(firstElementChild.data.text.toUpperCase()) === -1) {
                 return -1;
             }
 
-            if (lastElementChild && elementKey.toUpperCase() > lastElementChild.data.text.toUpperCase()) {
+            if (lastElementChild && elementKey.toUpperCase().localeCompare(lastElementChild.data.text.toUpperCase()) === 1) {
                 return 1;
             }
 
