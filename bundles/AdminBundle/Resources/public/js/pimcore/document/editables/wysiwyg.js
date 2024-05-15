@@ -228,6 +228,8 @@ pimcore.document.editables.wysiwyg = Class.create(pimcore.document.editable, {
                     }
 
                     additionalAttributes += ' style="width:' + defaultWidth + 'px;"';
+                } else {
+                    uri = this.getAssetFrontendPath(data);
                 }
 
                 insertEl = CKEDITOR.dom.element.createFromHtml('<img src="'
@@ -236,6 +238,8 @@ pimcore.document.editables.wysiwyg = Class.create(pimcore.document.editable, {
                 return true;
             }
             else {
+                uri = this.getAssetFrontendPath(data);
+
                 insertEl = CKEDITOR.dom.element.createFromHtml('<a href="' + uri
                             + '" target="_blank" pimcore_type="asset" pimcore_id="' + id + '">' + wrappedText + '</a>');
                 this.ckeditor.insertElement(insertEl);
@@ -258,6 +262,29 @@ pimcore.document.editables.wysiwyg = Class.create(pimcore.document.editable, {
             return true;
         }
 
+    },
+
+    getAssetFrontendPath: function (data, options) {
+        // Would have been great to be able to re-use the asset API to fetch
+        // these data, but it's such a JS dependency hell that it's easier to
+        // just create a new endpoint to fetch the info...
+        try {
+            var response = Ext.Ajax.request({
+                url: Routing.generate('pimcore_admin_asset_getfrontendpath'),
+                async: false,
+                params: {
+                    id: data.id,
+                    type: "source",
+                },
+            });
+            var res = Ext.decode(response.responseText);
+            if (typeof res.path != "undefined" && res.path) {
+                return res.path;
+            }
+        } catch (e) {
+            console.error('Unable to load asset data - fallback to unprocessed path. ' + e);
+        }
+        return data.path;
     },
 
     checkValue: function (mark) {
