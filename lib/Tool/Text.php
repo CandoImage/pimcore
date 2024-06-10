@@ -102,7 +102,7 @@ class Text
                             continue;
                         }
 
-                        $path = $element->getFullPath();
+                        $path = $element->getFrontendFullPath();
 
                         // resize image to the given attributes
                         $config = null;
@@ -139,6 +139,8 @@ class Text
                         // only create a thumbnail if it is not disabled
                         if (!preg_match('/pimcore_disable_thumbnail="([^"]+)*"/', $oldTag)) {
                             if (!empty($config)) {
+                                // Ensure full frontend path is returned.
+                                $config['frontend'] = true;
                                 $path = $element->getThumbnail($config);
                                 $pathHdpi = $element->getThumbnail(array_merge($config, ['highResolution' => 2]));
                                 $additionalAttributes = [
@@ -149,10 +151,12 @@ class Text
                                 // for those big images we don't generate a hdpi version
                                 $path = $element->getThumbnail([
                                     'width' => 2000,
+                                    'frontend' => true,
                                 ]);
                             } else {
-                                // return the original
-                                $path = $element->getFullPath();
+                                // return the original with _FULL_ path. This
+                                // respects the frontend_prefixes setting.
+                                $path = $element->getFrontendFullPath();
                             }
                         }
                     }

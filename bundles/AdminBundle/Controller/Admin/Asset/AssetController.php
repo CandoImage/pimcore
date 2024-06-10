@@ -1347,6 +1347,66 @@ class AssetController extends ElementControllerBase implements KernelControllerE
     }
 
     /**
+     * @Route("/get-asset-frontend-path", name="pimcore_admin_asset_getfrontendpath", methods={"GET"})
+     *
+     * @param Request $request
+     *
+     * @return StreamedResponse|JsonResponse|BinaryFileResponse
+     */
+    public function getAssetFrontendPathAction(Request $request)
+    {
+        $pathType = $request->get('pathType', 'source');
+        $thumbnailConfig = $request->get('thumbnailConfig');
+        $asset = Asset::getById((int)$request->get('id'));
+
+        if ($pathType != 'source' && !$thumbnailConfig) {
+            throw $this->createNotFoundException('No thumbnail config found. Check the thumbnailConfig parameter in the request.');
+        }
+
+        if (!$asset) {
+            throw $this->createNotFoundException('Asset not found');
+        }
+
+        if (!$asset->isAllowed('view')) {
+            throw $this->createAccessDeniedException('not allowed to view asset');
+        }
+
+        switch (true) {
+            case $asset instanceof Asset\Video && $pathType != 'source':
+                $asset = new Asset\Video\ImageThumbnail($asset, $thumbnailConfig);
+                break;
+            case $asset instanceof Asset\Document && $pathType != 'source':
+                $asset = new Asset\Document\ImageThumbnail($asset, $thumbnailConfig);
+                break;
+            case $asset instanceof Asset\Image && $pathType != 'source':
+                $asset = new Asset\Image\Thumbnail($asset, $thumbnailConfig);
+                break;
+        }
+
+        switch ($pathType) {
+            case 'deferred':
+                $path = $asset->getPath([
+                    'frontend' => true,
+                    'deferredAllowed' => true
+                ]);
+                break;
+            case 'thumbnail':
+                $path = $asset->getPath([
+                    'frontend' => true,
+                    'deferredAllowed' => false
+                ]);
+                break;
+            case 'source':
+            default:
+                $path = $asset->getFrontendFullPath();
+        }
+
+        return $this->adminJson([
+            'path' => $path,
+        ]);
+    }
+
+    /**
      * @Route("/get-image-thumbnail", name="pimcore_admin_asset_getimagethumbnail", methods={"GET"})
      *
      * @param Request $request
