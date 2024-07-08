@@ -57,8 +57,7 @@ class CleanupDirectoryTask implements TaskInterface
             if ($file->isFile()) {
                 @unlink($file->getPathname());
             }
-
-            if (is_dir_empty($file->getPath())) {
+            if (is_dir_empty($file->getPath()) && $file->getPath() !== $directory->getPath()) {
                 @rmdir($file->getPath());
             }
         }
