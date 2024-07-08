@@ -88,8 +88,10 @@ final class PimcoreCoreExtension extends ConfigurableExtension implements Prepen
         // @deprecated since Pimcore 10.1, parameter will be removed in Pimcore 11
         $container->setParameter('pimcore.response_exception_listener.render_error_document', $config['error_handling']['render_error_document']);
 
-        $container->setParameter('pimcore.maintenance.housekeeping.cleanup_tmp_files_atime_older_than', $config['maintenance']['housekeeping']['cleanup_tmp_files_atime_older_than']);
         $container->setParameter('pimcore.maintenance.housekeeping.cleanup_profiler_files_atime_older_than', $config['maintenance']['housekeeping']['cleanup_profiler_files_atime_older_than']);
+
+        $container->setParameter('pimcore.maintenance.cleanup_directory.cleanup_files_atime_older_than', $config['maintenance']['cleanup_directory']['cleanup_files_atime_older_than']);
+        $container->setParameter('pimcore.maintenance.cleanup_directory.directories', $config['maintenance']['cleanup_directory']['directories']);
 
         $container->setParameter('pimcore.documents.default_controller', $config['documents']['default_controller']);
         $container->setParameter('pimcore.documents.web_to_print.default_controller_print_page', $config['documents']['web_to_print']['default_controller_print_page']);

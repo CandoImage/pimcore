@@ -1,54 +1,22 @@
 <?php
 
-/**
- * Pimcore
- *
- * This source file is available under two different licenses:
- * - GNU General Public License version 3 (GPLv3)
- * - Pimcore Commercial License (PCL)
- * Full copyright and license information is available in
- * LICENSE.md which is distributed with this source code.
- *
- *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
- *  @license    http://www.pimcore.org/license     GPLv3 and PCL
- */
-
 namespace Pimcore\Maintenance\Tasks;
 
 use Pimcore\Maintenance\TaskInterface;
 
-/**
- * @internal
- */
-class HousekeepingTask implements TaskInterface
+class CleanupDirectoryTask implements TaskInterface
 {
-    /**
-     * @var int
-     */
-    protected $tmpFileTime;
-
-    /**
-     * @var int
-     */
-    protected $profilerTime;
-
-    /**
-     * @param int $profilerTime
-     */
-    public function __construct(int $profilerTime)
-    {
-        $this->profilerTime = $profilerTime;
+    public function __construct(
+        protected int $tmpFileTime,
+        protected array $cleanupDirectories
+    ) {
     }
 
-    /**
-     * {@inheritdoc}
-     */
+
     public function execute()
     {
-        foreach (['dev'] as $environment) {
-            $profilerDir = sprintf('%s/%s/profiler', PIMCORE_SYMFONY_CACHE_DIRECTORY, $environment);
-
-            $this->deleteFilesInFolderOlderThanSeconds($profilerDir, $this->profilerTime);
+        foreach ($this->cleanupDirectories as $directory) {
+            $this->deleteFilesInFolderOlderThanSeconds($directory, $this->tmpFileTime);
         }
     }
 
@@ -56,7 +24,7 @@ class HousekeepingTask implements TaskInterface
      * @param string $folder
      * @param int $seconds
      */
-    private function deleteFilesInFolderOlderThanSeconds($folder, $seconds)
+    private function deleteFilesInFolderOlderThanSeconds(string $folder, int $seconds): void
     {
         if (!is_dir($folder)) {
             return;
@@ -89,8 +57,7 @@ class HousekeepingTask implements TaskInterface
             if ($file->isFile()) {
                 @unlink($file->getPathname());
             }
-
-            if (is_dir_empty($file->getPath())) {
+            if (is_dir_empty($file->getPath()) && $file->getPath() !== $directory->getPath()) {
                 @rmdir($file->getPath());
             }
         }
