@@ -214,6 +214,7 @@ pimcore.document.edit = Class.create({
         });
 
         // add target group selection to toolbar
+        this.targetGroupConfirmationSkipped = false;
         this.targetGroup = new Ext.form.ComboBox({
             displayField:'text',
             valueField: "id",
@@ -222,21 +223,41 @@ pimcore.document.edit = Class.create({
             triggerAction: 'all',
             width: 240,
             listeners: {
-                select: function (el) {
+                beforeselect: function (el, record) {
                     if(this.document.isDirty()) {
+                        if (!!this.targetGroupConfirmationSkipped) {
+                            return true;
+                        }
                         Ext.Msg.confirm(t('warning'), t('you_have_unsaved_changes')
                             + "<br />" + t("continue") + "?",
                             function(btn){
                                 if (btn === 'yes'){
-                                    this.reload(true);
-                                    this.updateTargetGroupText(this.targetGroup.getValue());
+                                    // el.select() will trigger beforeselect BUT
+                                    // it won't trigger select - don't ask me
+                                    // why. However, we need to disengage the
+                                    // dirty confirmation dialogue and trigger
+                                    // the select handling ourselves.
+                                    this.targetGroupConfirmationSkipped = true;
+                                    el.select(record, true);
+                                    this.targetGroupConfirmationSkipped = false;
+                                    el.fireEvent('select', record);
                                 }
                             }.bind(this)
                         );
-                    } else {
-                        this.reload();
-                        this.updateTargetGroupText(this.targetGroup.getValue());
+                        return false;
                     }
+                    return true;
+                }.bind(this),
+
+                select: function (el, record) {
+                    // Disable save to session if there's nothing dirty
+                    // anyways.
+                    this.targetGroupConfirmationSkipped = false;
+                    // Reset the change detector when loading a different target
+                    // group.
+                    this.document.resetChanges('reload');
+                    this.reload(true);
+                    this.updateTargetGroupText(this.targetGroup.getValue());
                 }.bind(this)
             }
         });
