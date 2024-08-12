@@ -185,7 +185,14 @@ class Fieldcollections extends Data implements CustomResourcePersistingInterface
                 $collectionData = [];
                 $collectionKey = $collectionRaw['type'];
 
-                $oIndex = $collectionRaw['oIndex'] ?? null;
+                // fixed in https://github.com/pimcore/pimcore/issues/9645 but partially reverted in
+                // https://github.com/pimcore/pimcore/commit/44a08b55e897e2595734d74ad878b443fab5fd29
+                // looks like there is some merge issue. Will be fixed on Pimcore 11.
+                // $oIndex = $collectionRaw['oIndex'] ?? null;
+                $oIndex = null;
+                if (!isset($params['objectFromVersion']) || $params['objectFromVersion'] === false) {
+                    $oIndex = $collectionRaw['oIndex'] ?? null;
+                }
 
                 $collectionDef = DataObject\Fieldcollection\Definition::getByKey($collectionKey);
                 $fieldname = $this->getName();
