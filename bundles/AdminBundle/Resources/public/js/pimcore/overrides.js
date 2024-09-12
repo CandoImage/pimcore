@@ -410,6 +410,14 @@ Ext.define('pimcore.data.PagingTreeStore', {
             me.superclass.onProxyLoad.call(this, operation);
             var proxy = this.getProxy();
             proxy.setExtraParam("start", 0);
+
+            // CANDO OPTIMIZATION START
+            // this line will reset the childNodeId to make sure it'll not interfere with other proxy requests
+            // childNodeId will be set in the treenodelocator.js and can be used within a custom listener
+            // to improve the performance on the client side
+            proxy.setExtraParam('childNodeId', null);
+            // CANDO OPTIMIZATION END
+
         } catch (e) {
             console.log(e);
         }

@@ -421,6 +421,13 @@ pimcore.treenodelocator = function()
             proxy.setExtraParam("start", pagingState.offset);
             node.pagingData.offset = pagingState.offset;
 
+            // CANDO OPTIMIZATION START
+            // this line will set the childNodeId to add it to the backend request and can be used within
+            // a custom listener with the event pimcore.admin.object.list.beforeListLoad to improve the performance
+            // childNodeId will be reset in the treenodelocator.js
+            proxy.setExtraParam('childNodeId', pagingState.childNodeId);
+            // CANDO OPTIMIZATION END
+
             store.load({
                 node: node,
                 callback: self.processPaging
