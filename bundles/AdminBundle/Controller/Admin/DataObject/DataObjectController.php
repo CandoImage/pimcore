@@ -147,6 +147,25 @@ class DataObjectController extends ElementControllerBase implements KernelContro
             /** @var DataObject\Listing $childrenList */
             $childrenList = $beforeListLoadEvent->getArgument('list');
 
+            // CANDO OPTIMIZATION START
+            // do special logic to reduce amount of request by locating an object in a tree with huge amount of items
+            // basically it will clone the specified list and calculate the count of items to the current child
+            // based on that, the page and afterward, the offset can be calculated
+            $childNodeId = $request->get('childNodeId', null);
+            if (!empty($childNodeId)) {
+                // find offset
+                $offset = 0;
+                $clonedChildList = clone $childrenList;
+                $clonedChildList->setOffset($offset);
+                $clonedChildList->addConditionParam('o_key < ( SELECT o_key FROM objects WHERE o_id = ? )', $childNodeId);
+                $totalCountOfPreviousItems = $clonedChildList->getTotalCount();
+                $page = (int) ceil($totalCountOfPreviousItems / $limit);
+                $offset = (int) ($page - 1) * $limit;
+                // reset offset
+                $childrenList->setOffset($offset);
+            }
+            // CANDO OPTIMIZATION END
+
             $children = $childrenList->load();
             $filteredTotalCount = $childrenList->getTotalCount();
 
