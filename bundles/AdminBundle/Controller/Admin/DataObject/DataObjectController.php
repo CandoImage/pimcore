@@ -157,7 +157,17 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                 $offset = 0;
                 $clonedChildList = clone $childrenList;
                 $clonedChildList->setOffset($offset);
-                $clonedChildList->addConditionParam('o_key < ( SELECT o_key FROM objects WHERE o_id = ? )', $childNodeId);
+                if ($object->getChildrenSortBy() === 'index') {
+                    $clonedChildList->addConditionParam(
+                        'o_index < ( SELECT o_index FROM objects WHERE o_id = ? )',
+                        $childNodeId
+                    );
+                } else {
+                    $clonedChildList->addConditionParam(
+                        'o_key < ( SELECT o_key FROM objects WHERE o_id = ? )',
+                        $childNodeId
+                    );
+                }
                 $totalCountOfPreviousItems = $clonedChildList->getTotalCount();
                 $page = (int) ceil($totalCountOfPreviousItems / $limit);
                 $offset = (int) ($page - 1) * $limit;
