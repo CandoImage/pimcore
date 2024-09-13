@@ -1189,9 +1189,14 @@ class DataObjectController extends ElementControllerBase implements KernelContro
 
                 $object->save();
 
-                if ($isIndexUpdate) {
+                // CANDO OPTIMIZATION START
+                // do update indexes only if parents childrenSortBy is set to index
+                // sort by index cannot be set on nodes with paged children anyway
+                // it doesn't make sense to sort by index on large amount of data in one node
+                if ($isIndexUpdate && $parent->getChildrenSortBy() === 'index') {
                     $this->updateIndexesOfObjectSiblings($object, $indexUpdate);
                 }
+                // CANDO OPTIMIZATION END
 
                 $success = true;
             } catch (\Exception $e) {
