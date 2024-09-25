@@ -222,8 +222,9 @@ class DataObjectController extends ElementControllerBase implements KernelContro
             // check if childNodeId is in current list, if not do it again by recalling this function
             $found = false;
             foreach ($children as $child) {
-                if ($child->getId() === $childNodeId) {
+                if ($child->getId() === (int) $childNodeId) {
                     $found = true;
+                    break;
                 }
             }
 
