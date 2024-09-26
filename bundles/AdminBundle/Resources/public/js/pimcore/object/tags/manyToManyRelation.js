@@ -30,7 +30,11 @@ pimcore.object.tags.manyToManyRelation = Class.create(pimcore.object.tags.abstra
         this.fieldConfig.classes =  this.fieldConfig.classes.filter(function (x) {
             if(x.classes == 'folder') {
                 this.dataObjectFolderAllowed = true;
-                return false;
+                // Pimcore returns false, why ?
+                // in this case the "folder" is removed from the allowed classes by reference
+                // and if a new field collection is created without a new request for the field collection definition
+                // it is missing and its not possible to drag and drop folders
+                return true;
             }
             return true;
         }.bind(this));
