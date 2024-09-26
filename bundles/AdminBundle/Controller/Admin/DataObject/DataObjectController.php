@@ -118,50 +118,32 @@ class DataObjectController extends ElementControllerBase implements KernelContro
                 $limit = 100;
             }
 
-            $childrenList = new DataObject\Listing();
-            $childrenList->setCondition($this->buildChildrenCondition($object, $filter, $view));
-            $childrenList->setLimit($limit);
-            $childrenList->setOffset($offset);
-
-            if ($object->getChildrenSortBy() === 'index') {
-                $childrenList->setOrderKey('objects.o_index ASC', false);
-            } else {
-                $childrenList->setOrderKey(
-                    sprintf(
-                        'CAST(objects.o_%s AS CHAR CHARACTER SET utf8) COLLATE utf8_general_ci %s',
-                        $object->getChildrenSortBy(), $object->getChildrenSortOrder()
-                    ),
-                    false
-                );
-            }
-            $childrenList->setObjectTypes($objectTypes);
-
-            Element\Service::addTreeFilterJoins($cv, $childrenList);
-
-            $beforeListLoadEvent = new GenericEvent($this, [
-                'list' => $childrenList,
-                'context' => $allParams,
-            ]);
-            $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::OBJECT_LIST_BEFORE_LIST_LOAD);
-
-            /** @var DataObject\Listing $childrenList */
-            $childrenList = $beforeListLoadEvent->getArgument('list');
-
-            $children = $childrenList->load();
-            $filteredTotalCount = $childrenList->getTotalCount();
-
-            foreach ($children as $child) {
-                $objectTreeNode = $this->getTreeNodeConfig($child);
-                // this if is obsolete since as long as the change with #11714 about list on line 175-179 are working fine, we already filter the list=1 there
-                if ($objectTreeNode['permissions']['list'] == 1) {
-                    $objects[] = $objectTreeNode;
-                }
-            }
-
-            //pagination for custom view
-            $total = $cv
-                ? $filteredTotalCount
-                : $object->getChildAmount(null, $this->getAdminUser());
+            // CANDO OPTIMIZATION START
+            // Because of the tree node locator is searching the tree with several pages per node with a binary search,
+            // which is triggered by the Admin UI JS. If there is a node with thousands of items, it makes a new request
+            // for every halving until the searched item was found between the offset and limit.
+            // To reduce the amount of requests this fix will get ID of the child node. If there are more items in the
+            // node as the limit it will recursive iterate through every page till the correct page is found.
+            // The original part of code is refactored into a separate function, which can be called recursively.
+            $childNodeId = $request->get('childNodeId', null);
+            $result = $this->getChildrenList(
+                $eventDispatcher,
+                $object,
+                $objectTypes,
+                $allParams,
+                $limit,
+                $offset,
+                $filter,
+                $view,
+                $cv,
+                $childNodeId
+            );
+            // get the children list data and map them to the correct variables
+            $objects = $result['objects'];
+            $filteredTotalCount = $result['filteredTotalCount'];
+            $offset = $result['offset'];
+            $total = $result['total'];
+            // CANDO OPTIMIZATION END
         }
 
         //Hook for modifying return value - e.g. for changing permissions based on object data
@@ -188,6 +170,107 @@ class DataObjectController extends ElementControllerBase implements KernelContro
 
         return $this->adminJson($objects);
     }
+
+    // CANDO OPTIMIZATION START
+    private function getChildrenList(
+        EventDispatcherInterface $eventDispatcher,
+        DataObject $object,
+        array $objectTypes,
+        array $allParams,
+        int $limit,
+        int $offset,
+        ?string $filter,
+        ?string $view,
+        array|bool|null $cv,
+        ?string $childNodeId
+    ): array {
+        $objects = [];
+        $childrenList = new DataObject\Listing();
+        $childrenList->setCondition($this->buildChildrenCondition($object, $filter, $view));
+        $childrenList->setLimit($limit);
+        $childrenList->setOffset($offset);
+
+        if ($object->getChildrenSortBy() === 'index') {
+            $childrenList->setOrderKey('objects.o_index ASC', false);
+        } else {
+            $childrenList->setOrderKey(
+                sprintf(
+                    'CAST(objects.o_%s AS CHAR CHARACTER SET utf8) COLLATE utf8_general_ci %s',
+                    $object->getChildrenSortBy(), $object->getChildrenSortOrder()
+                ),
+                false
+            );
+        }
+        $childrenList->setObjectTypes($objectTypes);
+
+        Element\Service::addTreeFilterJoins($cv, $childrenList);
+
+        $beforeListLoadEvent = new GenericEvent($this, [
+            'list' => $childrenList,
+            'context' => $allParams,
+        ]);
+        $eventDispatcher->dispatch($beforeListLoadEvent, AdminEvents::OBJECT_LIST_BEFORE_LIST_LOAD);
+
+        /** @var DataObject\Listing $childrenList */
+        $childrenList = $beforeListLoadEvent->getArgument('list');
+
+        $children = $childrenList->load();
+        $filteredTotalCount = $childrenList->getTotalCount();
+
+        // only execute the recursive call if the childNodeId is set
+        if (!empty($childNodeId)) {
+            // check if childNodeId is in current list, if not do it again by recalling this function
+            $found = false;
+            foreach ($children as $child) {
+                if ($child->getId() === (int) $childNodeId) {
+                    $found = true;
+                    break;
+                }
+            }
+
+            // if the child node is not found, then call this function again
+            if (!$found) {
+                $nextOffset = $offset + $limit;
+                // if next offset is higher than the filtered total count, then the item was not found at all
+                if ($filteredTotalCount > $nextOffset) {
+                    return $this->getChildrenList(
+                        $eventDispatcher,
+                        $object,
+                        $objectTypes,
+                        $allParams,
+                        $limit,
+                        $nextOffset,
+                        $filter,
+                        $view,
+                        $cv,
+                        $childNodeId
+                    );
+                }
+            }
+        }
+
+        foreach ($children as $child) {
+            $objectTreeNode = $this->getTreeNodeConfig($child);
+            // this if is obsolete since as long as the change with #11714 about list on line 175-179 are working fine, we already filter the list=1 there
+            if ($objectTreeNode['permissions']['list'] == 1) {
+                $objects[] = $objectTreeNode;
+            }
+        }
+
+        //pagination for custom view
+        $total = $cv
+            ? $filteredTotalCount
+            : $object->getChildAmount(null, $this->getAdminUser());
+
+        // return all calculated values to the calling function as an array
+        return [
+            'objects' => $objects,
+            'filteredTotalCount' => $filteredTotalCount,
+            'offset' => $offset,
+            'total' => $total,
+        ];
+    }
+    // CANDO OPTIMIZATION END
 
     /**
      * @param DataObject\AbstractObject $object
@@ -1160,9 +1243,14 @@ class DataObjectController extends ElementControllerBase implements KernelContro
 
                 $object->save();
 
-                if ($isIndexUpdate) {
+                // CANDO OPTIMIZATION START
+                // do update indexes only if parents childrenSortBy is set to index
+                // sort by index cannot be set on nodes with paged children anyway
+                // it doesn't make sense to sort by index on large amount of data in one node
+                if ($isIndexUpdate && $parent->getChildrenSortBy() === 'index') {
                     $this->updateIndexesOfObjectSiblings($object, $indexUpdate);
                 }
+                // CANDO OPTIMIZATION END
 
                 $success = true;
             } catch (\Exception $e) {
