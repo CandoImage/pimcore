@@ -181,7 +181,7 @@ class DataObjectController extends ElementControllerBase implements KernelContro
         int $offset,
         ?string $filter,
         ?string $view,
-        ?array $cv,
+        array|bool|null $cv,
         ?string $childNodeId
     ): array {
         $objects = [];
