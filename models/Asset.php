@@ -30,6 +30,7 @@ use Pimcore\Config;
 use Pimcore\Event\AssetEvents;
 use Pimcore\Event\FrontendEvents;
 use Pimcore\Event\Model\AssetEvent;
+use Pimcore\Event\Model\AssetPreLoadEvent;
 use Pimcore\File;
 use Pimcore\Helper\TemporaryFileHelperTrait;
 use Pimcore\Loader\ImplementationLoader\Exception\UnsupportedException;
@@ -275,6 +276,10 @@ class Asset extends Element\AbstractElement
 
             try {
                 $asset->getDao()->getById($id);
+                // fire pre load event
+                $preLoadEvent = new AssetPreLoadEvent($asset, ['params' => $params]);
+                \Pimcore::getEventDispatcher()->dispatch($preLoadEvent, AssetEvents::PRE_LOAD);
+                $asset = $preLoadEvent->getAsset();
 
                 $className = \Pimcore::getContainer()->get('pimcore.class.resolver.asset')->resolve($asset->getType());
                 /** @var Asset $newAsset */
@@ -295,6 +300,14 @@ class Asset extends Element\AbstractElement
                 $asset = null;
             }
         } else {
+            try {
+                // fire pre load event
+                $preLoadEvent = new AssetPreLoadEvent($asset, ['params' => $params]);
+                \Pimcore::getEventDispatcher()->dispatch($preLoadEvent, AssetEvents::PRE_LOAD);
+                $asset = $preLoadEvent->getAsset();
+            } catch (NotFoundException $e) {
+                return null;
+            }
             RuntimeCache::set($cacheKey, $asset);
         }
 
@@ -306,7 +319,7 @@ class Asset extends Element\AbstractElement
         } else {
             $asset = null;
         }
-
+        /** @var ?static $asset */
         return $asset;
     }
 

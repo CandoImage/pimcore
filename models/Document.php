@@ -21,6 +21,7 @@ use Pimcore\Cache\RuntimeCache;
 use Pimcore\Event\DocumentEvents;
 use Pimcore\Event\FrontendEvents;
 use Pimcore\Event\Model\DocumentEvent;
+use Pimcore\Event\Model\DocumentPreLoadEvent;
 use Pimcore\Logger;
 use Pimcore\Model\Document\Hardlink\Wrapper\WrapperInterface;
 use Pimcore\Model\Document\Listing;
@@ -211,6 +212,10 @@ class Document extends Element\AbstractElement
 
             try {
                 $document->getDao()->getById($id);
+                // fire pre load event
+                $preLoadEvent = new DocumentPreLoadEvent($document, ['params' => $params]);
+                \Pimcore::getEventDispatcher()->dispatch($preLoadEvent, DocumentEvents::PRE_LOAD);
+                $document = $preLoadEvent->getDocument();
             } catch (NotFoundException $e) {
                 return null;
             }
@@ -235,6 +240,14 @@ class Document extends Element\AbstractElement
 
             \Pimcore\Cache::save($document, $cacheKey);
         } else {
+            try {
+                // fire pre load event
+                $preLoadEvent = new DocumentPreLoadEvent($document, ['params' => $params]);
+                \Pimcore::getEventDispatcher()->dispatch($preLoadEvent, DocumentEvents::PRE_LOAD);
+                $document = $preLoadEvent->getDocument();
+            } catch (NotFoundException $e) {
+                return null;
+            }
             RuntimeCache::set($cacheKey, $document);
         }
 
@@ -246,7 +259,7 @@ class Document extends Element\AbstractElement
             new DocumentEvent($document, ['params' => $params]),
             DocumentEvents::POST_LOAD
         );
-
+        /** @var ?static $document */
         return $document;
     }
 
