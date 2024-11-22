@@ -57,6 +57,11 @@ abstract class Adapter
     /**
      * @var bool
      */
+    protected $preserveAnimation = false;
+
+    /**
+     * @var bool
+     */
     protected $preserveMetaData = false;
 
     /**
@@ -530,7 +535,7 @@ abstract class Adapter
         $this->tmpFiles[] = $tmpFile;
 
         $format = 'png32';
-        if ($this->isPreserveColor() || $this->isPreserveMetaData()) {
+        if ($this->isPreserveColor() || $this->isPreserveMetaData() || $this->isPreserveAnimation()) {
             $format = 'original';
         }
 
@@ -635,6 +640,22 @@ abstract class Adapter
     public function setPreserveMetaData($preserveMetaData)
     {
         $this->preserveMetaData = $preserveMetaData;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isPreserveAnimation()
+    {
+        return $this->preserveAnimation;
+    }
+
+    /**
+     * @param bool $preserveAnimation
+     */
+    public function setPreserveAnimation(bool $preserveAnimation): void
+    {
+        $this->preserveAnimation = $preserveAnimation;
     }
 
     /**

@@ -173,6 +173,15 @@ pimcore.settings.thumbnail.item = Class.create({
                         style: "margin-bottom: 20px"
                     }, {
                         xtype: "checkbox",
+                        name: "preserveAnimation",
+                        boxLabel: t("preserve_animation") + " (Imagick)",
+                        checked: this.data.preserveAnimation
+                    }, {
+                        xtype: "container",
+                        html: "<small>(" + t("preserve_animation_info_text") + ")</small>",
+                        style: "margin-bottom: 20px"
+                    }, {
+                        xtype: "checkbox",
                         name: "downloadable",
                         style: "margin-bottom:0",
                         boxLabel: t("list_thumbnail_in_download_section_on_image_detail_view"),
@@ -201,7 +210,7 @@ pimcore.settings.thumbnail.item = Class.create({
 
     addMediaPanel: function (name, items, closable, activate) {
 
-        if(name.match(/^\d+w$/)) {
+        if (name.match(/^\d+w$/)) {
             // convert legacy syntax to new syntax/name
             name = '(max-width: ' + name.replace("w", "") + 'px)';
         }
