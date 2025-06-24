@@ -471,7 +471,8 @@ final class Thumbnail
     private function getSrcset(Config $thumbConfig, Image $image, array $options, ?string $mediaQuery = null): string
     {
         $srcSetValues = [];
-        foreach ([1, 2] as $highRes) {
+        $maxDpiFactor = $thumbConfig::getMaxDpiFactor();
+        for ($highRes=1; $highRes <= $maxDpiFactor; $highRes++) {
             $thumbConfigRes = clone $thumbConfig;
             if ($mediaQuery) {
                 $thumbConfigRes->selectMedia($mediaQuery);
