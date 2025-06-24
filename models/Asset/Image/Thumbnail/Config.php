@@ -973,4 +973,14 @@ final class Config extends Model\AbstractModel
 
         $this->setName($this->getName() . '_auto_' . md5($serialized));
     }
+
+    /**
+     * @internal
+     *
+     * @return integer
+     */
+    public static function getMaxDpiFactor(): int
+    {
+        return \Pimcore::getContainer()->getParameter('pimcore.config')['assets']['image']['thumbnails']['max_srcset_dpi_factor'];
+    }
 }
