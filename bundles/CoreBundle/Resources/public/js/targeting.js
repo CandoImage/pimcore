@@ -304,7 +304,7 @@
                 const activityLogLimit = 4000;
                 if (this.data.activityLog.length > activityLogLimit) {
                     util.logger.canLog('info') && console.info('[TARGETING] ' + this.data.activityLog.length + ' acitvityLog items exceed limit of ' + activityLogLimit + '. Evicting excess.', this);
-                    this.data.activityLog = this.data.activityLog.slice(0, activityLogLimit);
+                    this.data.activityLog = this.data.activityLog.slice(-activityLogLimit);
                 }
                 localStorage.setItem("_ptg.user", JSON.stringify(this.data));
             }
